@@ -1,0 +1,43 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["CrestAI LLC"]
+license = "Apache-2.0"
+repository = "https://github.com/crestai-labs/feld"
+publish = false
+
+[workspace.dependencies]
+feld-core = { path = "crates/feld-core" }
+feld-daemon = { path = "crates/feld-daemon" }
+anyhow = "1.0"
+axum = "0.8"
+async-stream = "0.3"
+futures-core = "0.3"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+clap = { version = "4.5", features = ["derive", "env"] }
+cron = "0.15"
+fs2 = "0.4"
+http-body-util = "0.1"
+iana-time-zone = "0.1"
+libc = "0.2"
+notify = "8"
+prost = "0.14"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+rust-embed = { version = "8.12", features = ["debug-embed"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"
+subtle = "2.6"
+toml_edit = "0.22"
+tokio = { version = "1.47", features = ["macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+thiserror = "2.0"
+tower = { version = "0.5", features = ["limit", "util"] }
+uuid = { version = "1.18", features = ["v4"] }
+tempfile = "3.21"

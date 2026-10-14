@@ -1,0 +1,8 @@
+{
+  "name": "fixture-runtime",
+  "kind": "runtime",
+  "label": "Fixture Runtime",
+  "stopInput": [
+    "/fixture-exit"
+  ]
+}

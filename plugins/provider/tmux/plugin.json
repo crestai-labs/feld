@@ -1,0 +1,5 @@
+{
+  "name": "tmux",
+  "kind": "provider",
+  "label": "tmux"
+}

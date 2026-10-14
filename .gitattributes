@@ -1,0 +1,2 @@
+# The TypeScript build of web/, which the daemon embeds.
+web/dist/** linguist-generated=true

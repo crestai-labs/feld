@@ -1,0 +1,25 @@
+{
+  "name": "codex",
+  "kind": "runtime",
+  "label": "Codex",
+  "stopInput": [
+    "/quit",
+    ""
+  ],
+  "ownedSettings": [
+    "hooks",
+    "otel"
+  ],
+  "metrics": {
+    "codex.turn.token_usage": "token_usage",
+    "codex.turn.cost_microusd": "estimated_cost",
+    "codex.api_request": "api_errors",
+    "codex.websocket.request": "api_errors",
+    "codex.turn.ttft.duration_ms": "api_request_latency_p95",
+    "codex.tool.call": "tool_calls",
+    "feld.codex.context_window.size": "context_window_utilization.size",
+    "feld.codex.context_window.used_percent": "context_window_utilization.used_percent",
+    "feld.codex.rate_limit.used_percent": "quota.used_percent",
+    "feld.codex.rate_limit.resets_at": "quota.resets_at"
+  }
+}

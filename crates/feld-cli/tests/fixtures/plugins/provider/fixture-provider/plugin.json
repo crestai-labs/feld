@@ -1,0 +1,5 @@
+{
+  "name": "fixture-provider",
+  "kind": "provider",
+  "label": "Fixture Provider"
+}

@@ -1,0 +1,111 @@
+# A `v*` tag becomes a GitHub Release: check, then build the archive of each target, then
+# release them with the message of the annotated tag as the notes. A manual run stops after
+# build and keeps the archives as artifacts of the run. The version, the notes and the tag
+# come from the release skill.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_DENY_VERSION: 0.20.2
+  CARGO_ABOUT_VERSION: 0.9.2
+
+jobs:
+  check:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install Rust and the tools
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          cargo install cargo-deny --locked --version "$CARGO_DENY_VERSION"
+          brew install tmux
+      - run: cargo deny check advisories licenses
+      - run: npm --prefix web audit
+      - run: make check
+
+  # The archive is named by the host triple of the runner. Ubuntu 22.04 links glibc 2.35, so
+  # the Linux archive runs on Ubuntu 22.04, Debian 12, and later.
+  build:
+    needs: check
+    strategy:
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install Rust and the tools
+        run: |
+          rustup toolchain install stable --profile minimal
+          cargo install cargo-about --locked --features cli --version "$CARGO_ABOUT_VERSION"
+      - name: Read the version
+        id: version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json, sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "feld"))')
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::the tag $GITHUB_REF_NAME differs from the version $version in Cargo.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: .claude/skills/release/scripts/package.sh "v$VERSION"
+      - name: Check the version of the archive
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          name=feld-v$VERSION-$(rustc -vV | sed -n 's/^host: //p')
+          [ "$name" = "feld-v$VERSION-$TARGET" ] || { echo "::error::the host builds $name, not $TARGET"; exit 1; }
+          dir=$(mktemp -d)
+          tar -xzf "dist/$name.tar.gz" -C "$dir"
+          "$dir/$name/feld" --version | tee /dev/stderr | grep -q "^feld $VERSION "
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: archive-${{ matrix.target }}
+          path: |
+            dist/feld-v*.tar.gz
+            dist/feld-v*.tar.gz.sha256
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: archive-*
+          merge-multiple: true
+          path: dist
+      - name: Create the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          .claude/skills/release/scripts/notes.sh "$VERSION" > notes.md
+          [ -s notes.md ] || { echo "::error::the tag $GITHUB_REF_NAME has no message body; it must be an annotated tag with the Release notes"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md dist/feld-v*.tar.gz dist/feld-v*.tar.gz.sha256

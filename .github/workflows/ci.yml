@@ -1,0 +1,207 @@
+# `cargo deny`, `npm audit`, and `make check` on Linux. A merge to main checks with the tmux
+# of the OS, the latest herdr, and stand-ins for the Runtimes; a manual run checks the release
+# candidate twice in parallel, with the minimum and with the latest of every product, the real
+# Claude Code and Codex included. The summary of each run records the versions it checked with.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+  workflow_dispatch:
+    # The minimum versions: the oldest release of each that the minimum configuration passes
+    # with, as the table of supported versions in docs/spec/design/plugin.md names them. A
+    # run overrides one to try it.
+    inputs:
+      herdr:
+        description: herdr of the minimum configuration
+        default: 0.9.0
+      claude-code:
+        description: Claude Code of the minimum configuration
+        default: 2.1.181
+      codex:
+        description: Codex of the minimum configuration, the first that takes --no-daemon
+        default: 0.156.0
+
+# A newer merge to main supersedes the run of the one before it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_DENY_VERSION: 0.20.2
+  # The tests of these products fail, rather than step aside, when the runner lacks them.
+  FELD_TEST_REQUIRE: tmux,herdr
+
+jobs:
+  check:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install Rust and tmux
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          sudo apt-get update
+          sudo apt-get install -y tmux
+      - name: Install herdr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          gh release download --repo herdrdev/herdr --pattern herdr-linux-x86_64 --output "$HOME/.local/bin/herdr"
+          chmod +x "$HOME/.local/bin/herdr"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version "$CARGO_DENY_VERSION"
+      - name: Record the versions
+        run: |
+          {
+            echo '| Product | Version |'
+            echo '|---|---|'
+            echo "| tmux | $(tmux -V) |"
+            echo "| herdr | $(herdr --version) |"
+            echo "| Rust | $(rustc --version) |"
+            echo "| Node | $(node --version) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: cargo deny check advisories licenses
+      - run: npm --prefix web audit
+      - run: make check
+
+  # The latest release of every product, the real Claude Code and Codex included, which the
+  # tests run against the Anthropic API and the OpenAI API.
+  latest:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      FELD_TEST_REQUIRE: tmux,herdr,claude-code,codex
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+      - name: Find the latest tmux
+        id: tmux
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "version=$(gh release view --repo tmux/tmux --json tagName --jq .tagName)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: tmux-cache
+        with:
+          path: ~/tmux
+          key: tmux-${{ steps.tmux.outputs.version }}-ubuntu-24.04
+      - name: Build tmux
+        if: steps.tmux-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.tmux.outputs.version }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libevent-dev libncurses-dev bison pkg-config
+          gh release download "$VERSION" --repo tmux/tmux --pattern "tmux-$VERSION.tar.gz" --dir "$RUNNER_TEMP"
+          tar -xzf "$RUNNER_TEMP/tmux-$VERSION.tar.gz" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/tmux-$VERSION"
+          ./configure --prefix="$HOME/tmux"
+          make -j"$(nproc)"
+          make install
+      - name: Install tmux, herdr, Claude Code, and Codex
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libevent-2.1-7t64 libevent-core-2.1-7t64
+          echo "$HOME/tmux/bin" >> "$GITHUB_PATH"
+          mkdir -p "$HOME/.local/bin"
+          gh release download --repo herdrdev/herdr --pattern herdr-linux-x86_64 --output "$HOME/.local/bin/herdr"
+          chmod +x "$HOME/.local/bin/herdr"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm install --global @anthropic-ai/claude-code@latest @openai/codex@latest
+      # Codex's Linux sandbox (bubblewrap) runs in an unprivileged user namespace, which the
+      # AppArmor of Ubuntu 24.04 restricts by default.
+      - name: Allow the sandbox of Codex
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version "$CARGO_DENY_VERSION"
+      - name: Record the versions
+        run: |
+          {
+            echo '| Product | Version |'
+            echo '|---|---|'
+            echo "| tmux | $(tmux -V) |"
+            echo "| herdr | $(herdr --version) |"
+            echo "| Claude Code | $(claude --version) |"
+            echo "| Codex | $(codex --version) |"
+            echo "| Rust | $(rustc --version) |"
+            echo "| Node | $(node --version) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: cargo deny check advisories licenses
+      - run: npm --prefix web audit
+      - run: make check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  # The minimum of every product: the tmux of Ubuntu 22.04 (3.2a), and herdr, Claude Code, and
+  # Codex of the versions the inputs name.
+  minimum:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    env:
+      FELD_TEST_REQUIRE: tmux,herdr,claude-code,codex
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The oldest Node the minimum Claude Code runs on.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+      - name: Install tmux, herdr, Claude Code, and Codex
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERDR: ${{ inputs.herdr }}
+          CLAUDE_CODE: ${{ inputs.claude-code }}
+          CODEX: ${{ inputs.codex }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tmux
+          mkdir -p "$HOME/.local/bin"
+          gh release download "v$HERDR" --repo herdrdev/herdr --pattern herdr-linux-x86_64 --output "$HOME/.local/bin/herdr"
+          chmod +x "$HOME/.local/bin/herdr"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          npm install --global "@anthropic-ai/claude-code@$CLAUDE_CODE" "@openai/codex@$CODEX"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version "$CARGO_DENY_VERSION"
+      - name: Record the versions
+        run: |
+          {
+            echo '| Product | Version |'
+            echo '|---|---|'
+            echo "| OS | $(lsb_release --description --short) |"
+            echo "| tmux | $(tmux -V) |"
+            echo "| herdr | $(herdr --version) |"
+            echo "| Claude Code | $(claude --version) |"
+            echo "| Codex | $(codex --version) |"
+            echo "| Rust | $(rustc --version) |"
+            echo "| Node | $(node --version) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: cargo deny check advisories licenses
+      - run: npm --prefix web audit
+      - run: make check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

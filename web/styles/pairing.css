@@ -1,0 +1,230 @@
+/* The pairing screen (shell/Pairing.tsx): one card centered on the page ground, which
+   takes the place of the page's sidebar and content. */
+.feld-pairing {
+  display: grid;
+  grid-template-columns: minmax(0, 440px);
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 24px 16px;
+}
+
+.feld-pairing__card {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-float);
+}
+
+.feld-pairing__loading {
+  display: grid;
+  place-items: center;
+}
+
+.feld-pairing__loading .sidebar__feld-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+}
+
+.feld-pairing__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  font-size: 17px;
+  letter-spacing: -.01em;
+}
+
+.feld-pairing__notice {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  border-radius: 8px;
+}
+
+.feld-pairing h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.feld-pairing__intro,
+.feld-pairing__local {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.feld-pairing__steps {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.feld-pairing__steps li > span:first-child,
+.feld-pairing__steps small {
+  display: block;
+}
+
+.feld-pairing__steps small {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.feld-pairing__command {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 4px;
+  padding: 3px 4px 3px 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.feld-pairing__command code {
+  font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-pairing__copy {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-faint);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.feld-pairing__copy:hover {
+  color: var(--ink);
+  background: var(--line);
+}
+
+.feld-pairing__copy.is-copied {
+  color: var(--ok);
+}
+
+.feld-pairing__copy svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.feld-pairing__form {
+  margin-bottom: 20px;
+}
+
+.feld-pairing__form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.feld-pairing__field {
+  display: flex;
+  gap: 8px;
+}
+
+.feld-pairing__field input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  color: var(--ink);
+  font: 600 18px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.feld-pairing__field input::placeholder {
+  color: var(--ink-faint);
+  letter-spacing: .12em;
+}
+
+.feld-pairing__field input:focus-visible {
+  border-color: var(--accent-strong);
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.feld-pairing__submit {
+  flex: none;
+  height: 40px;
+  padding: 0 18px;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.feld-pairing__submit:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.feld-pairing__submit:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.feld-pairing__message {
+  min-height: 18px;
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.feld-pairing__message.is-error {
+  color: var(--danger-text);
+}
+
+.feld-pairing__message.is-ok {
+  color: var(--ok-text);
+}
+
+.feld-pairing__message a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.feld-pairing__local {
+  padding-top: 16px;
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .feld-pairing__card {
+    padding: 22px 18px;
+  }
+}

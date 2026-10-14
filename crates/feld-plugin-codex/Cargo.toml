@@ -1,0 +1,23 @@
+[package]
+name = "feld-plugin-codex"
+description = "The codex Plugin Feld ships"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+feld-core.workspace = true
+anyhow.workspace = true
+base64.workspace = true
+libc.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+toml_edit.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

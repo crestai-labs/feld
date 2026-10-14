@@ -1,0 +1,1403 @@
+.feld-console__live-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--ink-faint);
+  border-radius: 50%;
+}
+
+.feld-console__live-dot.is-running {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 15%, transparent);
+}
+
+.feld-console__live-dot.is-failed {
+  background: var(--danger);
+}
+
+/* An Agent that exited with no stop or kill recorded: attention, short of a failure claim. */
+.feld-console__live-dot.is-exited {
+  background: var(--warning);
+}
+
+.feld-console__terminal {
+  display: grid;
+  min-height: 0;
+  /* The identity bar's facts do not wrap; a shrinkable column keeps them from widening
+     the terminal past its rail so the transcript still wraps at the visible edge. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  /* The terminal is dark on every theme, so its native controls are too. */
+  color-scheme: dark;
+  color: #d7dce2;
+  background: #12161b;
+}
+
+.feld-console__terminal.has-recording {
+  container-type: inline-size;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.feld-console__terminal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 16px;
+  background: #181d23;
+  border-bottom: 1px solid #2a313a;
+}
+
+.feld-console__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.feld-console__identity > div {
+  min-width: 0;
+}
+
+.feld-console__identity strong,
+.feld-console__identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-console__identity strong {
+  color: #f3f5f7;
+  font-size: 12px;
+}
+
+.feld-console__identity small {
+  color: #808a96;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__terminal-bar .feld-console__status {
+  color: #a9b1ba;
+  background: #222831;
+  border-color: #333b46;
+}
+
+.feld-console__terminal-bar .feld-console__status.is-running {
+  color: #6fe58a;
+  border-color: rgb(63 185 80 / 36%);
+}
+
+.feld-console__terminal-bar .feld-console__status.is-failed {
+  color: #ff817a;
+  border-color: rgb(248 81 73 / 38%);
+}
+
+.feld-console__terminal-bar .feld-console__status.is-exited {
+  color: #f0c35a;
+  border-color: rgb(227 169 59 / 40%);
+}
+
+.feld-console__terminal-bar dl {
+  display: flex;
+  min-width: 0;
+  gap: 22px;
+  margin: 0;
+}
+
+.feld-console__terminal-bar dl > div {
+  min-width: 0;
+}
+
+/* The model is whatever the Runtime Adapter delivered, so a long one is cut rather than
+   allowed to run over the cell beside it. */
+.feld-console__terminal-bar dt,
+.feld-console__terminal-bar dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-console__terminal-bar dt {
+  color: #808a96;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.feld-console__terminal-bar dd {
+  margin-top: 2px;
+  color: #aeb6c0;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@container (max-width: 600px) {
+  .feld-console__terminal-bar dl > div:last-child {
+    display: none;
+  }
+}
+
+.feld-console__terminal-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.feld-console__status {
+  flex: none;
+  padding: 2px 7px;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.feld-console__status.is-running {
+  color: var(--ok-text);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+
+.feld-console__status.is-failed {
+  color: var(--danger-text);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.feld-console__status.is-exited {
+  color: var(--warning-text);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+
+/* Outcome labels are sentences ("Exited without request"), so no capitalisation is forced. */
+.feld-console__status.is-exited,
+.feld-console__status.is-unknown {
+  text-transform: none;
+}
+
+.feld-console__recording-chrome {
+  min-width: 0;
+}
+
+.feld-console__recording-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #171c22;
+  border-bottom: 1px solid #2a313a;
+}
+
+.feld-console__recording-tabs {
+  display: inline-flex;
+  padding: 2px;
+  background: #0f1317;
+  border: 1px solid #303844;
+  border-radius: 6px;
+}
+
+.feld-console__recording-tabs button {
+  min-height: 25px;
+  padding: 2px 9px;
+  color: #808a96;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feld-console__recording-tabs button:not([aria-pressed="true"]):hover {
+  color: #edf0f2;
+  background: #1d232b;
+}
+
+.feld-console__recording-tabs button[aria-pressed="true"] {
+  color: #edf0f2;
+  background: #2b333d;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+}
+
+.feld-console__recording-tabs button span {
+  margin-left: 3px;
+  color: #75808c;
+  font-variant-numeric: tabular-nums;
+}
+
+.feld-console__transcript {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 0 28px;
+  scrollbar-color: #39424d #15191e;
+}
+
+.feld-console__transcript.is-recording {
+  padding: 0;
+  background: #101419;
+  scroll-padding-top: 43px;
+}
+
+.feld-console__recording-panel {
+  width: min(100%, 900px);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 18px clamp(14px, 3cqw, 28px) 52px;
+}
+
+.feld-console__recording-panel[hidden],
+.feld-console__recording-panel > [hidden] {
+  display: none;
+}
+
+/* A row away from the viewport is laid out at the size it was last drawn, and not painted.
+   The margin keeps the outline of a marked row inside it. */
+.feld-console__recording-panel > [data-recording-item] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+  overflow-clip-margin: 8px;
+}
+
+.feld-console__message {
+  margin: 0 0 18px;
+}
+
+.feld-console__message header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #89939f;
+  font-size: 11px;
+}
+
+.feld-console__speaker {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  color: #d9e0e6;
+  background: #29313a;
+  border: 1px solid #3a444f;
+  border-radius: 50%;
+  font: 700 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__message.is-human .feld-console__speaker {
+  color: #dbeeff;
+  background: #24405a;
+  border-color: #376489;
+}
+
+.feld-console__message header strong {
+  color: #cbd2da;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.feld-console__message header time {
+  margin-left: auto;
+  color: #808a96;
+  font: 9.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__message-body {
+  color: #d9dee4;
+  font: 13px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A heading of a message, in the conversation or in a Message record's body. */
+.feld-console__heading {
+  margin: 12px 0 4px;
+  color: #e6ebf0;
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.feld-console__heading[data-level="1"] {
+  font-size: 1.18em;
+}
+
+.feld-console__heading[data-level="2"] {
+  font-size: 1.1em;
+}
+
+.feld-console__heading:first-child {
+  margin-top: 0;
+}
+
+.feld-console__message-body > code {
+  padding: 1px 4px;
+  color: #d4bfec;
+  background: #1d1725;
+  border: 1px solid #33263f;
+  border-radius: 3px;
+  font: .88em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__table-scroll {
+  max-width: 100%;
+  margin: 12px 0;
+  overflow: auto;
+  border: 1px solid #303944;
+  border-radius: 5px;
+  white-space: normal;
+  scrollbar-width: thin;
+}
+
+.feld-console__table-scroll table {
+  width: 100%;
+  min-width: 620px;
+  border-spacing: 0;
+  color: #cbd3dc;
+  font: 10.5px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.feld-console__table-scroll th,
+.feld-console__table-scroll td {
+  padding: 8px 10px;
+  vertical-align: top;
+  text-align: left;
+  border-right: 1px solid #29313a;
+  border-bottom: 1px solid #29313a;
+}
+
+.feld-console__table-scroll th {
+  color: #e2e7ec;
+  background: #1b222a;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.feld-console__table-scroll td {
+  background: #11161c;
+}
+
+.feld-console__table-scroll :is(th, td):last-child {
+  border-right: 0;
+}
+
+.feld-console__table-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.feld-console__formatted-block {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 10px 0;
+  padding: 10px 12px;
+  overflow: auto;
+  color: #cbd3dc;
+  background: #0d1115;
+  border: 1px solid #2a323b;
+  border-radius: 5px;
+  font: 10.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-ligatures: none;
+  overflow-wrap: normal;
+  overscroll-behavior-inline: contain;
+  tab-size: 2;
+  white-space: pre;
+  scrollbar-width: thin;
+}
+
+.feld-console__formatted-block:focus-visible {
+  outline: 2px solid var(--console-accent-bright);
+  outline-offset: 2px;
+}
+
+.feld-console__formatted-block code {
+  font: inherit;
+}
+
+.feld-console__message.is-human {
+  margin-left: clamp(12px, 7cqw, 54px);
+  padding: 13px 14px;
+  background: #19232c;
+  border: 1px solid #2e3b47;
+  border-radius: 8px;
+}
+
+.feld-console__message.is-human .feld-console__message-body {
+  color: #eef2f5;
+}
+
+.feld-console__message.is-claude {
+  padding: 2px 2px 2px 11px;
+  border-left: 2px solid #724fa0;
+}
+
+/* A Runtime notification. */
+.feld-console__notification {
+  margin: 0 0 18px 11px;
+  overflow: hidden;
+  background: #13181e;
+  border: 1px solid #29313a;
+  border-radius: 7px;
+}
+
+.feld-console__work > summary,
+.feld-console__reasoning > summary,
+.feld-console__tool > summary,
+.feld-console__event > summary,
+.feld-console__notification > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.feld-console__work > summary::-webkit-details-marker,
+.feld-console__reasoning > summary::-webkit-details-marker,
+.feld-console__tool > summary::-webkit-details-marker,
+.feld-console__event > summary::-webkit-details-marker,
+.feld-console__notification > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A Work group and the Runtime's reasoning: one quiet line in the flow of the
+   conversation, opened in place with what it holds indented below it. */
+.feld-console__work,
+.feld-console__reasoning {
+  margin: 0 0 10px 11px;
+}
+
+.feld-console__work > summary,
+.feld-console__reasoning > summary {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: baseline;
+  gap: 6px;
+  color: #808a96;
+  font: 10.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__work > summary::before,
+.feld-console__reasoning > summary::before {
+  content: "▸";
+  transition: transform 120ms ease;
+}
+
+.feld-console__work[open] > summary::before,
+.feld-console__reasoning[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.feld-console__work > summary:hover,
+.feld-console__reasoning > summary:hover {
+  color: #9fa9b4;
+}
+
+.feld-console__work.is-error > summary small {
+  color: #ff817a;
+}
+
+.feld-console__notification > summary:hover {
+  background: #181e25;
+}
+
+.feld-console__notification > summary strong {
+  color: #b7c0c9;
+}
+
+.feld-console__work > summary small,
+.feld-console__notification > summary small {
+  color: #808a96;
+  font: inherit;
+}
+
+.feld-console__work-list {
+  margin: 4px 0 0 14px;
+}
+
+.feld-console__reasoning pre {
+  max-height: 340px;
+  margin: 4px 0 0 14px;
+  padding-left: 10px;
+  overflow: auto;
+  color: #808a96;
+  border-left: 1px solid #29313a;
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+}
+
+.feld-console__tool {
+  background: #101419;
+  border-radius: 5px;
+}
+
+.feld-console__tool + .feld-console__tool {
+  margin-top: 3px;
+}
+
+.feld-console__tool > summary {
+  display: grid;
+  min-height: 34px;
+  grid-template-columns: 16px auto minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: #75808c;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__tool > summary:hover,
+.feld-console__event > summary:hover {
+  background: #171d23;
+}
+
+.feld-console__tool-icon {
+  color: #d2a85b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.feld-console__tool.is-error .feld-console__tool-icon,
+.feld-console__tool.is-error > summary small {
+  color: #ff817a;
+}
+
+/* A call the records hold, whose result they do not hold yet. Neither a completion nor a
+   failure: nothing was written after the call. */
+.feld-console__tool.is-pending .feld-console__tool-icon,
+.feld-console__tool.is-pending > summary small {
+  color: #808a96;
+}
+
+.feld-console__tool-pending {
+  margin: 0;
+  color: #808a96;
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__tool > summary strong {
+  color: #aeb7c1;
+}
+
+.feld-console__tool > summary > span:nth-of-type(2),
+.feld-console__notification > summary > span:nth-of-type(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-console__tool > summary small {
+  color: #4f9f63;
+  font: inherit;
+}
+
+.feld-console__tool > summary::after,
+.feld-console__event > summary::after,
+.feld-console__notification > summary::after {
+  color: #65717e;
+  content: "›";
+  font-size: 15px;
+  line-height: 1;
+  text-align: center;
+  transition: transform 120ms ease;
+}
+
+.feld-console__tool[open] > summary::after,
+.feld-console__event[open] > summary::after,
+.feld-console__notification[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.feld-console__tool-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  border-top: 1px solid #252c34;
+}
+
+.feld-console__tool-detail section {
+  min-width: 0;
+  padding: 10px;
+}
+
+.feld-console__tool-detail section + section {
+  border-left: 1px solid #252c34;
+}
+
+.feld-console__tool-detail h4 {
+  margin: 0 0 7px;
+  color: #808a96;
+  font: 650 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.feld-console__tool-detail pre,
+.feld-console__event-detail pre,
+.feld-console__recording-system pre {
+  max-height: 340px;
+  margin: 0;
+  overflow: auto;
+  color: #9fa9b4;
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+}
+
+.feld-console__tool-detail pre {
+  font-variant-ligatures: none;
+  overflow-wrap: normal;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.feld-console__recording-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.feld-console__recording-images figure {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #090c10;
+  border: 1px solid #303844;
+  border-radius: 5px;
+}
+
+.feld-console__recording-images img {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.feld-console__recording-images figcaption {
+  padding: 5px 7px;
+  color: #808a96;
+  border-top: 1px solid #252c34;
+  font: 9px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__recording-system {
+  display: grid;
+  grid-template-columns: 58px 52px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 0 14px 11px;
+  padding: 9px 10px;
+  background: #13181e;
+  border-left: 2px solid #596573;
+}
+
+.feld-console__recording-system time,
+.feld-console__recording-system > span {
+  color: #808a96;
+  font: 9.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__recording-system pre {
+  max-height: 150px;
+}
+
+/* What a live program Session's output gained, told to a screen reader alone. */
+.feld-console__announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The head of a paged column: the records before the page held, read when pressed. */
+.feld-console__older {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0 14px;
+  border: 0;
+  background: none;
+  color: #6c7783;
+  font: 9.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.feld-console__older:hover {
+  color: #8b96a2;
+}
+
+.feld-console__older:focus-visible {
+  outline: 2px solid var(--console-accent-bright);
+  outline-offset: -2px;
+}
+
+.feld-console__older[data-loading] {
+  color: #8b96a2;
+  cursor: default;
+}
+
+.feld-console__event {
+  border-bottom: 1px solid #242b33;
+}
+
+.feld-console__event > summary {
+  display: grid;
+  min-height: 34px;
+  grid-template-columns: 28px 58px 54px minmax(0, 1fr) 12px;
+  align-items: center;
+  gap: 8px;
+  color: #6f7a86;
+  font: 9.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__event > summary code,
+.feld-console__event > summary time {
+  color: #808a96;
+  font: inherit;
+}
+
+.feld-console__event-kind {
+  overflow: hidden;
+  color: #87919d;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.feld-console__event.is-human .feld-console__event-kind { color: #76aee0; }
+.feld-console__event.is-claude .feld-console__event-kind { color: #b38ae7; }
+.feld-console__event.is-tool .feld-console__event-kind { color: #d2a85b; }
+
+.feld-console__event > summary strong {
+  overflow: hidden;
+  color: #a5aeb8;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-console__event-detail {
+  padding: 10px 12px 14px 156px;
+  background: #0d1115;
+  border-top: 1px solid #242b33;
+}
+
+.feld-console__event-detail pre {
+  max-height: 460px;
+}
+
+@container (max-width: 580px) {
+  .feld-console__tool-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feld-console__tool-detail section + section {
+    border-top: 1px solid #252c34;
+    border-left: 0;
+  }
+
+  .feld-console__event-detail {
+    padding-left: 12px;
+  }
+}
+
+.feld-console__unavailable {
+  width: min(100% - 32px, 680px);
+  box-sizing: border-box;
+  margin: 22px auto;
+  padding: 12px 14px;
+  color: #89939f;
+  background: #171c22;
+  border: 1px solid #2a313a;
+  border-radius: 6px;
+  font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__read-only {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  color: #808a96;
+  background: #181d23;
+  border-top: 1px solid #2a313a;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* In a narrow terminal the state text gives way to the event count instead of wrapping
+   into it. */
+.feld-console__read-only > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-console__read-only > span:last-child {
+  flex: none;
+}
+
+/* Compact Session rail transcript. */
+@media (max-width: 760px) {
+  .feld-console__transcript {
+    padding: 10px 0 20px;
+  }
+
+  .feld-console__read-only {
+    padding: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feld-console__feld-facts::after,
+  .feld-console__work > summary::before,
+  .feld-console__reasoning > summary::before,
+  .feld-console__tool > summary::after,
+  .feld-console__event > summary::after,
+  .feld-console__notification > summary::after {
+    transition: none;
+  }
+}
+
+/* Record rows interleaved with the transcript file. They carry Feld's blue,
+   the family the Timeline uses, so a Control Plane record never reads as something the
+   person or the model said. */
+.feld-console__feld {
+  position: relative;
+  margin: 0 0 18px;
+  padding: 10px 12px 10px 14px;
+  background: var(--console-row-bg);
+  border: 1px solid var(--console-row-border);
+  border-left: 3px solid var(--console-accent);
+  border-radius: 7px;
+}
+
+.feld-console__feld.is-focused {
+  border-color: var(--console-accent-bright);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--console-accent-bright) 14%, transparent);
+}
+
+/* A transcript entry the Console was opened at (the Now section's last record). */
+.feld-console__runtime-focus {
+  border-radius: 7px;
+  outline: 2px solid color-mix(in srgb, var(--console-accent-bright) 45%, transparent);
+  outline-offset: 4px;
+}
+
+/* Session end rows take the outcome's colour, the same tokens as the Timeline's end
+   markers: red for a failed Job run, amber for an Agent that exited without a stop
+   or kill request, a dashed frame for an outcome the observation could not prove. */
+.feld-console__feld.is-end-failed {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  border-left-color: var(--danger);
+}
+
+.feld-console__feld.is-end-failed .feld-console__feld-mark,
+.feld-console__feld.is-end-failed header strong {
+  color: var(--danger);
+}
+
+.feld-console__feld.is-end-failed .feld-console__feld-mark {
+  background: color-mix(in srgb, var(--danger) 16%, var(--console-row-bg));
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+}
+
+/* Amber rows: an Agent that exited without request, and a Message accepted while this
+   Session was current that no Session has read (the fact, and the colour, of the
+   unread-mail mark in the Actor column). */
+.feld-console__feld.is-end-exited,
+.feld-console__feld.is-message-waiting {
+  border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+  border-left-color: var(--warning);
+}
+
+.feld-console__feld.is-end-exited .feld-console__feld-mark,
+.feld-console__feld.is-end-exited header strong,
+.feld-console__feld.is-message-waiting .feld-console__feld-mark,
+.feld-console__feld.is-message-waiting header strong {
+  color: var(--warning);
+}
+
+.feld-console__feld.is-end-exited .feld-console__feld-mark,
+.feld-console__feld.is-message-waiting .feld-console__feld-mark {
+  background: color-mix(in srgb, var(--warning) 16%, var(--console-row-bg));
+  border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+}
+
+.feld-console__feld.is-end-unknown {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+/* A skipped tick is amber like the skip mark in the Actor column. */
+.feld-console__feld.is-schedule-skipped {
+  border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+  border-left-color: var(--warning);
+}
+
+.feld-console__feld.is-schedule-skipped .feld-console__feld-mark,
+.feld-console__feld.is-schedule-skipped header strong {
+  color: var(--warning);
+}
+
+/* A kill request is a force end. */
+.feld-console__feld.is-kill {
+  border-left-color: var(--danger);
+}
+
+/* Observation records (All events and log view only) are quieter than the requests
+   and Messages around them. */
+.feld-console__feld.is-observation {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-style: dotted;
+  border-left-style: solid;
+  border-left-color: color-mix(in srgb, var(--console-accent) 55%, transparent);
+}
+
+.feld-console__feld.is-observation header strong {
+  font-weight: 500;
+}
+
+.feld-console__feld header {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  color: #89939f;
+  font-size: 11px;
+}
+
+.feld-console__feld-mark {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  flex: none;
+  place-items: center;
+  align-self: center;
+  color: var(--console-accent-bright);
+  background: var(--console-fill);
+  border: 1px solid var(--console-fill-border);
+  border-radius: 50%;
+}
+
+.feld-console__feld-mark svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.feld-console__feld header strong {
+  flex: none;
+  color: var(--console-ink);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.feld-console__feld-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: #96a2ad;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-console__feld header time {
+  flex: none;
+  color: #808a96;
+  font: 9.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* A Message record reads like a mail: the envelope line names the other party, and the
+   body below it is the whole text, with the little markdown a message leans on. */
+.feld-console__feld-envelope {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0 29px;
+  color: #96a2ad;
+  font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.feld-console__feld-envelope > span {
+  flex: none;
+  min-width: 34px;
+  color: #808a96;
+  font: 650 9px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.feld-console__feld-envelope > strong {
+  color: var(--console-ink);
+  font-size: 12.5px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.feld-console__feld-body {
+  margin: 9px 0 0 29px;
+  padding: 8px 11px;
+  color: #cfd6dc;
+  background: var(--console-body-bg);
+  border: 1px solid var(--console-body-border);
+  border-radius: 5px;
+  font: 12px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.feld-console__feld-body > code {
+  padding: 1px 4px;
+  color: #d4bfec;
+  background: #1d1725;
+  border: 1px solid #33263f;
+  border-radius: 3px;
+  font: .88em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__feld-body > strong {
+  color: #e6ebf0;
+  font-weight: 650;
+}
+
+.feld-console__feld-body.is-preview {
+  color: #a9b2bc;
+}
+
+/* A long body shows its head, fading out, until the reader opens it. */
+.feld-console__feld-text.is-clipped .feld-console__feld-body {
+  max-height: 240px;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+
+.feld-console__feld-more {
+  display: block;
+  margin: 4px 0 0 29px;
+  padding: 3px 0;
+  color: var(--console-accent-bright);
+  background: none;
+  border: 0;
+  font: 600 11px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.feld-console__feld-more:hover {
+  text-decoration: underline;
+}
+
+.feld-console__feld-body-note {
+  display: block;
+  margin-top: 6px;
+  color: #808a96;
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: normal;
+}
+
+/* The transcript entry a row was matched to keeps the shape it has elsewhere. */
+.feld-console__feld > .feld-console__tool,
+.feld-console__feld > .feld-console__notification {
+  margin: 9px 0 0 29px;
+  border: 1px solid var(--console-body-border);
+}
+
+.feld-console__feld > .feld-console__notification {
+  margin-bottom: 0;
+}
+
+/* The ledger a record opens on request: its type and ID, how it was placed, its facts. */
+.feld-console__feld-detail {
+  margin: 8px 0 0 29px;
+  padding: 9px 10px 10px;
+  background: var(--console-body-bg);
+  border: 1px solid var(--console-body-border);
+  border-radius: 5px;
+}
+
+.feld-console__feld-record {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 7px;
+  color: #75808c;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__feld-record strong {
+  color: #aeb7c1;
+}
+
+.feld-console__feld-id {
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  flex: none;
+  background: var(--console-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--console-accent) 16%, transparent);
+}
+
+.feld-console__feld-record code,
+.feld-console__feld-anchor code {
+  color: var(--console-ink-soft);
+  font: inherit;
+}
+
+.feld-console__feld-anchor {
+  margin: 0 0 9px;
+  color: #808a96;
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.feld-console__feld-anchor > span {
+  color: var(--console-ink);
+}
+
+.feld-console__feld-anchor.is-instant > span {
+  color: #b7c0c9;
+}
+
+.feld-console__ledger {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.feld-console__ledger > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 128px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.feld-console__ledger dt {
+  padding-top: 1px;
+  color: #808a96;
+  font: 650 9px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.feld-console__ledger dd {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  gap: 2px;
+}
+
+.feld-console__ledger dd strong {
+  color: #d9dee4;
+  font: 600 11.5px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.feld-console__ledger dd span {
+  color: #96a2ad;
+  font: 10.5px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.feld-console__ledger dd small {
+  color: var(--console-ink-soft);
+  font: 9.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* The header's tail: where the record leads, its facts toggle, and its instant. */
+.feld-console__feld-tail {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.feld-console__feld-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feld-console__feld-links button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 7px;
+  color: var(--console-ink);
+  background: var(--console-fill);
+  border: 1px solid var(--console-fill-border);
+  border-radius: 5px;
+  font: 600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.feld-console__feld-links button:hover {
+  background: var(--console-fill-hover);
+  border-color: var(--console-fill-hover-border);
+}
+
+.feld-console__feld-facts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 6px;
+  color: #808a96;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  cursor: pointer;
+}
+
+.feld-console__feld-facts::after {
+  color: #65717e;
+  content: "›";
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 120ms ease;
+}
+
+.feld-console__feld-facts[aria-expanded="true"]::after {
+  transform: rotate(90deg);
+}
+
+.feld-console__feld-facts:hover {
+  color: var(--console-ink);
+  background: var(--console-row-hover);
+  border-color: var(--console-body-border);
+}
+
+.feld-console__feld-links button:focus-visible,
+.feld-console__feld-facts:focus-visible {
+  outline: 2px solid var(--console-accent-bright);
+  outline-offset: 1px;
+}
+
+/* A Runtime notification: a `user` line the Runtime itself marks as not typed by a person
+   (a Monitor or background-task event). It is a transcript entry, never a prompt. */
+.feld-console__notification > summary {
+  display: grid;
+  min-height: 36px;
+  grid-template-columns: 16px auto minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  color: #808a96;
+  font: 10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__notification-mark {
+  justify-self: center;
+  color: #d2a85b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.feld-console__notification pre {
+  max-height: 340px;
+  margin: 0;
+  padding: 10px 11px;
+  overflow: auto;
+  color: #9fa9b4;
+  border-top: 1px solid #252c34;
+  font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+}
+
+@container (max-width: 560px) {
+  .feld-console__feld header {
+    flex-wrap: wrap;
+  }
+
+  .feld-console__feld-summary {
+    flex-basis: 100%;
+    order: 3;
+    white-space: normal;
+  }
+
+  .feld-console__feld-envelope,
+  .feld-console__feld-body,
+  .feld-console__feld-more,
+  .feld-console__feld > .feld-console__tool,
+  .feld-console__feld > .feld-console__notification,
+  .feld-console__feld-detail {
+    margin-left: 0;
+  }
+
+  .feld-console__ledger > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* ---- Program log view --------------------------------------------------------------- */
+
+/* A program Session's Console: the captured stdout and stderr, one line per record, with
+   Feld's own records placed between them by instant. Nothing here is a prompt or a
+   response. */
+.feld-console__log {
+  display: grid;
+}
+
+.feld-console__log-line {
+  display: grid;
+  grid-template-columns: 58px 44px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  margin: 0 0 0 11px;
+  padding: 2px 10px;
+  border-left: 2px solid #2a323b;
+}
+
+.feld-console__log-line time,
+.feld-console__log-stream {
+  color: #808a96;
+  font: 9.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-console__log-line.is-stderr {
+  border-left-color: #a2732f;
+}
+
+.feld-console__log-line.is-stderr .feld-console__log-stream {
+  color: #d1a355;
+}
+
+.feld-console__log-line pre {
+  margin: 0;
+  overflow-x: auto;
+  color: #d7dce2;
+  font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+}
+
+.feld-console__log-line.is-stderr pre {
+  color: #e8caa0;
+}
+
+.feld-console__log > .feld-console__feld {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}

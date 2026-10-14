@@ -1,0 +1,63 @@
+name: Bug report
+description: Report behavior that does not work as expected
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before pasting output, check that it contains no secrets (tokens, names in paths, and so on).
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "Output of `feld doctor`"
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: "Output of `feld --version`"
+      description: "Fill in if the output of `feld doctor` does not include it"
+      render: text
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: OS and version
+      description: "Fill in if the output of `feld doctor` does not include it"
+      placeholder: macOS 15.5
+    validations:
+      required: false
+  - type: input
+    id: execution-provider
+    attributes:
+      label: Execution Provider and version
+      description: "Fill in if the output of `feld doctor` does not include it"
+      placeholder: tmux 3.5a
+    validations:
+      required: false
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and version
+      description: "Fill in if the output of `feld doctor` does not include it"
+      placeholder: Claude Code 2.1.0
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `feld init`
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true

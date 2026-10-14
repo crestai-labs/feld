@@ -1,0 +1,6 @@
+#!/bin/sh
+# One of the four parts that run beside Claude Code. The Plugin executable beside this
+# directory implements them all, and the path of this shim names it, so that whatever
+# environment Claude Code passes down, the part runs through the Plugin it belongs to.
+dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec "$dir/plugin" helper status-line "$@"

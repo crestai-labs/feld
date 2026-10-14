@@ -1,0 +1,6 @@
+#!/bin/sh
+# One of the two parts that run beside Codex. The Plugin executable beside this directory
+# implements them both, and the path of this shim names it, so that whatever environment
+# Codex passes down, the part runs through the Plugin it belongs to.
+dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+exec "$dir/plugin" helper queue-helper "$@"

@@ -1,0 +1,713 @@
+/* Color tokens, the one place a color that carries meaning is written. Surfaces have three
+   tiers: --bg (page ground and sidebar), --panel (the working area and its tables), and
+   --panel-raised (menus, popovers, pickers, and bottom sheets that float over the panel).
+   --line is the quiet separator inside a table; --border outlines controls and floating
+   surfaces.
+
+   Hue carries the meaning. The brand is a deep blue, and --accent-strong takes it into the
+   primary controls: buttons, selection, links, focus, and the Codex chart series.
+   --timeline-session draws the Sessions themselves in the same blue family, while the
+   histograms that ride along them are cyan, the hue kept for data in motion. --ok,
+   --warning, and --danger stay green, amber, and red so a state never reads as the brand,
+   and --series-claude is orange, well away from both.
+
+   Text takes the -text forms of --ink-faint, --ok, --warning, --danger, and --accent-strong,
+   held at 4.5:1 against every surface tier and the tints laid under them; lines, fills, and
+   glyphs keep the base tokens. */
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f8;
+  --panel: #ffffff;
+  --panel-raised: #ffffff;
+  --ink: #202224;
+  --ink-soft: #656b73;
+  --ink-faint: #94a3b8;
+  --ink-faint-text: #5f6b7c;
+  --line: #eceef0;
+  --border: #dde0e4;
+  --accent: #3b82f6;
+  --accent-strong: #2563eb;
+  --accent-band: rgb(37 99 235 / 12%);
+  --accent-text: #1d4ed8;
+  /* The fill of a primary button, white text on it on every theme. */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --ok: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --ok-text: #15803d;
+  --warning-text: #a14a06;
+  --danger-text: #c42020;
+  --bar-1: #3a3936;
+  --bar-2: #9c9a93;
+  --bar-3: #d2d0c9;
+  /* Session lines are the brand's deepest blue so they sit quietly on the light ground; the
+     inspected line is the brighter accent with a heavier stroke. The histograms riding on
+     them are cyan, the hue this UI keeps for data in motion. */
+  --timeline-session: #1e40af;
+  --timeline-session-opacity: .92;
+  --timeline-session-width: 4;
+  --timeline-session-selected-width: 5;
+  --timeline-sub-agent-width: 3;
+  --timeline-histogram: #06b6d4;
+  --timeline-histogram-opacity: .3;
+  --timeline-context-histogram-opacity: .42;
+  --series-claude: #c9784a;
+  /* The accounts of a quota lane. Hues kept apart from the Runtime series (orange, blue)
+     and the states (green, amber, red), so an account never reads as a Runtime or a state. */
+  --series-account-1: #0d9488;
+  --series-account-2: #7c3aed;
+  --series-account-3: #db2777;
+  --series-account-4: #65a30d;
+  --series-account-5: #64748b;
+  --series-account-6: #a16207;
+  --shadow-float: 0 16px 36px rgb(24 30 36 / 14%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Dark themes. Each is one --dark-* token set selected by data-dark-theme on <html>
+   (written by app.js, or by the previews' standalone theme control); the two dark
+   selectors below map the selected set onto the page tokens, so a theme is never
+   written twice. Graphite is the default and needs no attribute. The attribute is
+   matched on any element so the Settings page can scope one theme's tokens to that
+   theme's swatch. */
+
+/* Graphite: Feld's warm neutral identity with the luminance steps widened. Three surface
+   tiers, borders at 1.7:1 against the panel, faint text at 3.3:1, and every accent, status,
+   and series color brightened so lines clear the dark ground. */
+:root,
+[data-dark-theme="graphite"] {
+  --dark-bg: #0e0e0d;
+  --dark-panel: #1c1c1b;
+  --dark-panel-raised: #282826;
+  --dark-ink: #eeece6;
+  --dark-ink-soft: #a6a49c;
+  --dark-ink-faint: #706e67;
+  --dark-line: #2d2d2a;
+  --dark-border: #42413c;
+  --dark-accent: #3b82f6;
+  --dark-accent-strong: #60a5fa;
+  --dark-accent-band: rgb(59 130 246 / 22%);
+  --dark-ok: #4ade80;
+  --dark-warning: #fbbf24;
+  --dark-danger: #f87171;
+  --dark-ink-faint-text: #94928b;
+  --dark-accent-text: #74b1fb;
+  --dark-ok-text: #4ade80;
+  --dark-warning-text: #fbbf24;
+  --dark-danger-text: #f87171;
+  --dark-bar-1: #dedcd5;
+  --dark-bar-2: #8f8d86;
+  --dark-bar-3: #4c4b46;
+  --dark-timeline-session: #3b82f6;
+  --dark-timeline-session-opacity: .94;
+  --dark-timeline-histogram: #22d3ee;
+  --dark-timeline-histogram-opacity: .34;
+  --dark-timeline-context-histogram-opacity: .52;
+  --dark-series-claude: #e39463;
+  --dark-shadow-float: 0 16px 40px rgb(0 0 0 / 55%);
+}
+
+/* Sumi: near-black warm surfaces with cream ink at 15.5:1, hierarchy carried by 1px
+   lines rather than by surface luminance, and one vivid blue for selection, cursor,
+   focus, and the Codex series. Status colors are a green, a yellow, and a red. */
+[data-dark-theme="sumi"] {
+  --dark-bg: #0c0c0b;
+  --dark-panel: #151514;
+  --dark-panel-raised: #202020;
+  --dark-ink: #f0ece0;
+  --dark-ink-soft: #a09f95;
+  --dark-ink-faint: #6e6e66;
+  --dark-line: #252522;
+  --dark-border: #3a3a35;
+  --dark-accent: #3579ea;
+  --dark-accent-strong: #6aa5fb;
+  --dark-accent-band: rgb(106 165 251 / 18%);
+  --dark-ok: #52c97a;
+  --dark-warning: #e6b84a;
+  --dark-danger: #e05a5a;
+  --dark-ink-faint-text: #8a8a80;
+  --dark-accent-text: #6aa5fb;
+  --dark-ok-text: #52c97a;
+  --dark-warning-text: #e6b84a;
+  --dark-danger-text: #e86d6d;
+  --dark-bar-1: #e6e2d6;
+  --dark-bar-2: #8a8a80;
+  --dark-bar-3: #3c3c37;
+  --dark-timeline-session: #3579ea;
+  --dark-timeline-session-opacity: .96;
+  --dark-timeline-histogram: #22d3ee;
+  --dark-timeline-histogram-opacity: .36;
+  --dark-timeline-context-histogram-opacity: .54;
+  --dark-series-claude: #e8a05a;
+  --dark-shadow-float: 0 16px 40px rgb(0 0 0 / 70%);
+}
+
+/* Slate: a cool blue-gray neutral, the common choice of developer consoles. The widest
+   surface and border steps of the three (borders at 1.8:1, faint text at 3.8:1), a colder
+   ink, and status colors tuned for the blue ground. */
+[data-dark-theme="slate"] {
+  --dark-bg: #090c11;
+  --dark-panel: #161c24;
+  --dark-panel-raised: #212a35;
+  --dark-ink: #e8edf3;
+  --dark-ink-soft: #9ea9b7;
+  --dark-ink-faint: #6a7787;
+  --dark-line: #262d37;
+  --dark-border: #3c4653;
+  --dark-accent: #4285f8;
+  --dark-accent-strong: #7cb0fc;
+  --dark-accent-band: rgb(124 176 252 / 20%);
+  --dark-ok: #4ade80;
+  --dark-warning: #fbbf24;
+  --dark-danger: #f87171;
+  --dark-ink-faint-text: #8693a3;
+  --dark-accent-text: #8cbafd;
+  --dark-ok-text: #4ade80;
+  --dark-warning-text: #fbbf24;
+  --dark-danger-text: #f87171;
+  --dark-bar-1: #d8dee6;
+  --dark-bar-2: #8391a1;
+  --dark-bar-3: #3d4855;
+  --dark-timeline-session: #4285f8;
+  --dark-timeline-session-opacity: .96;
+  --dark-timeline-histogram: #2ad6f0;
+  --dark-timeline-histogram-opacity: .36;
+  --dark-timeline-context-histogram-opacity: .54;
+  --dark-series-claude: #f09a5a;
+  --dark-shadow-float: 0 16px 40px rgb(0 0 0 / 60%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--dark-bg);
+    --panel: var(--dark-panel);
+    --panel-raised: var(--dark-panel-raised);
+    --ink: var(--dark-ink);
+    --ink-soft: var(--dark-ink-soft);
+    --ink-faint: var(--dark-ink-faint);
+    --line: var(--dark-line);
+    --border: var(--dark-border);
+    --accent: var(--dark-accent);
+    --accent-strong: var(--dark-accent-strong);
+    --accent-band: var(--dark-accent-band);
+    --ok: var(--dark-ok);
+    --warning: var(--dark-warning);
+    --danger: var(--dark-danger);
+    --ink-faint-text: var(--dark-ink-faint-text);
+    --accent-text: var(--dark-accent-text);
+    --ok-text: var(--dark-ok-text);
+    --warning-text: var(--dark-warning-text);
+    --danger-text: var(--dark-danger-text);
+    --bar-1: var(--dark-bar-1);
+    --bar-2: var(--dark-bar-2);
+    --bar-3: var(--dark-bar-3);
+    --timeline-session: var(--dark-timeline-session);
+    --timeline-session-opacity: var(--dark-timeline-session-opacity);
+    --timeline-session-width: 3;
+    --timeline-session-selected-width: 4;
+    --timeline-sub-agent-width: 2.5;
+    --timeline-histogram: var(--dark-timeline-histogram);
+    --timeline-histogram-opacity: var(--dark-timeline-histogram-opacity);
+    --timeline-context-histogram-opacity: var(--dark-timeline-context-histogram-opacity);
+    --series-claude: var(--dark-series-claude);
+    --series-account-1: #2dd4bf;
+    --series-account-2: #a78bfa;
+    --series-account-3: #f472b6;
+    --series-account-4: #a3e635;
+    --series-account-5: #94a3b8;
+    --series-account-6: #eab308;
+    --shadow-float: var(--dark-shadow-float);
+  }
+}
+
+/* A chosen theme also fixes the scheme of native controls: scrollbars, select lists, and
+   picker icons. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--dark-bg);
+  --panel: var(--dark-panel);
+  --panel-raised: var(--dark-panel-raised);
+  --ink: var(--dark-ink);
+  --ink-soft: var(--dark-ink-soft);
+  --ink-faint: var(--dark-ink-faint);
+  --line: var(--dark-line);
+  --border: var(--dark-border);
+  --accent: var(--dark-accent);
+  --accent-strong: var(--dark-accent-strong);
+  --accent-band: var(--dark-accent-band);
+  --ok: var(--dark-ok);
+  --warning: var(--dark-warning);
+  --danger: var(--dark-danger);
+  --ink-faint-text: var(--dark-ink-faint-text);
+  --accent-text: var(--dark-accent-text);
+  --ok-text: var(--dark-ok-text);
+  --warning-text: var(--dark-warning-text);
+  --danger-text: var(--dark-danger-text);
+  --bar-1: var(--dark-bar-1);
+  --bar-2: var(--dark-bar-2);
+  --bar-3: var(--dark-bar-3);
+  --timeline-session: var(--dark-timeline-session);
+  --timeline-session-opacity: var(--dark-timeline-session-opacity);
+  --timeline-session-width: 3;
+  --timeline-session-selected-width: 4;
+  --timeline-sub-agent-width: 2.5;
+  --timeline-histogram: var(--dark-timeline-histogram);
+  --timeline-histogram-opacity: var(--dark-timeline-histogram-opacity);
+  --timeline-context-histogram-opacity: var(--dark-timeline-context-histogram-opacity);
+  --series-claude: var(--dark-series-claude);
+  --series-account-1: #2dd4bf;
+  --series-account-2: #a78bfa;
+  --series-account-3: #f472b6;
+  --series-account-4: #a3e635;
+  --series-account-5: #94a3b8;
+  --series-account-6: #eab308;
+  --shadow-float: var(--dark-shadow-float);
+}
+
+/* The Console's terminal keeps a Runtime's own dark ground under every theme, so its marks
+   are one fixed set rather than a theme's. Records, the Console tabs, and focus take
+   the brand blue on that ground; the Runtime's own output keeps the neutrals around them. */
+:root {
+  --console-accent: #3b82f6;
+  --console-accent-bright: #60a5fa;
+  --console-ink: #bfdbfe;
+  --console-ink-soft: #8fb3d8;
+  --console-fill: #152c48;
+  --console-fill-border: #27496f;
+  --console-fill-hover: #1e3a5f;
+  --console-fill-hover-border: #356092;
+  --console-row-bg: #101720;
+  --console-row-border: #1f3450;
+  --console-row-hover: #101a24;
+  --console-body-bg: #0c1219;
+  --console-body-border: #1c2a3a;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.viewport {
+  --sidebar-width: 232px;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  transition: grid-template-columns 160ms ease;
+}
+
+.viewport[data-sidebar-collapsed] {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__resize-handle {
+  display: none;
+}
+
+.app {
+  box-sizing: border-box;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex-direction: column;
+  background: var(--panel);
+}
+
+.sidebar {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  box-sizing: border-box;
+  color: var(--ink-soft);
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar__resize-handle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 60;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar__resize-handle::after {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-strong);
+  content: "";
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.sidebar__resize-handle:hover::after,
+.sidebar__resize-handle:focus-visible::after,
+.is-resizing-sidebar .sidebar__resize-handle::after {
+  opacity: .85;
+}
+
+.is-resizing-sidebar,
+.is-resizing-sidebar * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.is-resizing-sidebar .viewport {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport {
+    transition: none;
+  }
+}
+
+.sidebar button,
+.sidebar a {
+  font: inherit;
+}
+
+.sidebar button:focus-visible,
+.sidebar a:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -1px;
+}
+
+.sidebar__nav a {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sidebar__icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.sidebar__label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__check {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--accent-strong);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.sidebar__nav {
+  display: grid;
+  gap: 3px;
+  padding: 8px 12px;
+}
+
+.sidebar__nav a:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.sidebar__nav .is-current {
+  color: var(--accent-text);
+  background: var(--accent-band);
+}
+
+.sidebar__bottom {
+  display: flex;
+  margin-top: auto;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+.sidebar__brand {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar__brand-lockup {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.sidebar__feld-logo {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  background: var(--panel) url("../assets/feld-logo-light.png") center / cover no-repeat;
+  border-radius: 7px;
+}
+
+:root[data-theme="dark"] .sidebar__feld-logo {
+  background-color: var(--dark-bg);
+  background-image: url("../assets/feld-logo-dark.png");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sidebar__feld-logo {
+    background-color: var(--dark-bg);
+    background-image: url("../assets/feld-logo-dark.png");
+  }
+}
+
+.sidebar__brand-name {
+  overflow: hidden;
+  font-size: 17px;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__collapse {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sidebar__collapse:hover {
+  color: var(--ink);
+}
+
+.sidebar__collapse svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.sidebar__popover {
+  position: absolute;
+  left: 10px;
+  z-index: 50;
+  width: 210px;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+}
+
+.sidebar__popover[hidden] {
+  display: none;
+}
+
+.sidebar__popover button {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  gap: 11px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__popover button + button {
+  border-top: 1px solid var(--line);
+}
+
+.sidebar__popover button:hover {
+  background: var(--bg);
+}
+
+.sidebar__popover button span {
+  flex: 1;
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__nav a {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__label,
+.viewport[data-sidebar-collapsed] .sidebar__brand-name {
+  display: none;
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__bottom {
+  padding-inline: 8px;
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__collapse {
+  justify-content: center;
+}
+
+.viewport[data-sidebar-collapsed] .sidebar__collapse svg {
+  transform: rotate(180deg);
+}
+
+feld-agents {
+  display: block;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Compact shell (phones and narrow tablets). The sidebar's own elements are re-laid out
+   as a top brand bar and a bottom tab bar (Actors and Settings); no markup is
+   duplicated. Components fill .app between the two bars and need no knowledge of them;
+   only fixed-position overlays read --shell-tabbar-height to stay clear of the tab bar.
+   index.html renders its own workspace switcher inside .app, so it marks the body
+   .has-page-workspace-switcher and the brand bar takes the whole top row. */
+@media (max-width: 760px) {
+  :root {
+    --shell-topbar-height: 48px;
+    --shell-tabbar-height: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .viewport,
+  .viewport[data-sidebar-collapsed] {
+    grid-template-areas:
+      "brand workspace"
+      "app app"
+      "nav nav";
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr) var(--shell-tabbar-height);
+    transition: none;
+  }
+
+  .has-page-workspace-switcher .viewport,
+  .has-page-workspace-switcher .viewport[data-sidebar-collapsed] {
+    grid-template-areas:
+      "brand brand"
+      "app app"
+      "nav nav";
+  }
+
+  .sidebar,
+  .sidebar__bottom {
+    display: contents;
+  }
+
+  .sidebar__resize-handle,
+  .sidebar__collapse {
+    display: none;
+  }
+
+  .app {
+    grid-area: app;
+  }
+
+  .sidebar__brand {
+    grid-area: brand;
+    min-height: 0;
+    padding: 0 6px 0 14px;
+  }
+
+  .sidebar__nav {
+    display: flex;
+    grid-area: nav;
+    gap: 0;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+  }
+
+  .sidebar__nav a {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 56px;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 0;
+    font-size: 11px;
+    font-weight: 550;
+  }
+
+  .sidebar__nav a .sidebar__label {
+    flex: none;
+  }
+
+  .sidebar__nav .is-current {
+    color: var(--accent-strong);
+    background: transparent;
+  }
+
+  .sidebar__nav a:hover {
+    background: transparent;
+  }
+}

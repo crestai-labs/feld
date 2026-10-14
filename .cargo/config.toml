@@ -1,0 +1,4 @@
+# The tmux servers the tests start by name (`tmux -L`), the Provider's default `feld` among
+# them, live under target/ rather than beside the servers of the person running the tests.
+[env]
+TMUX_TMPDIR = { value = "target", relative = true, force = true }

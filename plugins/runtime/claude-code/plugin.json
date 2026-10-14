@@ -1,0 +1,25 @@
+{
+  "name": "claude-code",
+  "kind": "runtime",
+  "label": "Claude Code",
+  "stopInput": [
+    "/exit",
+    ""
+  ],
+  "ownedSettings": [
+    "otelHeadersHelper",
+    "statusLine"
+  ],
+  "metrics": {
+    "claude_code.token.usage": "token_usage",
+    "claude_code.cost.usage": "estimated_cost",
+    "claude_code.api_error": "api_errors",
+    "claude_code.api_request": "api_request_latency_p95",
+    "claude_code.tool_result": "tool_calls",
+    "claude_code.active_time.total": "active_time",
+    "feld.claude_code.context_window.size": "context_window_utilization.size",
+    "feld.claude_code.context_window.used_percent": "context_window_utilization.used_percent",
+    "feld.claude_code.rate_limit.used_percent": "quota.used_percent",
+    "feld.claude_code.rate_limit.resets_at": "quota.resets_at"
+  }
+}

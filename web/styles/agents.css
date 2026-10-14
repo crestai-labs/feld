@@ -1,0 +1,4664 @@
+feld-agents {
+  display: block;
+}
+
+.feld-agents {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.feld-agents button,
+.feld-agents input,
+.feld-agents select {
+  font: inherit;
+  color: inherit;
+}
+
+.feld-agents button:focus-visible,
+.feld-agents input:focus-visible,
+.feld-agents select:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+/* The heading grows with its content, so controls that wrap push the workspace down
+   instead of overlapping it. */
+.feld-agents__heading {
+  display: flex;
+  min-height: 64px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  box-sizing: border-box;
+  padding: 10px 28px;
+}
+
+.feld-agents__heading-copy {
+  min-width: 160px;
+}
+
+.feld-agents__heading h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  line-height: 1.15;
+}
+
+.feld-agents__workspace-switcher {
+  position: relative;
+}
+
+.feld-agents__workspace-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -5px -7px;
+  padding: 5px 7px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.feld-agents__workspace-button:hover {
+  background: var(--bg);
+}
+
+.feld-agents__workspace-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.feld-agents__workspace-menu {
+  top: calc(100% + 12px);
+  left: -7px;
+  width: 240px;
+}
+
+.feld-agents__heading-controls {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* The time controls are one joined group, as in Grafana: the range, Refresh, and the
+   Live / Paused toggle share borders and round only at the group's ends. */
+.feld-agents__timebar {
+  display: flex;
+  align-items: stretch;
+}
+
+.feld-agents__timebar > * {
+  border-radius: 0;
+}
+
+.feld-agents__timebar > * + * {
+  margin-left: -1px;
+}
+
+.feld-agents__timebar > :first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.feld-agents__timebar > :last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.feld-agents__timebar > :hover,
+.feld-agents__timebar > :focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+.feld-agents__button,
+.feld-agents__select,
+.feld-agents__search {
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 7px 11px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.feld-agents__button {
+  cursor: pointer;
+}
+
+.feld-agents__button:hover {
+  background: var(--bg);
+  border-color: color-mix(in srgb, var(--border) 60%, var(--ink-soft));
+}
+
+.feld-agents__button--icon {
+  min-width: 32px;
+  padding-inline: 8px;
+}
+
+.feld-agents__button--range {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 10px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: left;
+}
+
+.feld-agents__range-clock,
+.feld-agents__button--refresh svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.feld-agents__range-clock {
+  color: var(--ink-soft);
+}
+
+.feld-agents__button--refresh {
+  display: inline-grid;
+  min-width: 36px;
+  place-items: center;
+  padding-inline: 9px;
+  color: var(--ink-soft);
+}
+
+.feld-agents__button--refresh:hover {
+  color: var(--ink);
+}
+
+.feld-agents__button--refresh.is-refreshing svg {
+  animation: feld-agents-refresh .6s ease-out;
+}
+
+@keyframes feld-agents-refresh {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The state of the reads behind the page sits left of Refresh, shown only when they are
+   not succeeding. It fills only the room the controls leave free and is cut short where
+   that is narrow, so its coming and going moves nothing. */
+.feld-agents__connection {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-agents__connection.is-error {
+  color: var(--danger-text);
+  cursor: help;
+}
+
+/* As wide as "Paused", so toggling does not move the search beside it. */
+.feld-agents__button--live {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 82px;
+  padding-inline: 9px 10px;
+  font-size: 12.5px;
+}
+
+.feld-agents__button--live::before {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ok);
+  content: "";
+}
+
+.feld-agents__button--live.is-paused::before,
+.feld-agents__button--live:disabled::before {
+  background: var(--ink-faint);
+}
+
+.feld-agents__button--live:disabled {
+  background: var(--bg);
+}
+
+.feld-agents__range-caret {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.feld-agents__button:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.feld-agents__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.feld-agents__label select {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.feld-agents__search {
+  width: 210px;
+}
+
+/* The component places the picker directly under the range button. */
+.feld-agents__picker {
+  position: absolute;
+  top: 64px;
+  left: 8px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 160px 280px;
+  gap: 18px;
+  width: 478px;
+  padding: 16px;
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+}
+
+.feld-agents__picker h2 {
+  margin: 0 0 9px;
+  color: var(--ink-soft);
+  font: 600 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.feld-agents__quick-ranges {
+  display: grid;
+  gap: 3px;
+}
+
+.feld-agents__quick-ranges button {
+  padding: 5px 7px;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feld-agents__quick-ranges button:hover {
+  background: var(--bg);
+}
+
+/* The Quick range the Live picture shows now. */
+.feld-agents__quick-ranges button[aria-current="true"] {
+  color: var(--accent-text);
+  background: var(--accent-band);
+  font-weight: 600;
+}
+
+.feld-agents__picker-fields {
+  display: grid;
+  grid-template-columns: 1fr 104px;
+  gap: 10px;
+}
+
+.feld-agents__picker-feld {
+  display: grid;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.feld-agents__picker-feld input,
+.feld-agents__picker-feld select {
+  min-width: 0;
+  padding: 6px 7px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.feld-agents__picker-note {
+  margin: 12px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.feld-agents__picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.feld-agents__workspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  /* Pin the single row to the workspace height so a tall inspector scrolls inside its
+     own column instead of stretching the row and pushing Metrics out of view. */
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+
+/* The brand's bottom border is painted inside its 64px box, while the tables' top
+   borders are painted at the start of this box. Overlap that single border pixel on
+   wide layouts so both strokes occupy the same row instead of sitting edge-to-edge. */
+@media (min-width: 761px) {
+  .feld-agents__workspace {
+    margin-top: -1px;
+  }
+}
+
+/* The card that overlays the Timeline keeps its own default width; a Session Console
+   needs more room than the Actor card or the Message composer. The resize handle writes
+   --inspector-width over it. */
+.feld-agents__workspace.has-inspector {
+  --inspector-default: 620px;
+}
+
+.feld-agents__workspace.has-session-console {
+  --inspector-default: 50%;
+}
+
+.feld-agents__bands {
+  --agents-identity-width: 340px;
+  /* Total width of the Actor table columns between the Actor name and the Timeline;
+     the component sets it from the selected columns. */
+  --agents-details-width: 0px;
+  /* The timeline column gives up width before the table scrolls horizontally, so the
+     sticky Actions column stays in view in a narrow workspace. */
+  --agents-timeline-min-width: 280px;
+  /* Width of the sticky Actions column and of the Metrics spacer under it. */
+  --agents-actions-width: 56px;
+  /* Heights of the sticky column head and time axis that frame the Agent bands. */
+  --agents-head-height: 39px;
+  --agents-axis-height: 23px;
+  /* Width pinned left of the Timeline: the Actor name and the detail columns, as far as
+     the pane leaves the Timeline its minimum beside Actions. Past that the detail columns
+     scroll partly under the name column. */
+  --agents-pinned-width: max(var(--agents-identity-width), min(calc(var(--agents-identity-width) + var(--agents-details-width)), calc(100cqw - var(--agents-timeline-min-width) - var(--agents-actions-width))));
+  container-type: inline-size;
+  position: relative;
+  display: grid;
+  /* Metrics keeps a fixed default height (its 34px header, a quota lane of three
+     accounts, and two 70px lanes); the Agent bands take the remaining height. Dragging
+     the separator fixes the bands height and lets Metrics fill the rest instead. */
+  grid-template-rows: auto minmax(96px, var(--agents-pane-height, 1fr)) 7px minmax(110px, var(--metrics-pane-height, 278px));
+  /* Keep the scroll containers at the pane width so horizontal overflow scrolls inside
+     them instead of being clipped by this element. */
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  /* The shell already owns the boundary beside the sidebar. Omitting this edge keeps
+     that seam to one physical rule instead of drawing a second adjacent rule. */
+  border-left: 0;
+}
+
+/* The Timeline guide opens from the Timeline column's header. */
+.feld-agents__timeline-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 4px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feld-agents__timeline-guide span {
+  display: grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 650;
+}
+
+.feld-agents__timeline-guide:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__legend-glyph {
+  display: block;
+  width: 26px;
+  height: 16px;
+  flex: none;
+  overflow: visible;
+}
+
+.feld-agents__bands-scroll {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  /* A focused lane scrolls clear of the sticky head, axis, and columns around it. */
+  scroll-padding: var(--agents-head-height) var(--agents-actions-width) var(--agents-axis-height) var(--agents-pinned-width);
+}
+
+.feld-agents__bands-content {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  min-width: max(100%, calc(var(--agents-identity-width) + var(--agents-details-width) + var(--agents-timeline-min-width) + var(--agents-actions-width)));
+}
+
+.feld-agents__bands-head {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  box-sizing: border-box;
+  min-height: var(--agents-head-height);
+  color: var(--ink-soft);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* Above the Actor table head, so the name column's handle takes drags on both sides. */
+.feld-agents__agent-head {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  width: var(--agents-identity-width);
+  display: flex;
+  flex: none;
+  box-sizing: border-box;
+  background: var(--panel);
+}
+
+.feld-agents__agent-head-identity {
+  display: flex;
+  width: 100%;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  box-sizing: border-box;
+  gap: 2px 8px;
+  padding: 3px 8px 3px 16px;
+}
+
+.feld-agents__agent-head-identity > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The bands the visible range holds back, named and revealed beside the count. */
+/* Shows the Actors the range holds back, or hides them again; worded as the action. */
+.feld-agents__hidden-bands {
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 2px 8px;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.feld-agents__hidden-bands:hover {
+  color: var(--ink);
+}
+
+.feld-agents__hidden-bands:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+/* The identity keeps the name and the marks line in little padding. */
+.feld-agents__bands .feld-agents__band-identity {
+  gap: 8px;
+  padding-block: 3px;
+}
+
+.feld-agents__bands .feld-agents__info.feld-agents__kind-glyph {
+  width: 22px;
+  height: 22px;
+}
+
+.feld-agents__bands .feld-agents__info.feld-agents__kind-glyph svg {
+  width: 17px;
+  height: 17px;
+}
+
+.feld-agents__bands .feld-agents__action-button {
+  width: 27px;
+  height: 27px;
+}
+
+/* The handle at the right edge of a column head takes no width of its own, so its hit
+   area straddles the boundary with the next column (the last one's, with the Timeline)
+   without shifting either. */
+.feld-agents__actor-resizer {
+  position: relative;
+  z-index: 1;
+  width: 0;
+  flex: none;
+  align-self: stretch;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.feld-agents__actor-resizer::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  content: "";
+}
+
+.feld-agents__actor-resizer::after {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: -1px;
+  width: 2px;
+  background: var(--line);
+  border-radius: 999px;
+  content: "";
+  transition: background 120ms ease;
+}
+
+.feld-agents__actor-resizer:hover::after,
+.feld-agents__actor-resizer:focus-visible::after,
+.feld-agents__actor-resizer.is-active::after {
+  background: var(--accent-strong);
+}
+
+.feld-agents__actor-resizer:focus-visible {
+  outline: none;
+}
+
+.feld-agents.is-resizing-actor,
+.feld-agents.is-resizing-actor * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.feld-agents__agent-head small {
+  margin-left: 5px;
+  color: var(--ink-faint-text);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.feld-agents__display-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 40px;
+}
+
+.feld-agents__display-scrim {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: rgb(18 22 25 / 42%);
+  border: 0;
+  cursor: default;
+}
+
+.feld-agents__display-menu {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(760px, calc(100vw - 80px));
+  max-height: min(720px, calc(100dvh - 80px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow-y: auto;
+  color: var(--ink);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+  overscroll-behavior: contain;
+}
+
+.feld-agents__display-menu.is-guide {
+  width: min(620px, calc(100vw - 80px));
+  grid-template-columns: 1fr;
+}
+
+/* Metrics display lists each lane with its caption and every Runtime's source, which are
+   long; the dialog is wide enough to show them whole, wrapping what still does not fit. */
+.feld-agents__display-menu.is-metrics {
+  width: min(960px, calc(100vw - 80px));
+  grid-template-columns: 1fr;
+}
+
+.feld-agents__guide-group {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 16px 20px 18px;
+}
+
+.feld-agents__guide-group + .feld-agents__guide-group {
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__guide-group h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.feld-agents__guide-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feld-agents__guide-list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 8px;
+}
+
+.feld-agents__guide-list strong,
+.feld-agents__guide-list small {
+  display: block;
+}
+
+.feld-agents__guide-list strong {
+  font-size: 12.5px;
+}
+
+.feld-agents__guide-list small {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.feld-agents__display-menu-title {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.feld-agents__display-menu-title strong,
+.feld-agents__display-menu-title span {
+  display: block;
+}
+
+.feld-agents__display-menu-title strong {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.feld-agents__display-menu-title span {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+/* The Workspace a New actor chosen from All workspaces is declared in. */
+.feld-agents__form-workspace {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.feld-agents__display-menu-close {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feld-agents__display-menu-close:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__display-menu fieldset {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 18px 20px 20px;
+  border: 0;
+}
+
+.feld-agents__display-menu fieldset:nth-of-type(even) {
+  border-left: 1px solid var(--line);
+}
+
+.feld-agents__display-menu fieldset:nth-of-type(n + 3) {
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__display-menu legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.feld-agents__display-menu label {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 11px;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.feld-agents__display-menu label:hover {
+  background: var(--bg);
+}
+
+.feld-agents__display-menu input {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.feld-agents__display-menu label span,
+.feld-agents__display-menu label strong,
+.feld-agents__display-menu label small {
+  display: block;
+}
+
+.feld-agents__display-menu label strong {
+  font-size: 12.5px;
+}
+
+.feld-agents__display-menu label small {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+@media (max-width: 700px) {
+  .feld-agents__display-modal {
+    padding: 16px;
+  }
+
+  .feld-agents__display-menu {
+    width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    grid-template-columns: 1fr;
+  }
+
+  .feld-agents__display-menu fieldset:nth-of-type(even) {
+    border-left: 0;
+  }
+
+  .feld-agents__display-menu fieldset + fieldset {
+    border-top: 1px solid var(--line);
+  }
+}
+
+.feld-agents__timeline-head {
+  display: flex;
+  min-width: var(--agents-timeline-min-width);
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 8px 24px 8px 14px;
+}
+
+/* The body is as tall as its lanes, so the axis row follows the last lane; when the lanes
+   overflow, the axis row stays pinned to the bottom of the pane. An empty body fills
+   the pane instead. */
+.feld-agents__body {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: none;
+  min-width: calc(var(--agents-identity-width) + var(--agents-details-width) + var(--agents-timeline-min-width) + var(--agents-actions-width));
+}
+
+.feld-agents__band-labels {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  width: var(--agents-identity-width);
+  flex: none;
+  background: var(--panel);
+}
+
+/* Actor table: the selected detail columns, pinned beside the Actor name so both stay
+   in view while the Timeline scrolls horizontally, as far as --agents-pinned-width allows. The seam shadow sits on this column
+   because it is the last one before the Timeline; with no column selected it is a
+   zero-width strip and the shadow falls where the name column ends. */
+.feld-agents__detail-head,
+.feld-agents__band-details {
+  position: sticky;
+  left: calc(var(--agents-pinned-width) - var(--agents-details-width));
+  width: var(--agents-details-width);
+  flex: none;
+  box-sizing: border-box;
+  background: var(--panel);
+}
+
+.feld-agents__detail-head {
+  z-index: 9;
+  display: flex;
+  align-items: center;
+}
+
+.feld-agents__band-details {
+  z-index: 5;
+  box-shadow: 7px 0 10px -12px rgb(0 0 0 / 60%);
+}
+
+.feld-agents__band-detail {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.feld-agents__band-detail + .feld-agents__band-detail {
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.feld-agents__detail-cell {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  padding-inline: 10px;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.feld-agents__detail-head .feld-agents__detail-cell {
+  padding-block: 8px;
+}
+
+.feld-agents__detail-cell > span,
+.feld-agents__detail-cell > button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-agents__detail-empty {
+  color: var(--ink-faint-text);
+}
+
+/* Session status cell: the outcome word, then when it happened. */
+.feld-agents__detail-status {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.feld-agents__detail-status .feld-agents__session-state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-agents__detail-status small {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* In a cell the Schedule chip is the whole line, not a second line under a name. */
+.feld-agents__detail-cell .feld-agents__schedule {
+  margin-top: 0;
+}
+
+.feld-agents__band-label {
+  display: flex;
+  align-items: center;
+  height: 76px;
+  box-sizing: border-box;
+}
+
+.feld-agents__band-identity {
+  display: flex;
+  width: var(--agents-identity-width);
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  gap: 11px;
+  box-sizing: border-box;
+  padding: 10px 16px;
+}
+
+/* The name and the marks line stay inside the Name column: what does not fit is clipped
+   at the column's edge rather than run under the columns beside it. */
+.feld-agents__band-identity > span:last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Unread-mail mark: present only while the Actor's current Session has not read
+   a Message accepted for it (see unreadMarkMarkup in components/agents.js). The root scope
+   outranks the `font` and `color` reset on .feld-agents button, so a mark drawn as a button
+   matches one drawn as a span. */
+.feld-agents .feld-agents__unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  box-sizing: border-box;
+  margin-top: 5px;
+  padding: 0 7px 0 5px;
+  color: var(--warning-text);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  border-radius: 9px;
+  font: 600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feld-agents__unread svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__unread:hover {
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+}
+.feld-agents__unread.is-idle {
+  color: var(--ink-soft);
+  background: transparent;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  cursor: default;
+}
+/* An unlinked Runtime is answered in its pane, so the mark only tells. */
+.feld-agents__unread.is-unlinked {
+  cursor: default;
+}
+.feld-agents__unread.is-unlinked:hover {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.feld-agents__unread:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.feld-agents__band-label + .feld-agents__band-label {
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.feld-agents__actor-name {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: 650 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feld-agents__actor-name:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.feld-agents__actor-name:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* A control the page focused after a pointer (see inputModality.ts) keeps its outline for
+   the keyboard. */
+.feld-agents [data-pointer-focus]:focus {
+  outline: none;
+}
+
+/* State glyph beside the Actor name. Inside, whether the Actor has a current Session: the
+   three states differ in shape as well as in colour (a filled disc inside a ring while a
+   Session is current, a square inside a ring once it has stopped, a dashed ring when the
+   Actor has never had one). The outer ring is the Schedule: solid green while it fires,
+   grey and dotted while it is paused, absent when the Actor has none. The Timeline guide
+   draws the same glyph. */
+.feld-agents__state {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  place-items: center;
+}
+
+.feld-agents__state svg {
+  width: 16px;
+  height: 16px;
+}
+
+.feld-agents__state-glyph {
+  color: var(--ink-faint);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.feld-agents__state-glyph.is-running {
+  color: var(--ok);
+}
+
+.feld-agents__state-glyph.is-stopped {
+  color: var(--ink-soft);
+}
+
+.feld-agents__schedule-ring.is-scheduled {
+  stroke: var(--ok);
+}
+
+.feld-agents__schedule-ring.is-paused {
+  stroke: var(--ink-faint);
+  stroke-dasharray: 1 1.8;
+  stroke-linecap: round;
+}
+
+/* Kind glyph between the running-state mark and the Actor name. The glyph is a
+   Control Plane fact declared at creation (Agent or Job) and is always shown; its popover
+   names the kind and the one rule the kind changes (see KIND_RULES in
+   components/agents.js). */
+.feld-agents__kind {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  margin-inline: 1px 3px;
+}
+
+/* The compound selector keeps the later .feld-agents__info sizes from winning. The glyph
+   has no frame: the line drawing alone marks the kind. */
+.feld-agents__info.feld-agents__kind-glyph {
+  width: 28px;
+  height: 28px;
+  color: var(--ink-soft);
+  border: 0;
+  border-radius: 6px;
+  cursor: help;
+}
+
+.feld-agents__info.feld-agents__kind-glyph svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.15;
+  stroke-linejoin: round;
+}
+
+.feld-agents__info.feld-agents__kind-glyph:hover,
+.feld-agents__info.feld-agents__kind-glyph:focus-visible {
+  color: var(--ink);
+}
+
+.feld-agents__kind-popover {
+  top: calc(100% + 6px);
+  right: auto;
+  left: -4px;
+  width: 292px;
+  white-space: normal;
+}
+
+.feld-agents__kind-popover strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.feld-agents__kind-popover > span {
+  display: block;
+  color: var(--ink-soft);
+}
+
+.feld-agents__kind-popover .feld-agents__kind-rule {
+  margin-top: 6px;
+  color: var(--ink);
+}
+
+.feld-agents__chart {
+  position: relative;
+  min-width: var(--agents-timeline-min-width);
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.feld-agents.is-panning .feld-agents__chart {
+  cursor: grabbing;
+}
+
+.feld-agents__chart svg {
+  display: block;
+  width: 100%;
+  min-width: var(--agents-timeline-min-width);
+  font-variant-numeric: tabular-nums;
+  touch-action: none;
+}
+
+.feld-agents__metrics {
+  position: relative;
+  z-index: 14;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.feld-agents__pane-resizer {
+  position: relative;
+  z-index: 16;
+  display: grid;
+  min-height: 7px;
+  place-items: center;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.feld-agents__pane-resizer span {
+  width: 34px;
+  height: 2px;
+  background: var(--ink-faint);
+  border-radius: 999px;
+  transition: width 120ms ease, background 120ms ease;
+}
+
+.feld-agents__pane-resizer:hover span,
+.feld-agents__pane-resizer:focus-visible span,
+.feld-agents.is-resizing-rows .feld-agents__pane-resizer span {
+  width: 52px;
+  background: var(--accent-strong);
+}
+
+.feld-agents.is-resizing-rows,
+.feld-agents.is-resizing-rows * {
+  cursor: row-resize !important;
+  user-select: none !important;
+}
+
+.feld-agents__metrics-scroll {
+  min-width: 0;
+  flex: 1;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+/* The Metrics label column is as wide as the Actor name and the Actor table columns
+   together, so the chart starts where the Timeline does and one x is one time in both. */
+.feld-agents__metrics-content {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  min-width: max(100%, calc(var(--agents-identity-width) + var(--agents-details-width) + var(--agents-timeline-min-width) + var(--agents-actions-width)));
+}
+
+.feld-agents__metrics-body {
+  display: flex;
+  flex: none;
+  min-width: calc(var(--agents-identity-width) + var(--agents-details-width) + var(--agents-timeline-min-width) + var(--agents-actions-width));
+}
+
+/* The body is as tall as its lanes, so the axis row follows the last lane; when the lanes
+   overflow, the axis row stays pinned to the bottom of the pane. An empty body fills
+   the pane instead. */
+.feld-agents__metrics-body.is-empty {
+  flex: 1 0 auto;
+}
+
+/* The header of a section (Actors, Metrics): outside the section's scrolling, so its
+   fold and time controls stay in view whatever the table's scroll. The fold and its
+   summary lead; the controls follow; the section's settings end the row. */
+.feld-agents__section-head {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 6px 10px;
+  color: var(--ink-soft);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+
+.feld-agents__section-head .feld-agents__button,
+.feld-agents__section-head .feld-agents__select {
+  min-height: 30px;
+  padding-block: 4px;
+  font-size: 12.5px;
+}
+
+.feld-agents__section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 7px 0 4px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.feld-agents__section-toggle:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__section-toggle svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 120ms ease;
+}
+
+.feld-agents__section-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.feld-agents__section-count {
+  color: var(--ink-faint-text);
+  font-size: 11px;
+}
+
+/* Folded Actors: how many Actors are running now. */
+.feld-agents__section-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.feld-agents__running-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--ok);
+  border-radius: 50%;
+}
+
+/* The section's controls end the header row: its time control, then its display
+   settings. */
+.feld-agents__section-tools {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.feld-agents__section-settings {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.feld-agents__section-settings:hover,
+.feld-agents__section-settings[aria-expanded="true"] {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__section-settings svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.feld-agents__metric-labels {
+  position: sticky;
+  left: 0;
+  z-index: 9;
+  width: calc(var(--agents-identity-width) + var(--agents-details-width));
+  flex: 0 0 calc(var(--agents-identity-width) + var(--agents-details-width));
+  box-sizing: border-box;
+  background: var(--panel);
+  box-shadow: 7px 0 10px -12px rgb(0 0 0 / 60%);
+}
+
+/* Folded Metrics: the section keeps only its header row, the separator goes, and the
+   header carries the latest reading of every visible lane. Folded Actors keep their
+   header the same way and give Metrics the height. */
+.feld-agents__bands.is-metrics-collapsed {
+  grid-template-rows: auto minmax(96px, 1fr) 0 auto;
+}
+
+.feld-agents__bands.is-actors-collapsed {
+  grid-template-rows: auto 0 0 minmax(110px, 1fr);
+}
+
+.feld-agents__bands.is-actors-collapsed.is-metrics-collapsed {
+  grid-template-rows: auto 0 0 auto;
+}
+
+.feld-agents__bands.is-actors-collapsed .feld-agents__bands-scroll {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.feld-agents__bands.is-actors-collapsed .feld-agents__pane-resizer {
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  visibility: hidden;
+}
+
+/* The separator stays in the grid (its row is 0px) so the Metrics section keeps its row;
+   it is only hidden. */
+.feld-agents__bands.is-metrics-collapsed .feld-agents__pane-resizer {
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  visibility: hidden;
+}
+
+.feld-agents__bands.is-metrics-collapsed .feld-agents__metrics-head {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.feld-agents__metrics-summary {
+  display: flex;
+  min-height: 33px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 22px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* An item wraps its readings rather than leave the header cell; each reading stays whole. */
+.feld-agents__metrics-summary-item {
+  display: inline-flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 7px;
+}
+
+.feld-agents__metrics-summary-item .feld-agents__metric-reading-row {
+  white-space: nowrap;
+}
+
+.feld-agents__metrics-summary-item .feld-agents__metric-swatch {
+  height: 14px;
+}
+
+.feld-agents__metrics-summary-name {
+  color: var(--ink-soft);
+}
+
+.feld-agents__metrics-summary output {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.feld-agents__metrics-summary-empty {
+  color: var(--ink-soft);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The lane name and caption on top, one reading row per Runtime under them. */
+/* A lane label is the lane's name over its readings; where the column has the Actor
+   table's width, the name keeps the Actor name's width and the readings form a table
+   beside it (see the container query below). */
+.feld-agents__metric-labels {
+  container-type: inline-size;
+}
+
+.feld-agents__metric-label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 3px 16px;
+  box-sizing: border-box;
+  padding: 6px 10px 6px 16px;
+}
+
+.feld-agents__metric-identity {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0 10px;
+}
+
+.feld-agents__metric-label + .feld-agents__metric-label {
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__metric-name {
+  min-width: 0;
+}
+
+.feld-agents__metric-name strong,
+.feld-agents__metric-name small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-agents__metric-name strong {
+  font-size: 12px;
+}
+
+.feld-agents__metric-name small {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.feld-agents__metric-label output {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1px 4px;
+  padding-left: 13px;
+  color: var(--ink);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.feld-agents__metric-label .feld-agents__metric-reading-row {
+  display: contents;
+}
+
+/* The Runtime name gives way before the reading does. */
+.feld-agents__metric-label .feld-agents__metric-runtime {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-agents__metric-label .feld-agents__metric-reading {
+  overflow: visible;
+  text-align: right;
+}
+
+/* The reset column shows only in the wide table; the row's title names the reset. */
+.feld-agents__metric-label .feld-agents__metric-reset-at {
+  display: none;
+}
+
+.feld-agents__metric-reset-at {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* The fold of a lane's further series, under its last reading. */
+.feld-agents__metric-more {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 0 4px;
+  margin-left: -4px;
+  color: var(--accent-text);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feld-agents__metric-more:hover {
+  background: var(--accent-band);
+}
+
+.feld-agents__metrics-summary .feld-agents__metric-more {
+  margin: 0;
+}
+
+@container (min-width: 560px) {
+  .feld-agents__metric-label {
+    grid-template-columns: calc(var(--agents-identity-width) - 26px) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .feld-agents__metric-label output {
+    /* Fixed columns, so the values of every lane line up in one table. */
+    max-width: 580px;
+    grid-template-columns: 18px minmax(0, 1fr) 92px 128px 64px;
+    gap: 2px 12px;
+    padding-left: 0;
+  }
+
+  .feld-agents__metric-label .feld-agents__metric-reset-at {
+    display: block;
+  }
+}
+
+.feld-agents__metric-reading-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.feld-agents__metric-runtime {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.feld-agents__metric-reading {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Missing readings are text, not numbers: N/A, Telemetry unavailable, and No samples in
+   range are muted, and Telemetry unavailable is italic so it never reads as an empty range. */
+.feld-agents__metric-reading-row:is(.is-na, .is-unavailable, .is-empty) .feld-agents__metric-reading {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.feld-agents__metric-reading-row.is-unavailable .feld-agents__metric-reading {
+  font-style: italic;
+}
+
+.feld-agents__metric-sample-at {
+  color: var(--ink-faint-text);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.feld-agents__metric-swatches {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.feld-agents__metric-swatch {
+  width: 3px;
+  height: 28px;
+  flex: none;
+  background: var(--accent-strong);
+  border-radius: 999px;
+}
+
+.feld-agents__metric-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--accent-strong);
+  border-radius: 50%;
+}
+
+.feld-agents__metric-swatch.is-unavailable {
+  opacity: .3;
+}
+
+.feld-agents__metric-swatch.is-claude,
+.feld-agents__metric-dot.is-claude {
+  background: var(--series-claude);
+}
+
+.feld-agents__metrics-chart {
+  min-width: var(--agents-timeline-min-width);
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.feld-agents__metrics-chart svg {
+  display: block;
+  width: 100%;
+  min-width: var(--agents-timeline-min-width);
+  font-variant-numeric: tabular-nums;
+  touch-action: none;
+}
+
+.feld-agents__metric-spacer {
+  position: sticky;
+  right: 0;
+  z-index: 9;
+  width: var(--agents-actions-width);
+  flex: 0 0 var(--agents-actions-width);
+  margin-left: auto;
+  box-sizing: border-box;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  box-shadow: -7px 0 10px -10px rgb(0 0 0 / 55%);
+}
+
+/* The Actor display settings sit in the right-most header cell of the table. */
+.feld-agents__actions-head {
+  display: grid;
+  place-items: center;
+}
+
+.feld-agents__actions-head button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.feld-agents__actions-head button:hover,
+.feld-agents__actions-head button[aria-expanded="true"] {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__actions-head button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.feld-agents__display-menu .feld-agents__metric-source {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.feld-agents__metrics-empty {
+  min-width: var(--agents-timeline-min-width);
+  flex: 1;
+  box-sizing: border-box;
+  padding: 28px 24px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.feld-agents.is-panning .feld-agents__metrics-chart {
+  cursor: grabbing;
+}
+
+.feld-agents__metric-separator {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.feld-agents__metric-area {
+  stroke: none;
+  opacity: .09;
+}
+
+.feld-agents__metric-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__metric-area.is-claude,
+.feld-agents__metric-point.is-claude {
+  fill: var(--series-claude);
+}
+
+.feld-agents__metric-line.is-claude {
+  stroke: var(--series-claude);
+}
+
+.feld-agents__metric-area.is-codex,
+.feld-agents__metric-point.is-codex {
+  fill: var(--accent-strong);
+}
+
+.feld-agents__metric-line.is-codex {
+  stroke: var(--accent-strong);
+}
+
+/* Quota accounts: one colour each, the same on every lane. */
+.feld-agents__metric-area.is-account-1,
+.feld-agents__metric-point.is-account-1 {
+  fill: var(--series-account-1);
+}
+
+.feld-agents__metric-line.is-account-1 {
+  stroke: var(--series-account-1);
+}
+
+.feld-agents__metric-dot.is-account-1,
+.feld-agents__metric-swatch.is-account-1 {
+  background: var(--series-account-1);
+}
+
+.feld-agents__metric-area.is-account-2,
+.feld-agents__metric-point.is-account-2 {
+  fill: var(--series-account-2);
+}
+
+.feld-agents__metric-line.is-account-2 {
+  stroke: var(--series-account-2);
+}
+
+.feld-agents__metric-dot.is-account-2,
+.feld-agents__metric-swatch.is-account-2 {
+  background: var(--series-account-2);
+}
+
+.feld-agents__metric-area.is-account-3,
+.feld-agents__metric-point.is-account-3 {
+  fill: var(--series-account-3);
+}
+
+.feld-agents__metric-line.is-account-3 {
+  stroke: var(--series-account-3);
+}
+
+.feld-agents__metric-dot.is-account-3,
+.feld-agents__metric-swatch.is-account-3 {
+  background: var(--series-account-3);
+}
+
+.feld-agents__metric-area.is-account-4,
+.feld-agents__metric-point.is-account-4 {
+  fill: var(--series-account-4);
+}
+
+.feld-agents__metric-line.is-account-4 {
+  stroke: var(--series-account-4);
+}
+
+.feld-agents__metric-dot.is-account-4,
+.feld-agents__metric-swatch.is-account-4 {
+  background: var(--series-account-4);
+}
+
+.feld-agents__metric-area.is-account-5,
+.feld-agents__metric-point.is-account-5 {
+  fill: var(--series-account-5);
+}
+
+.feld-agents__metric-line.is-account-5 {
+  stroke: var(--series-account-5);
+}
+
+.feld-agents__metric-dot.is-account-5,
+.feld-agents__metric-swatch.is-account-5 {
+  background: var(--series-account-5);
+}
+
+.feld-agents__metric-area.is-account-6,
+.feld-agents__metric-point.is-account-6 {
+  fill: var(--series-account-6);
+}
+
+.feld-agents__metric-line.is-account-6 {
+  stroke: var(--series-account-6);
+}
+
+.feld-agents__metric-dot.is-account-6,
+.feld-agents__metric-swatch.is-account-6 {
+  background: var(--series-account-6);
+}
+
+.feld-agents__metric-point {
+  stroke: var(--panel);
+  stroke-width: 1.5;
+}
+
+/* A reading row under the pointer brings its line forward over the lane's others. */
+.feld-agents__metric-line.is-emphasized {
+  stroke-width: 2.6;
+}
+
+.feld-agents__metric-line.is-receded,
+.feld-agents__metric-point.is-receded,
+.feld-agents__metric-reset.is-receded {
+  opacity: .22;
+}
+
+.feld-agents__metric-reset {
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+
+.feld-agents__metric-reset-label {
+  fill: var(--ink-soft);
+  font: 8px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* A Metrics window wider than the Timeline's: the Timeline's range stays lit between two
+   edges, the rest fades under a veil of the panel colour, and a bar on the Metrics axis marks the same range. */
+.feld-agents__metric-context {
+  fill: var(--panel);
+  opacity: .55;
+  pointer-events: none;
+}
+
+.feld-agents__metric-focus-edge {
+  stroke: var(--accent-strong);
+  stroke-width: 1;
+  stroke-opacity: .55;
+  pointer-events: none;
+}
+
+.feld-agents__metric-focus-bar {
+  fill: var(--accent-strong);
+  opacity: .7;
+}
+
+/* The time axis row: pinned to the bottom of its pane, so the scale stays in view however
+   many lanes scroll above it. Its cells line up with the label columns, the chart, and
+   Actions above, and stay pinned left and right the same way. */
+.feld-agents__axis-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex: none;
+  box-sizing: border-box;
+  min-height: var(--agents-axis-height);
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__axis-lead {
+  position: sticky;
+  left: calc(var(--agents-pinned-width) - var(--agents-identity-width) - var(--agents-details-width));
+  z-index: 1;
+  width: calc(var(--agents-identity-width) + var(--agents-details-width));
+  flex: none;
+  background: var(--panel);
+}
+
+.feld-agents__axis {
+  min-width: var(--agents-timeline-min-width);
+  flex: 1;
+  overflow: hidden;
+}
+
+.feld-agents__axis svg {
+  display: block;
+  width: 100%;
+}
+
+.feld-agents__axis-tail {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  width: var(--agents-actions-width);
+  flex: none;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+.feld-agents__axis-tick {
+  stroke: var(--border);
+}
+
+.feld-agents__axis-tick.is-minor {
+  stroke: var(--line);
+}
+
+/* The Timeline's vertical grid under the lanes: labelled ticks a shade stronger than the
+   minor steps between them, both quieter than the lane separators. */
+.feld-agents__grid-line {
+  stroke: var(--line);
+  stroke-width: 1;
+  opacity: .6;
+  pointer-events: none;
+}
+
+.feld-agents__grid-line.is-major {
+  stroke: var(--border);
+  opacity: .75;
+}
+
+.feld-agents__axis-tick.is-day {
+  stroke: var(--ink-soft);
+}
+
+.feld-agents__axis-date {
+  fill: var(--ink);
+  font: 600 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.feld-agents__axis-label {
+  fill: var(--ink-soft);
+  font: 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The Metrics picker holds Quick ranges only. */
+.feld-agents__metrics-picker {
+  grid-template-columns: 180px;
+  width: auto;
+}
+
+/* Folded, the section header carries every lane's reading on a line of its own. */
+.feld-agents__section-head .feld-agents__metrics-summary {
+  order: 10;
+  flex: 1 1 100%;
+  min-height: 0;
+}
+
+.feld-agents__actions-head,
+.feld-agents__actions {
+  position: sticky;
+  right: 0;
+  z-index: 7;
+  width: var(--agents-actions-width);
+  flex: 0 0 var(--agents-actions-width);
+  margin-left: auto;
+  box-sizing: border-box;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  box-shadow: -7px 0 10px -10px rgb(0 0 0 / 55%);
+}
+
+.feld-agents__actions-head {
+  z-index: 10;
+}
+
+.feld-agents__action-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 76px;
+  box-sizing: border-box;
+}
+
+.feld-agents__action-cell + .feld-agents__action-cell {
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.feld-agents__action-button {
+  display: inline-grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  padding: 0;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 21px !important;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feld-agents__action-button:hover {
+  background: var(--accent-band);
+}
+
+/* Placed by ActionMenu in actors/Bands.tsx, anchored to its row. */
+.feld-agents__action-menu {
+  position: fixed;
+  z-index: 30;
+  display: grid;
+  width: 284px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 5px;
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+}
+
+.feld-agents__action-menu [role="menuitem"] {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.feld-agents__action-menu [role="menuitem"]:hover {
+  background: var(--bg);
+}
+
+.feld-agents__action-menu [role="menuitem"]:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+}
+
+/* Kill waiting for its second choice. */
+.feld-agents__action-menu [role="menuitem"].is-confirming {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.feld-agents__action-menu [role="menuitem"] strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.feld-agents__action-menu [role="menuitem"] small {
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.feld-agents__composer-hint {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.feld-agents__composer label {
+  display: grid;
+  gap: 5px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.feld-agents__composer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 9px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
+  resize: vertical;
+}
+
+.feld-agents__composer textarea:focus-visible {
+  border-color: var(--accent-strong);
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.feld-agents__composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* The primary action: white on a deep blue that holds its contrast on every theme, since
+   the dark themes lighten --accent-strong for text and lines. */
+/* The compound selector outweighs `.feld-agents button`, which inherits the ink. */
+.feld-agents__button.feld-agents__button--primary {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.feld-agents__button.feld-agents__button--primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.feld-agents__related {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feld-agents__related-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feld-agents__related-item:hover {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+.feld-agents__related-item:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.feld-agents__related-glyph {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  place-items: center;
+  color: var(--accent-strong);
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 40%, transparent);
+  border-radius: 50%;
+  font-size: 11px;
+}
+
+.feld-agents__related-item > span:last-child {
+  min-width: 0;
+}
+
+.feld-agents__related-item strong,
+.feld-agents__related-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feld-agents__related-item strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.feld-agents__related-item small {
+  margin-top: 1px;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+}
+
+.feld-agents__related-empty {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.feld-agents__composer-result {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* The New actor screen reports what the start it accepted came to. A failure is the one
+   thing the reader must not miss, and a start the daemon has not settled stays in the
+   neutral frame: only a proven start is coloured as one. */
+.feld-agents__composer-result strong {
+  color: var(--ink);
+}
+
+.feld-agents__composer-result.is-ok {
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--border));
+}
+
+.feld-agents__composer-result.is-ok strong {
+  color: var(--ok-text);
+}
+
+.feld-agents__composer-result.is-attention {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+}
+
+.feld-agents__composer-result.is-attention strong {
+  color: var(--warning-text);
+}
+
+.feld-agents__composer-result.is-failed {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg));
+}
+
+.feld-agents__composer-result.is-failed strong {
+  color: var(--danger-text);
+}
+
+/* The scrim exists only for the compact bottom-sheet inspector; on wide layouts it is
+   not rendered. Tapping it runs the same close action as the inspector's × button. */
+.feld-agents__scrim {
+  display: none;
+}
+
+/* Console, Actor card and Message composer all open as one card laid over the right of
+   the Timeline, with a shadow under it. What the card covers stays where it is; the
+   Timeline keeps its full width and is read again as soon as the card closes. */
+.feld-agents__inspector {
+  position: absolute;
+  z-index: 40;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: var(--inspector-width, var(--inspector-default, 620px));
+  min-width: 0;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 16px;
+  background: color-mix(in srgb, var(--panel) 94%, var(--accent));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 22px 56px rgb(0 0 0 / 30%), 0 3px 12px rgb(0 0 0 / 14%);
+  overscroll-behavior: contain;
+}
+
+/* Match the horizontal Actors/Metrics separator: a resize band with a perpendicular grip
+   in its centre, here at the card's left edge. */
+.feld-agents__inspector-resizer {
+  position: absolute;
+  z-index: 41;
+  top: 8px;
+  right: calc(var(--inspector-width, var(--inspector-default, 620px)) + 8px);
+  bottom: 8px;
+  display: grid;
+  width: 9px;
+  min-width: 9px;
+  place-items: center;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.feld-agents__inspector-resizer span {
+  width: 2px;
+  height: 34px;
+  background: var(--ink-faint);
+  border-radius: 999px;
+  transition: height 120ms ease, background 120ms ease;
+}
+
+.feld-agents__inspector-resizer:hover span,
+.feld-agents__inspector-resizer:focus-visible span,
+.feld-agents.is-resizing-inspector .feld-agents__inspector-resizer span {
+  height: 52px;
+  background: var(--accent-strong);
+}
+
+.feld-agents.is-resizing-inspector,
+.feld-agents.is-resizing-inspector * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.feld-agents__inspector-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.feld-agents__inspector-eyebrow {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.feld-agents__inspector-top button {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feld-agents__inspector-top button:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__inspector-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.feld-agents__inspector-title > div {
+  min-width: 0;
+}
+
+/* A Session ID is longer than the narrow layouts are wide, so it wraps rather than being
+   cut off: it is what the reader quotes to the CLI. */
+.feld-agents__inspector-title h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font: 600 16px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.feld-agents__inspector-agent {
+  display: block;
+  margin-top: 3px;
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
+.feld-agents__session-state {
+  flex: none;
+  padding: 3px 7px;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.feld-agents__session-state.is-running {
+  color: var(--ok-text);
+}
+
+.feld-agents__session-state.is-succeeded {
+  color: var(--ok-text);
+}
+
+.feld-agents__session-state.is-failed {
+  color: var(--danger-text);
+}
+
+/* An Agent that ended with no stop or kill recorded: attention, but not a failure claim. */
+.feld-agents__session-state.is-exited {
+  color: var(--warning-text);
+}
+
+.feld-agents__session-state.is-exited,
+.feld-agents__session-state.is-unknown {
+  text-transform: none;
+}
+
+.feld-agents__inspector-facts {
+  margin: 0;
+}
+
+.feld-agents__inspector-facts dd.is-multiline strong,
+.feld-agents__inspector-facts dd.is-multiline span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* An Agent's runtimeSettings, as declared with the secrets masked: indented JSON, left
+   aligned under the row's value column. */
+.feld-agents__inspector-facts .feld-agents__settings {
+  display: block;
+  max-height: 180px;
+  overflow: auto;
+  margin-bottom: 4px;
+  font: 11px/1.45 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  text-align: left;
+  white-space: pre;
+}
+
+/* The Now section's link to the last record sits under the row's meaning, its right edge
+   on the column's, so it drops its own right padding rather than hanging past the column
+   and making the row wider than it. */
+.feld-agents__inspector-facts .feld-agents__now-open {
+  margin: 4px 0 0;
+  padding-right: 0;
+  font-size: 11px;
+}
+
+.feld-agents__now-open::after {
+  content: " →";
+}
+
+.feld-agents__inspector-section {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.feld-agents__inspector-facts > div {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__inspector-facts dt {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.feld-agents__inspector-facts dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+}
+
+.feld-agents__inspector-facts strong,
+.feld-agents__inspector-facts span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Actor card: the Actor's own facts and its Session table, one step deeper the facts of
+   a single Session with the way into its Console. */
+.feld-agents__inspector.is-actor {
+  background: var(--panel-raised);
+}
+
+.feld-agents__inspector-top .feld-agents__card-back {
+  display: inline-flex;
+  width: auto;
+  height: 25px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 4px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.feld-agents__inspector-top .feld-agents__card-back span {
+  font-size: 14px;
+}
+
+.feld-agents__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.feld-agents__card-empty {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+/* A Session row of the Actor card: the run grid, made a button that opens that Session. */
+.feld-agents__session-row {
+  width: 100%;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feld-agents__session-row:hover {
+  background: var(--bg);
+  border-color: var(--line);
+}
+
+.feld-agents__session-row:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.feld-agents__run-arrow {
+  color: var(--ink-faint);
+}
+
+.feld-agents__session-row:hover .feld-agents__run-arrow {
+  color: var(--accent-strong);
+}
+
+.feld-agents__link-button {
+  padding: 0;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Console view. On the wide layout the rail becomes a column whose transcript scrolls on
+   its own while the Console's identity bar stays in view. */
+.feld-agents__inspector.is-console {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  background: #12161b;
+  border-color: #2a313a;
+}
+
+.feld-agents__console {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  container: feld-rail-console / inline-size;
+}
+
+.feld-agents__console .feld-console__terminal {
+  min-height: 0;
+  flex: 1;
+}
+
+.feld-agents__console-controls {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.feld-agents__console-controls button {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+  color: #aeb6c0;
+  background: #222831;
+  border: 1px solid #333b46;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feld-agents__console-controls button:hover {
+  color: #f3f5f7;
+  background: #2a313a;
+  border-color: #46505d;
+}
+
+.feld-agents__console-controls .feld-agents__details-button {
+  gap: 5px;
+}
+
+.feld-agents__console-controls .feld-agents__console-close {
+  width: 28px;
+  padding: 0;
+  font-size: 17px;
+}
+
+.feld-agents__console-controls .feld-agents__details-button svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+/* Match the sidebar bottom section's 57px outer height without relying on a rail border. */
+.feld-agents__console .feld-console__read-only {
+  min-height: 57px;
+  box-sizing: border-box;
+}
+
+.feld-agents__console .feld-console__transcript:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+}
+
+@container feld-rail-console (max-width: 560px) {
+  .feld-agents__console .feld-console__terminal-bar dl {
+    display: none;
+  }
+
+  .feld-agents__console .feld-console__read-only {
+    padding: 6px 12px;
+    line-height: 1.5;
+  }
+}
+
+.feld-agents__inspector-facts strong {
+  font-size: 12px;
+}
+
+.feld-agents__inspector-facts span {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+/* Info icon and popover. The popover is drawn here instead of a native title so it
+   opens on keyboard focus as well as hover; Escape blurs the icon and marks it
+   dismissed until the pointer leaves. */
+.feld-agents__info {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--ink-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: help;
+}
+
+.feld-agents__info svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+
+.feld-agents__info:hover,
+.feld-agents__info:focus-visible {
+  color: var(--ink);
+}
+
+.feld-agents__info:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 0;
+}
+
+.feld-agents__info-popover {
+  position: absolute;
+  top: calc(100% - 2px);
+  right: 0;
+  left: 0;
+  z-index: 18;
+  display: none;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.feld-agents__info:not(.is-dismissed):hover + .feld-agents__info-popover,
+.feld-agents__info:focus-visible + .feld-agents__info-popover {
+  display: block;
+}
+
+.feld-agents__chart text {
+  fill: var(--ink-soft);
+  font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.feld-agents__lane-separator {
+  stroke: var(--line);
+  stroke-width: 1;
+  opacity: .7;
+}
+
+.feld-agents__session {
+  fill: none;
+  stroke: var(--timeline-session, var(--ink));
+  stroke-width: var(--timeline-session-width, 4);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: var(--timeline-session-opacity, .82);
+}
+
+.feld-agents__session.is-sub-agent {
+  stroke-width: var(--timeline-sub-agent-width, 3);
+}
+
+/* The inspected Session is brighter and heavier, so selection does not rely on hue alone;
+   the hover and focus halos on the hit target below do the same for pointing. */
+.feld-agents__session.is-inspected {
+  stroke: var(--accent-strong);
+  stroke-width: var(--timeline-session-selected-width, 5);
+  opacity: 1;
+}
+
+.feld-agents__session.is-uncertain {
+  stroke-dasharray: 5 4;
+}
+
+.feld-agents__token-bar {
+  fill: var(--timeline-histogram, var(--ink));
+  opacity: var(--timeline-histogram-opacity, .28);
+  pointer-events: none;
+}
+
+.feld-agents__token-bar.is-context {
+  fill: var(--accent-strong);
+  opacity: var(--timeline-context-histogram-opacity, .4);
+}
+
+.feld-agents__token-bar.is-hovered {
+  opacity: .72;
+}
+
+.feld-agents__metric-hover {
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  pointer-events: none;
+}
+
+.feld-agents__metric-hover.feld-agents__metric-point {
+  stroke: var(--panel);
+  stroke-width: 1.5;
+  stroke-dasharray: none;
+}
+
+/* The value tooltip of the band histograms and the Metrics charts, and the one-line tooltip
+   of a mark; it follows the pointer. */
+.feld-agents__chart-tooltip {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  box-sizing: border-box;
+  gap: 3px;
+  min-width: 140px;
+  max-width: 280px;
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  padding: 7px 10px;
+  color: var(--ink);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+  font-size: 11px;
+  line-height: 1.45;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity .14s ease, transform .14s ease;
+}
+
+.feld-agents__chart-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.feld-agents__chart-tooltip:has(.feld-agents__message-tooltip-row) {
+  width: max-content;
+  max-width: min(520px, calc(100vw - 16px));
+}
+
+.feld-agents__chart-tooltip-title {
+  font-weight: 600;
+}
+
+.feld-agents__chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.feld-agents__chart-tooltip-row .feld-agents__metric-swatch {
+  height: 12px;
+}
+
+.feld-agents__chart-tooltip-row strong {
+  margin-left: auto;
+  padding-left: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.feld-agents__chart-tooltip-line strong {
+  font-weight: 600;
+}
+
+.feld-agents__chart-tooltip-meta {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.feld-agents__chart-tooltip-meta.is-indented {
+  margin-top: -3px;
+  padding-left: 9px;
+  font-size: 10px;
+}
+
+.feld-agents__message-tooltip-row {
+  display: grid;
+  grid-template-columns: max-content minmax(120px, 1fr) max-content;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.feld-agents__message-tooltip-row strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.feld-agents__message-tooltip-row span {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.feld-agents__message-tooltip-row em {
+  color: var(--ink-soft);
+  font-style: normal;
+}
+
+.feld-agents__message-tooltip-row em.is-waiting {
+  color: var(--warning-text);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feld-agents__chart-tooltip {
+    transform: none;
+    transition: none;
+  }
+
+  .feld-agents__button--refresh.is-refreshing svg {
+    animation: none;
+  }
+
+  .feld-agents__section-toggle svg {
+    transition: none;
+  }
+
+  .feld-agents__pane-resizer span,
+  .feld-agents__inspector-resizer span {
+    transition: background 120ms ease;
+  }
+}
+
+/* The trunk of a relation bus: the Messages and Spawns of one Session in one time bin. */
+.feld-agents__relation-link {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  opacity: .72;
+  pointer-events: none;
+}
+
+/* A shorter dash distinguishes a local stub whose other Actor is not in the table. */
+.feld-agents__relation-link.is-stub {
+  stroke-dasharray: 2 4;
+}
+
+.feld-agents__relation-edge {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .8;
+  pointer-events: none;
+}
+
+.feld-agents__relation-edge.is-hidden {
+  stroke-dasharray: 2 2;
+}
+
+.feld-agents__relation-link.is-related {
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.feld-agents__relation-arrow {
+  fill: var(--ink);
+  opacity: .8;
+  pointer-events: none;
+}
+
+.feld-agents__relation-arrow.is-related {
+  fill: var(--accent-strong);
+  opacity: 1;
+}
+
+/* Open tray at the recipient lane: the Message was placed in the mailbox and waits. It is
+   drawn in the same amber as the unread-mail mark and the Console's Message waiting row, so
+   waiting mail reads the same everywhere; inspection keeps the colour and lifts the opacity. */
+.feld-agents__mailbox-marker {
+  fill: none;
+  stroke: var(--warning);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .9;
+  pointer-events: none;
+}
+
+.feld-agents__mailbox-marker.is-related {
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.feld-agents__relation-edge.is-related {
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.feld-agents__relation-edge.is-related {
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+  opacity: 1;
+}
+
+.feld-agents__relation-bundle-visual.is-hovered .feld-agents__relation-link {
+  stroke: var(--accent-strong);
+  stroke-width: 2.4;
+  opacity: 1;
+}
+
+.feld-agents__relation-bundle-visual.is-hovered :is(.feld-agents__relation-arrow, .feld-agents__mailbox-marker, .feld-agents__relation-edge) {
+  opacity: 1;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--accent-strong) 45%, transparent));
+}
+
+/* Focus: while a Session, Spawn, or Message is inspected, everything it does not touch
+   recedes so the selected relationship can be followed; the muted marks stay drawn so the
+   surrounding context is not lost. The lines themselves keep their shapes and titles. */
+.feld-agents__session.is-muted,
+.feld-agents__token-bar.is-muted,
+.feld-agents__continuation.is-muted,
+.feld-agents__event.is-muted,
+.feld-agents__event-fill.is-muted,
+.feld-agents__sub-agent-fork.is-muted,
+.feld-agents__relation-link.is-muted,
+.feld-agents__relation-arrow.is-muted,
+.feld-agents__mailbox-marker.is-muted {
+  opacity: .16;
+}
+
+.feld-agents__relation-edge.is-muted {
+  opacity: .16;
+}
+
+.feld-agents__relation-edge.is-muted {
+  opacity: .16;
+}
+
+.feld-agents__token-bar.is-muted {
+  opacity: .07;
+}
+
+/* Rows reorder by dragging the name cell; the drop lands above or below the row under
+   the pointer, marked by a line on that edge. */
+.feld-agents__band-label[draggable="true"] {
+  cursor: grab;
+}
+
+.feld-agents__band-label.is-dragging {
+  opacity: .45;
+}
+
+.feld-agents__band-label.is-drop-before {
+  box-shadow: inset 0 2px 0 var(--accent-strong);
+}
+
+.feld-agents__band-label.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent-strong);
+}
+
+.feld-agents__pin-mark {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  margin-left: 5px;
+  vertical-align: -1px;
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__band-label.is-focused {
+  background: var(--accent-band);
+}
+
+.feld-agents__band-label.is-selected {
+  box-shadow: inset 3px 0 0 var(--accent-strong);
+}
+
+.feld-agents__band-detail.is-focused {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+
+.feld-agents__relation-hit {
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+/* A Spawn hit line beside a Message bus of its bin stops short of the dotted trunk. */
+
+.feld-agents__relation-hit:hover {
+  stroke: var(--accent-band);
+}
+
+.feld-agents__session-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 28;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+/* The square around a Session's end marker, so a Session that ended within seconds opens
+   as easily as a long one. */
+.feld-agents__session-marker-hit {
+  fill: transparent;
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.feld-agents__session-marker-hit.is-hovered {
+  fill: var(--accent-band);
+}
+
+.feld-agents__sub-agent-fork {
+  fill: var(--panel);
+  stroke: var(--timeline-session, var(--ink));
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.feld-agents__session-hit:hover {
+  stroke: var(--accent-band);
+}
+
+.feld-agents__continuation,
+.feld-agents__event {
+  fill: var(--panel);
+  stroke: var(--timeline-session, var(--ink));
+  stroke-width: 1.5;
+}
+
+.feld-agents__event-fill {
+  fill: var(--timeline-session, var(--ink));
+}
+
+/* End markers concluded from ownership and the kind rule (see drawTimeline). A completed
+   owned Job run ends in a bar; an end that needs attention is an ×: danger for a failed
+   Job run, warning for an owned Agent that exited without a stop or kill request. */
+.feld-agents__event.is-succeeded {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.feld-agents__event.is-attention {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.feld-agents__event.is-failed {
+  stroke: var(--danger);
+}
+
+.feld-agents__event.is-exited {
+  stroke: var(--warning);
+}
+
+.feld-agents__lane-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* The focused lane draws its own outline as a stroke, for the keyboard alone: a lane the
+   pointer focused (a press on it, or a click on its Actor's row) draws none. */
+.feld-agents__lane-hit:focus {
+  outline: none;
+}
+
+.feld-agents__lane-hit:focus-visible:not([data-pointer-focus]) {
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+}
+
+/* The keyboard reaches the Sessions, skipped ticks, and bundles of a lane from its lane hit
+   with the arrow keys. The focused one is outlined like the lane hit, apart from the hover
+   band; the timeline draws the outline around its box. */
+.feld-agents__session-hit:focus,
+.feld-agents__skip-hit:focus,
+.feld-agents__relation-hit:focus {
+  outline: none;
+}
+
+.feld-agents__hit-focus {
+  fill: none;
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.feld-agents__actor-focus-band {
+  fill: var(--accent-band);
+  pointer-events: none;
+}
+
+/* The empty state shares the Timeline's cell, so a pane shorter than its guidance scrolls. */
+.feld-agents__body.is-empty {
+  min-height: auto;
+  flex: 1;
+}
+
+.feld-agents__body.is-empty .feld-agents__chart {
+  display: grid;
+}
+
+.feld-agents__body.is-empty .feld-agents__chart > * {
+  grid-area: 1 / 1;
+}
+
+.feld-agents__empty {
+  position: relative;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
+  padding: 28px 24px;
+  color: var(--ink-soft);
+  text-align: center;
+  pointer-events: none;
+}
+
+.feld-agents__empty p {
+  margin: 0 0 12px;
+}
+
+/* The empty state stays transparent to Timeline gestures; its command and call to action do not. */
+.feld-agents__empty button {
+  justify-self: center;
+  color: var(--ink);
+  pointer-events: auto;
+}
+
+.feld-agents__empty code {
+  padding: 1px 6px;
+  color: var(--ink);
+  font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: auto;
+  user-select: all;
+}
+
+/* A narrow workspace gives the card most of the width, still over the Timeline. */
+@media (max-width: 1180px) {
+  .feld-agents__workspace.has-inspector,
+  .feld-agents__workspace.has-session-console {
+    --inspector-default: min(620px, calc(100% - 96px));
+  }
+}
+
+/* Narrow layout. */
+@media (max-width: 960px) {
+  /* Folded Metrics header: one line that scrolls sideways, as on a phone, so the fold
+     stays short. */
+  .feld-agents__metrics-summary {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .feld-agents__metrics-summary-item,
+  .feld-agents__metrics-summary output {
+    flex: none;
+    flex-wrap: nowrap;
+  }
+}
+
+/* Compact (phone) layout. The shell turns the sidebar into a top bar and a bottom tab
+   bar at this breakpoint and .app fills the space between them, so the component still
+   takes height: 100%; only fixed overlays read the shell's bar heights. Everything in
+   this block must stay inside the media query so the wide layout is untouched. */
+@media (max-width: 760px) {
+  /* Heading: the title with Refresh and New actor on one row, search across the next. */
+  .feld-agents__heading {
+    display: grid;
+    height: auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px 8px;
+  }
+
+  /* The New actor button keeps the first row with the title and search, as an
+     icon; its label returns on wide layouts. */
+  .feld-agents__button--new {
+    grid-row: 1;
+    grid-column: 3;
+    padding-inline: 10px;
+  }
+
+  /* Refresh keeps the first row with the title and New actor; search takes the second. */
+  .feld-agents__heading .feld-agents__refresh {
+    display: flex;
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  /* No room for the words: they stay for screen readers, and the Refresh icon turns (or,
+     with reduced motion, takes the warning colour) while the reads wait and takes the
+     danger colour when one failed (its tooltip names it). */
+  .feld-agents__connection {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+  }
+
+  .feld-agents__refresh.is-connecting .feld-agents__button--refresh svg,
+  .feld-agents__refresh.is-reconnecting .feld-agents__button--refresh svg {
+    animation: feld-agents-refresh 1s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feld-agents__refresh.is-connecting .feld-agents__button--refresh,
+    .feld-agents__refresh.is-reconnecting .feld-agents__button--refresh {
+      color: var(--warning);
+    }
+
+    .feld-agents__refresh.is-connecting .feld-agents__button--refresh svg,
+    .feld-agents__refresh.is-reconnecting .feld-agents__button--refresh svg {
+      animation: none;
+    }
+  }
+
+  .feld-agents__refresh.is-error .feld-agents__button--refresh {
+    color: var(--danger);
+  }
+
+  .feld-agents__heading-copy {
+    display: contents;
+  }
+
+  .feld-agents__workspace-switcher {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .feld-agents__heading h1 {
+    grid-row: 1;
+    grid-column: 1;
+    font-size: 19px;
+  }
+
+  .feld-agents__heading-controls {
+    display: contents;
+  }
+
+  .feld-agents__button,
+  .feld-agents__select,
+  .feld-agents__search {
+    min-height: 40px;
+  }
+
+  .feld-agents__search {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* The time controls take a row of their own: the range stretches, Refresh and the
+     interval keep their size at its end. */
+  .feld-agents__timebar {
+    display: grid;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .feld-agents__button--range {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .feld-agents__button--range [data-range-label] {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .feld-agents__button--icon {
+    min-width: 0;
+    padding-inline: 4px;
+  }
+
+  /* Range picker: one column across the viewport under the heading; the component
+     measures the vertical offset and the available height because the heading height
+     depends on wrapping. It sits above the sticky table headers and the mock chrome. */
+  .feld-agents__picker {
+    top: 190px;
+    right: 8px;
+    left: 8px;
+    z-index: 36;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    width: auto;
+    max-height: 60dvh;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px;
+  }
+
+  .feld-agents__quick-ranges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .feld-agents__quick-ranges button {
+    min-height: 40px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+
+  .feld-agents__picker-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feld-agents__picker-feld input,
+  .feld-agents__picker-feld select {
+    min-height: 40px;
+  }
+
+  /* The action row stays visible while the fields scroll inside the picker. */
+  .feld-agents__picker-actions {
+    position: sticky;
+    bottom: -14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0 -14px -14px;
+    padding: 10px 14px 14px;
+    background: var(--panel);
+  }
+
+  /* Workspace and tables. The identity column starts at its 120px minimum and the
+     evidence columns start hidden (both chosen by the component at mount), the Actions
+     column narrows to one button, and the timeline floor drops so the table fits the
+     viewport without horizontal scrolling. The component reads the floor from
+     --agents-timeline-min-width. */
+  .feld-agents__workspace {
+    padding: 8px;
+  }
+
+  .feld-agents__workspace.has-inspector {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .feld-agents__bands {
+    --agents-identity-width: 140px !important;
+    --agents-details-width: 0px !important;
+    --agents-timeline-min-width: 160px;
+    --agents-actions-width: 44px;
+    /* Metrics starts at its header plus two lanes so the Agent bands keep a useful share
+       of a short workspace. */
+    grid-template-rows: auto minmax(96px, var(--agents-pane-height, 1fr)) 7px minmax(110px, var(--metrics-pane-height, 174px));
+    border-left: 1px solid var(--border);
+  }
+
+  .feld-agents__actor-resizer {
+    display: none;
+  }
+
+  .feld-agents__agent-head-identity {
+    padding-left: 10px;
+    overflow: hidden;
+  }
+
+  .feld-agents__agent-head small {
+    display: block;
+    margin-left: 0;
+  }
+
+  .feld-agents__timeline-head {
+    padding-inline: 10px 12px;
+  }
+
+  .feld-agents__band-identity {
+    gap: 7px;
+    padding: 8px 6px 8px 10px;
+  }
+
+  .feld-agents__actor-name {
+    font-size: 12px;
+  }
+
+  /* The Actor table would leave no Timeline at phone width; the Actor card carries the
+     same columns for one Actor. */
+  .feld-agents__detail-head,
+  .feld-agents__band-details {
+    display: none;
+  }
+
+  .feld-agents__actions-head,
+  .feld-agents__actions {
+    box-shadow: none;
+  }
+
+  .feld-agents__actions-head button,
+  .feld-agents__metric-spacer button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .feld-agents__action-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Vertical swipes on the charts scroll the pane; horizontal swipes pan time. */
+  .feld-agents__chart svg,
+  .feld-agents__metrics-chart svg {
+    touch-action: pan-y;
+  }
+
+  /* The Agents/Metrics separator keeps its 7px line but gains a 19px touch hit area. */
+  .feld-agents__pane-resizer::after {
+    position: absolute;
+    right: 0;
+    left: 0;
+    top: -6px;
+    bottom: -6px;
+    content: "";
+  }
+
+  /* Metrics label at the 120px identity width: name and caption on the left of the
+     swatch, readings under the name. */
+  .feld-agents__metric-label {
+    gap: 3px 7px;
+    padding: 6px 6px 6px 10px;
+  }
+
+  .feld-agents__metric-name strong {
+    font-size: 11px;
+  }
+
+  .feld-agents__metric-name small {
+    font-size: 9.5px;
+  }
+
+  /* The Runtime name gives way to its dot at this width; the row's title still names it. */
+  .feld-agents__metric-label output {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    font-size: 10.5px;
+  }
+
+  .feld-agents__metric-label .feld-agents__metric-runtime {
+    display: none;
+  }
+
+  .feld-agents__metric-label .feld-agents__metric-reading {
+    overflow: hidden;
+  }
+
+  /* Folded Metrics header: the lane readings stay on one line that scrolls sideways by
+     touch, so the fold stays short on a phone. */
+  .feld-agents__metrics-summary {
+    min-height: 40px;
+    flex-wrap: nowrap;
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .feld-agents__metrics-summary::-webkit-scrollbar {
+    display: none;
+  }
+
+  .feld-agents__metrics-summary-item,
+  .feld-agents__metrics-summary output {
+    flex: none;
+    flex-wrap: nowrap;
+  }
+
+  /* Inspector column contents (Session, Action, Message, Mailbox inspectors and the
+     Message composer) become a bottom sheet above the tab bar, with a scrim that closes
+     it through the same action as the × button. */
+  .feld-agents__scrim {
+    position: fixed;
+    top: var(--shell-topbar-height, 0px);
+    right: 0;
+    bottom: var(--shell-tabbar-height, 0px);
+    left: 0;
+    z-index: 34;
+    display: block;
+    background: rgb(0 0 0 / 40%);
+  }
+
+  .feld-agents__inspector {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: var(--shell-tabbar-height, 0px);
+    left: 0;
+    z-index: 35;
+    width: auto;
+    max-width: none;
+    max-height: 72dvh;
+    padding: 0 16px 16px;
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    background: var(--panel-raised);
+    box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+    overscroll-behavior: contain;
+  }
+
+  .feld-agents__inspector-resizer {
+    display: none;
+  }
+
+  .feld-agents__inspector-top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 -16px 9px;
+    padding: 18px 10px 4px 16px;
+    background: inherit;
+  }
+
+  .feld-agents__inspector-top::before {
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    background: var(--ink-faint);
+    border-radius: 999px;
+    content: "";
+    transform: translateX(-50%);
+  }
+
+  .feld-agents__inspector-top button {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+
+  /* The Console sheet takes a fixed height and scrolls only its transcript, so the
+     identity bar with Transcript, Details, Live and the model stays in view. */
+  .feld-agents__inspector.is-console {
+    display: flex;
+    height: 72dvh;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .feld-agents__info {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* The Actions menu is taller than the table pane at phone height, so it opens as a
+     bottom sheet. */
+  .feld-agents__action-menu {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: var(--shell-tabbar-height, 0px);
+    left: 0;
+    z-index: 36;
+    width: auto;
+    max-height: 72dvh;
+    overflow-y: auto;
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    background: var(--panel-raised);
+    box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+    overscroll-behavior: contain;
+  }
+
+  .feld-agents__action-menu {
+    padding: 10px 8px 8px;
+  }
+
+  /* The sheet is detached from its row, so it names the Agent from its accessible label. */
+  .feld-agents__action-menu::before {
+    padding: 8px 10px 2px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    content: attr(aria-label);
+  }
+
+  .feld-agents__action-menu [role="menuitem"] {
+    min-height: 44px;
+    box-sizing: border-box;
+    align-content: center;
+  }
+}
+
+/* ---- Schedule (RFC-0005) ------------------------------------------------------------ */
+
+/* The Schedule line under an Actor's details: next run or paused state, derived at
+   render time, plus the skip mark while the current Session has outlived a tick (see
+   scheduleLineMarkup in components/agents.js). Present only for a Job; clicking
+   opens the Job modal. */
+.feld-agents__schedule {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  margin-top: 4px;
+  padding: 0 6px 0 4px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font: 500 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feld-agents__schedule > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feld-agents__schedule svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__schedule.is-paused {
+  color: var(--ink-faint-text);
+}
+
+.feld-agents__schedule:hover {
+  color: var(--ink);
+  background: var(--bg);
+  border-color: var(--line);
+}
+
+.feld-agents__schedule:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+/* The marks line: skipped ticks and unread mail side by side, both in the attention
+   amber, on one line whether one or both are present. */
+.feld-agents__marks {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.feld-agents__marks .feld-agents__unread {
+  margin-top: 0;
+}
+
+.feld-agents__unread.is-skip svg {
+  stroke-width: 1.6;
+}
+
+/* A skipped tick on the Timeline: a hollow circle with a slash on the lane's main line at
+   the planned instant, in the same amber as the band's skip mark and the unread-mail tray. */
+.feld-agents__skip circle {
+  fill: var(--panel);
+  stroke: var(--warning);
+  stroke-width: 1.6;
+}
+
+.feld-agents__skip path {
+  fill: none;
+  stroke: var(--warning);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.feld-agents__skip.is-muted {
+  opacity: .28;
+}
+
+.feld-agents__skip-hit {
+  fill: transparent;
+  stroke: transparent;
+  cursor: pointer;
+}
+
+.feld-agents__skip-hit:hover {
+  fill: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+
+/* A quiet rule between the lifecycle items and the Schedule items of the Actions menu. */
+.feld-agents__action-menu-rule {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--line);
+}
+
+/* The toasts at the page's corner: a request from an Actions menu in flight, accepted,
+   or refused. Above the tab bar of the compact layout. */
+.feld-agents__toasts {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + var(--shell-tabbar-height, 0px));
+  z-index: 40;
+  display: grid;
+  width: min(360px, calc(100vw - 40px));
+  gap: 8px;
+}
+
+.feld-agents__toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  color: var(--ink);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float, 0 12px 32px rgb(0 0 0 / 14%));
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.feld-agents__toast.is-done {
+  border-left-color: var(--ok);
+}
+
+.feld-agents__toast.is-error {
+  border-left-color: var(--danger);
+}
+
+.feld-agents__toast-mark {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  color: var(--accent-strong);
+}
+
+.feld-agents__toast.is-done .feld-agents__toast-mark {
+  color: var(--ok);
+}
+
+.feld-agents__toast.is-error .feld-agents__toast-mark {
+  color: var(--danger);
+}
+
+.feld-agents__toast-mark svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__toast-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: feld-agents-toast-spin 800ms linear infinite;
+}
+
+@keyframes feld-agents-toast-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feld-agents__toast-spinner {
+    animation-duration: 2400ms;
+  }
+}
+
+.feld-agents__toast-text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.feld-agents__toast-text strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.feld-agents__toast-text small {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.feld-agents__toast-close {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin: -3px -2px 0 0;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feld-agents__toast-close:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__toast-close:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.feld-agents__button--new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.feld-agents__button--new svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* The New actor form: the same centered dialog as the display settings, laid out in
+   one column. */
+.feld-agents__display-menu.is-form {
+  width: min(640px, calc(100vw - 80px));
+  grid-template-columns: 1fr;
+}
+
+.feld-agents__display-menu.is-form > :not(.feld-agents__display-menu-title) {
+  margin-inline: 26px;
+}
+
+.feld-agents__display-menu.is-form > :last-child {
+  margin-bottom: 20px;
+}
+
+/* A dialog form keeps its title and its actions in view while the fields scroll
+   between them; the fade above the actions shows that more fields continue below. A field
+   or an error brought into view stops below the title and above the actions and their
+   fade; the dialog sets both heights as they wrap. */
+.feld-agents__display-menu.is-form {
+  --form-actions-fade: 28px;
+  scroll-padding-top: var(--display-menu-title-height, 0px);
+  scroll-padding-bottom: calc(var(--form-actions-height, 71px) + var(--form-actions-fade) + 5px);
+}
+
+.feld-agents__display-menu.is-form > .feld-agents__display-menu-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-block: 16px;
+  background: var(--panel-raised);
+}
+
+.feld-agents__display-menu.is-form > .feld-agents__form {
+  margin-bottom: 0;
+}
+
+.feld-agents__display-menu.is-form .feld-agents__form > .feld-agents__form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  flex-wrap: wrap;
+  margin: 0 -26px;
+  padding: 12px 26px 16px;
+  background: var(--panel-raised);
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__display-menu.is-form .feld-agents__form > .feld-agents__form-actions .feld-agents__button {
+  white-space: nowrap;
+}
+
+.feld-agents__display-menu.is-form .feld-agents__form > .feld-agents__form-actions::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--form-actions-fade);
+  background: linear-gradient(to bottom, transparent, var(--panel-raised));
+  content: "";
+  pointer-events: none;
+}
+
+/* Recent runs: planned instant, Session, outcome, and a way into the Console. A skip row
+   has no Session and therefore nothing to open. */
+.feld-agents__runs {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feld-agents__run {
+  display: grid;
+  grid-template-columns: 96px 118px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 11.5px;
+}
+
+.feld-agents__run.is-skip {
+  color: var(--ink-soft);
+}
+
+.feld-agents__run.is-highlighted {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.feld-agents__run-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.feld-agents__run-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.feld-agents__run-outcome {
+  min-width: 0;
+}
+
+.feld-agents__run-outcome strong,
+.feld-agents__run-outcome small {
+  display: block;
+}
+
+.feld-agents__run-outcome strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.feld-agents__run-outcome small {
+  color: var(--ink-soft);
+  font-size: 10.5px;
+}
+
+.feld-agents__run-outcome.is-failed strong {
+  color: var(--danger-text);
+}
+
+.feld-agents__run-outcome.is-unknown strong {
+  font-style: italic;
+}
+
+.feld-agents__run.is-skip .feld-agents__run-outcome strong {
+  color: var(--warning-text);
+}
+
+.feld-agents__run-open {
+  padding: 4px 8px;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feld-agents__run-open:hover {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.feld-agents__run-open:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+span.feld-agents__run-open {
+  min-width: 88px;
+  cursor: default;
+}
+
+/* Forms: the Job edit form and the New actor form, laid out like a plain
+   settings dialog: one control per row, a sentence-case label above it with a required
+   mark, and a help line only where the value has a rule the placeholder cannot show. */
+.feld-agents__form {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+  margin-bottom: 26px;
+}
+
+.feld-agents__display-menu .feld-agents__field {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  cursor: default;
+}
+
+.feld-agents__display-menu .feld-agents__field:hover {
+  background: transparent;
+}
+
+.feld-agents__display-menu .feld-agents__field > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.feld-agents__display-menu .feld-agents__field.is-required .feld-agents__field-name::after {
+  content: " *";
+  color: var(--ink-soft);
+}
+
+/* The field's help, behind the info mark beside its name. The selectors carry the modal's
+   `label span` prefix, which otherwise makes every span of a label a block. */
+.feld-agents__display-menu label .feld-agents__field-info,
+.feld-agents__display-menu label .feld-agents__field-info .feld-agents__info {
+  position: relative;
+  display: inline-flex;
+}
+
+.feld-agents__display-menu label .feld-agents__field-popover {
+  top: calc(100% + 6px);
+  right: auto;
+  left: -6px;
+  display: none;
+  width: min(320px, 70vw);
+  white-space: normal;
+  font-weight: 400;
+}
+
+.feld-agents__display-menu label .feld-agents__info:not(.is-dismissed):hover + .feld-agents__field-popover,
+.feld-agents__display-menu label .feld-agents__info:focus-visible + .feld-agents__field-popover {
+  display: block;
+}
+
+/* The Kind: two framed options side by side, the chosen one in the accent with its glyph. */
+.feld-agents__kind-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.feld-agents__kind-option {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feld-agents__kind-option svg {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  color: var(--ink-soft);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__display-menu label .feld-agents__kind-option > span {
+  display: grid;
+  gap: 2px;
+}
+
+.feld-agents__kind-option strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.feld-agents__kind-option small {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.feld-agents__kind-option:hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--ink-soft));
+}
+
+.feld-agents__kind-option.is-selected {
+  background: color-mix(in srgb, var(--accent-strong) 8%, var(--panel));
+  border-color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px var(--accent-strong);
+}
+
+.feld-agents__kind-option.is-selected svg {
+  color: var(--accent-strong);
+}
+
+.feld-agents__kind-option:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.feld-agents__display-menu .feld-agents__field input,
+.feld-agents__display-menu .feld-agents__field select,
+.feld-agents__display-menu .feld-agents__field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 14px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.feld-agents__display-menu .feld-agents__field select {
+  appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%236e6c66' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px;
+  cursor: pointer;
+}
+
+.feld-agents__display-menu .feld-agents__field select:disabled {
+  color: var(--ink-soft);
+  background-color: color-mix(in srgb, var(--border) 60%, var(--panel));
+  background-image: none;
+  opacity: 1;
+  cursor: default;
+}
+
+.feld-agents__display-menu .feld-agents__field input::placeholder,
+.feld-agents__display-menu .feld-agents__field textarea::placeholder {
+  color: color-mix(in srgb, var(--ink-soft) 65%, transparent);
+}
+
+.feld-agents__display-menu .feld-agents__field input[name="cron"],
+.feld-agents__display-menu .feld-agents__field input[name="command"],
+.feld-agents__display-menu .feld-agents__field input[name="workdir"],
+.feld-agents__display-menu .feld-agents__field textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.feld-agents__display-menu .feld-agents__field input:hover,
+.feld-agents__display-menu .feld-agents__field select:hover,
+.feld-agents__display-menu .feld-agents__field textarea:hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--ink-soft));
+}
+
+.feld-agents__display-menu .feld-agents__field input:focus-visible,
+.feld-agents__display-menu .feld-agents__field select:focus-visible,
+.feld-agents__display-menu .feld-agents__field textarea:focus-visible {
+  border-color: var(--accent-strong);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-strong) 22%, transparent);
+}
+
+.feld-agents__display-menu .feld-agents__field small {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.feld-agents__display-menu .feld-agents__field code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95em;
+}
+
+/* The fields sit in a box of their own: a details element lays its content out in a slot
+   of its own, which a grid on the element itself leaves without its gap. */
+.feld-agents__advanced {
+  display: grid;
+  gap: 16px;
+}
+
+.feld-agents__advanced-fields {
+  display: grid;
+  gap: 16px;
+}
+
+/* The Job edit form in the Actor card: the modal's form, at the panel's measure. */
+.feld-agents__inspector .feld-agents__job-form {
+  margin: 12px 0 18px;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__field {
+  display: grid;
+  gap: 6px;
+}
+
+/* A yes-or-no launch spec field: the box beside its sentence. */
+.feld-agents__inspector .feld-agents__job-form .feld-agents__form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__form-check input {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__field > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__field-info,
+.feld-agents__inspector .feld-agents__job-form .feld-agents__field-info .feld-agents__info {
+  position: relative;
+  display: inline-flex;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__field-popover {
+  top: calc(100% + 6px);
+  right: auto;
+  left: -6px;
+  display: none;
+  width: min(300px, 70vw);
+  white-space: normal;
+  font-weight: 400;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__info:not(.is-dismissed):hover + .feld-agents__field-popover,
+.feld-agents__inspector .feld-agents__job-form .feld-agents__info:focus-visible + .feld-agents__field-popover {
+  display: block;
+}
+
+.feld-agents__inspector .feld-agents__job-form input,
+.feld-agents__inspector .feld-agents__job-form select,
+.feld-agents__inspector .feld-agents__job-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 11px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.feld-agents__inspector .feld-agents__job-form input[name="cron"],
+.feld-agents__inspector .feld-agents__job-form input[name="command"],
+.feld-agents__inspector .feld-agents__job-form input[name="workdir"],
+.feld-agents__inspector .feld-agents__job-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.feld-agents__inspector .feld-agents__job-form input:focus-visible,
+.feld-agents__inspector .feld-agents__job-form select:focus-visible,
+.feld-agents__inspector .feld-agents__job-form textarea:focus-visible {
+  border-color: var(--accent-strong);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-strong) 22%, transparent);
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__form-group {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__form-group legend {
+  margin-bottom: 4px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.feld-agents__inspector .feld-agents__job-form .feld-agents__form-group legend code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95em;
+}
+
+.feld-agents__advanced summary {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feld-agents__advanced summary:hover {
+  color: var(--ink);
+}
+
+.feld-agents__form-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.feld-agents__form-error {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Dialog buttons: taller than the toolbar's, right-aligned, Cancel as a quiet text
+   button before the outlined and filled ones. */
+.feld-agents__form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.feld-agents__display-menu.is-form > .feld-agents__form-actions {
+  margin-bottom: 26px;
+}
+
+.feld-agents__form-actions .feld-agents__button {
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.feld-agents__button--quiet {
+  background: transparent;
+  border-color: transparent;
+}
+
+.feld-agents__button--quiet:hover {
+  background: var(--bg);
+  border-color: transparent;
+}
+
+@media (max-width: 760px) {
+  /* The Session id drops out; the time, the outcome and the arrow stay on one line. */
+  .feld-agents__run {
+    grid-template-columns: 90px minmax(0, 1fr) auto;
+  }
+
+  .feld-agents__run-id {
+    display: none;
+  }
+
+  .feld-agents__run-open {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .feld-agents__button--new span {
+    display: none;
+  }
+}
+
+/* The Job modal's edit form groups the two records it updates (Schedule, launch spec);
+   the groups undo the display-menu fieldset layout and take a captioned frame. */
+.feld-agents__display-menu .feld-agents__form .feld-agents__form-group {
+  display: grid;
+  gap: 16px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.feld-agents__display-menu .feld-agents__form .feld-agents__form-group legend {
+  margin-bottom: 0;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.feld-agents__display-menu .feld-agents__form .feld-agents__form-group legend code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+}
+
+
+/* On a phone a section header keeps to its fold, its time control, and its settings. */
+@media (max-width: 760px) {
+  .feld-agents__section-count,
+  .feld-agents__section-head .feld-agents__hidden-bands {
+    display: none;
+  }
+
+  .feld-agents__section-tools,
+  .feld-agents__section-head .feld-agents__timebar {
+    min-width: 0;
+    flex: 1;
+  }
+}

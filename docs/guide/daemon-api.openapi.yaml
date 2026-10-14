@@ -1,0 +1,2508 @@
+openapi: 3.1.0
+info:
+  title: Feld daemon API
+  version: 0.1.0
+  description: |
+    The HTTP API that `feld daemon` serves on loopback. The routes correspond to `routes` in `crates/feld-daemon/src/api/mod.rs` (the API and the Web UI of module `web`), and the test `openapi_describes_every_route` checks that paths and methods match.
+    The API consists of two surfaces: the Control API and the Runtime API (under `/v1/self`).
+
+    - Authentication uses `Authorization: Bearer <token>`, or the cookie and key of a browser token. The scheme is case-insensitive. When `Authorization` is present, the cookie and key are ignored. The tokens each operation accepts are given in its `security` and description.
+      - `localToken`: the local token in `FELD_HOME/admin/api-token`. Treated as Admin.
+      - `browserToken` and `browserKey`: a browser token issued by pairing. It is carried as the pair of the cookie `feld_browser_<port>` and the `X-Feld-Browser-Key` header, and passes only when both are present. Treated as Admin. Not accepted as Bearer.
+      - `sessionToken`: the token of a Session that Feld launched or attached. Treated as the Actor of that Session.
+      - `internalToken`: a token the daemon generates at each start and passes only to the OTel Collector.
+    - The Control API accepts `localToken`, `browserToken`, and `sessionToken`. A `sessionToken` passes only for a Session without `end`, a `browserToken` passes only when it is within its expiry and not revoked, and anything else gets `401`. The token used for the call becomes the `spawner` of spawned, the `from` of a Message, and the `requesterSessionId` of stop / kill. With a `sessionToken`, callable operations are limited to operations on the caller itself and operations opened by the grants of the Session's Actor; anything else gets `403` ("Authorization decisions" in `docs/spec/design/auth.md`). Pairing management (`/v1/ui/pairing-codes`, `/v1/ui/browsers`) accepts only `localToken`; anything else gets `403`.
+    - Reads with a `sessionToken` are limited to the Session's Workspace, and target that Workspace when the `workspace` query is omitted. Records are limited to those of the caller's own Actor unless it has the grant `read`. The `launchSpec` of another Actor and the `execution.command` of its Session are returned as `null`.
+    - The daemon responds only to requests whose destination name is a loopback name (`127.0.0.1`, `localhost`, `[::1]`; the port is the daemon's port) or a name allowed with `feld daemon start --allow-host`. If any one of `Host` and `X-Forwarded-Host` falls outside these, it returns `403` with a `text/plain` body (the disallowed name and the command that allows it) before checking the token.
+    - Requests other than `GET` authenticated with a browser token, and `POST /v1/ui/pair`, get `403` unless the host and port of `Origin` match the request destination (`X-Forwarded-Host`, or `Host` when absent). An omitted port is filled with the scheme default (http 80, https 443).
+    - The Runtime API targets the caller's Session (self) and accepts only `sessionToken`. `localToken` and `browserToken` get `403`, the token of a closed Session gets `409` (session closed), and a token that matches no Session gets `401`.
+    - Errors are returned as `Error` (`{"message": "..."}`). Only the `403` for a request whose destination name is not allowed is returned as `text/plain`. The daemon checks the token before reading the body and query, so a request whose token is rejected gets one of `401`, `403`, or `409` regardless of its format. A malformed JSON body (including unknown fields) gets `400`, `415`, or `422`, and a malformed query gets `400`. A nonexistent path gets `404`, and a method the path does not accept gets `405`.
+    - Boolean queries (`includeDeleted`, `current`, `waiting`, `wait`, `tail`) are `true` when given without a value.
+    - `application/json` responses are returned after replacing strings containing stored tokens and the `localToken` with `[REDACTED]`. The `preview` of a Message is built from the `body` after replacement. The `token` of `POST .../attach` is returned as is.
+    - Time queries (`start`, `end`) are accepted in RFC 3339 and normalized to UTC with millisecond precision. The range is `[start, end)`. Unparsable values, or a `start` later than `end` (for metrics, a `start` at or after `end`), get `400`.
+    - Paths and queries that refer to an Actor by name (`actor`, `from`, `to`) refer to an Actor that is not deleted.
+servers:
+  - url: http://127.0.0.1:{port}
+    description: "Listens on the port given with `feld daemon start --port` (`FELD_API_PORT`). Other devices reach it through an HTTPS proxy (`tailscale serve`). The setting is kept in `daemon.json`, and later starts use the same port. Without a setting, the default Feld home (`~/.feld`) listens on 7381. If these ports are in use, the start fails. Other homes prefer the loopback address in the previous `daemon.json`, and listen on a free port when it is unavailable."
+    variables:
+      port:
+        default: "7381"
+tags:
+  - name: Daemon
+  - name: Workspace
+  - name: Actor
+  - name: Session
+  - name: Record
+  - name: Message
+  - name: Metrics
+  - name: Events
+  - name: Pairing
+    description: Pairing of Web UI browsers and management of browser tokens.
+  - name: Self
+    description: Runtime API. Runtime Adapter helpers and the `feld` CLI call it as the caller's Session.
+  - name: Telemetry
+    description: Runtime API. The Collector calls it with the internal token.
+  - name: Web UI
+x-tagGroups:
+  - name: Control API
+    tags: [Daemon, Workspace, Actor, Session, Record, Message, Metrics, Events, Pairing]
+  - name: Runtime API
+    tags: [Self, Telemetry]
+  - name: Web UI
+    tags: [Web UI]
+security:
+  - localToken: []
+  - browserToken: []
+    browserKey: []
+  - sessionToken: []
+
+paths:
+  /v1/daemon/status:
+    get:
+      tags: [Daemon]
+      operationId: getDaemonStatus
+      summary: Returns the daemon status
+      description: '`version` is the same value as `feld --version`, `otlp` is the current Collector endpoint, `startedAt` is the daemon start time, and `serverTime` is the response time.'
+      responses:
+        "200":
+          description: The daemon status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DaemonStatus" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/daemon/shutdown:
+    post:
+      tags: [Daemon]
+      operationId: shutdownDaemon
+      summary: Requests the daemon to stop
+      description: Leaves Sessions untouched.
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      responses:
+        "200":
+          description: The stop request was accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, pid]
+                properties:
+                  accepted: { type: boolean, const: true }
+                  pid: { type: integer }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/daemon/restart:
+    post:
+      tags: [Daemon]
+      operationId: restartDaemon
+      summary: Requests the daemon to restart
+      description: 'Stops the daemon and starts it again, like `feld daemon restart`. It stops after returning the response; the new daemon has a different `instanceId` and inherits the `localToken`. Requests made during a restart join the same restart. Leaves Sessions untouched.'
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      responses:
+        "200":
+          description: The restart request was accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, pid, instanceId]
+                properties:
+                  accepted: { type: boolean, const: true }
+                  pid: { type: integer, description: The pid of the daemon that stops. }
+                  instanceId: { type: string, description: The instance ID of the daemon that stops. }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/runtimes:
+    get:
+      tags: [Daemon]
+      operationId: listRuntimes
+      summary: Lists installed Runtime Adapters
+      responses:
+        "200":
+          description: The list of Runtime Adapters
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runtimes]
+                properties:
+                  runtimes:
+                    type: array
+                    items: { $ref: "#/components/schemas/RuntimeEntry" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/providers:
+    get:
+      tags: [Daemon]
+      operationId: listProviders
+      summary: Lists installed Execution Providers
+      responses:
+        "200":
+          description: The list of Execution Providers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProviderEntry" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /v1/runtimes/{runtime}/metrics:
+    parameters:
+      - name: runtime
+        in: path
+        required: true
+        description: The name of an installed Runtime Adapter
+        schema: { type: string, examples: [claude-code, codex] }
+    get:
+      tags: [Metrics]
+      operationId: getRuntimeMetrics
+      summary: Returns Runtime metrics
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      description: |
+        Returns series that aggregate, per Runtime and account, the metrics of Sessions in all Workspaces that overlap the range, along with the account quota.
+        Omitting `metric` returns all metrics and `quota`. With `metric=quota`, `metrics` is empty and only `quota` is returned.
+      parameters:
+        - $ref: "#/components/parameters/Start"
+        - $ref: "#/components/parameters/End"
+        - $ref: "#/components/parameters/Bucket"
+        - name: metric
+          in: query
+          description: Narrows the returned metrics to one
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/MetricName"
+              - { type: string, const: quota }
+      responses:
+        "200":
+          description: Runtime metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuntimeMetrics" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404":
+          description: The Runtime Adapter is not installed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces:
+    get:
+      tags: [Workspace]
+      operationId: listWorkspaces
+      summary: Lists Workspaces
+      parameters:
+        - $ref: "#/components/parameters/IncludeDeleted"
+      responses:
+        "200":
+          description: The list of Workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workspaces]
+                properties:
+                  workspaces:
+                    type: array
+                    items: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    post:
+      tags: [Workspace]
+      operationId: createWorkspace
+      summary: Creates a Workspace
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [key]
+              properties:
+                key: { $ref: "#/components/schemas/Key" }
+      responses:
+        "200":
+          description: The created Workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409":
+          description: A Workspace with the same key already exists
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+    get:
+      tags: [Workspace]
+      operationId: getWorkspace
+      summary: Returns a Workspace
+      description: Also returns deleted Workspaces.
+      responses:
+        "200":
+          description: Workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Workspace]
+      operationId: deleteWorkspace
+      summary: Soft-deletes a Workspace
+      description: 'Records `deletedAt`.'
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      responses:
+        "200":
+          description: The deleted Workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkspaceResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: It is the default Workspace, or it has an Actor that is not deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}/actors:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+    get:
+      tags: [Actor]
+      operationId: listActors
+      summary: Lists the Actors of a Workspace
+      description: Orders Actors with a current Session first, then Actors in `attention`, then the rest; ties are ordered by `name`, then `createdAt`.
+      parameters:
+        - name: kind
+          in: query
+          schema: { $ref: "#/components/schemas/ActorKind" }
+        - $ref: "#/components/parameters/IncludeDeleted"
+      responses:
+        "200":
+          description: The list of Actors
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workspace, actors]
+                properties:
+                  workspace: { type: string }
+                  actors:
+                    type: array
+                    items: { $ref: "#/components/schemas/Actor" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404":
+          description: The Workspace does not exist or is deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    post:
+      tags: [Actor]
+      operationId: createActor
+      summary: Creates an Actor
+      description: |
+        If an Actor with the same name that is not deleted exists, replaces its `launchSpec` and Schedule with the request contents, keeping the same `id`.
+        The Schedule is replaced, keeping `enabled`, when `schedule` is present, and removed when it is absent. Only a Job accepts `schedule`; an Agent gets `400`. A different kind gets `409`, and a `launchSpec` other than `runtime` for kind `agent` or other than `command` for `job` gets `400`, without writing anything.
+        Omitting `schedule.timezone` uses the daemon's timezone.
+        Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A replacement that omits `grants` keeps the Actor's grants.
+        A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, kind, launchSpec]
+              properties:
+                name: { $ref: "#/components/schemas/Key" }
+                kind: { $ref: "#/components/schemas/ActorKind" }
+                launchSpec: { $ref: "#/components/schemas/LaunchSpec" }
+                grants: { $ref: "#/components/schemas/Grants" }
+                acceptFrom: { $ref: "#/components/schemas/AcceptFrom" }
+                caller: { $ref: "#/components/schemas/Caller" }
+                schedule:
+                  type: [object, "null"]
+                  additionalProperties: false
+                  required: [cron]
+                  properties:
+                    cron: { type: string, description: 5-field cron expression }
+                    timezone: { type: [string, "null"], description: IANA timezone }
+      responses:
+        "200":
+          description: The created or replaced Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}/actors/{actor}:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+    get:
+      tags: [Actor]
+      operationId: getActor
+      summary: Returns an Actor
+      responses:
+        "200":
+          description: Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [Actor]
+      operationId: updateActor
+      summary: Partially updates the name, launchSpec, Schedule, grants, and acceptFrom of an Actor
+      description: |
+        `name` changes the Actor's name, keeping its `id`, Session history, and mailbox. Renaming to a name held by another live Actor in the same Workspace, and renaming an Actor whose current Session is running, get `409`.
+        `launchSpec` is handled per top-level field: replaced when present, kept when absent, and removed when `null`. The merged `launchSpec` is validated with the same rules as creation.
+        `schedule` replaces only those of `cron`, `timezone`, and `enabled` that are present, and only a Job accepts it. For a Job without a Schedule, `cron` is required and a Schedule is created. A `schedule` for an Agent, and a `schedule` without `cron` for a Job without a Schedule, get `400`.
+        Toggling `schedule.enabled` is pause / resume.
+        `grants` replaces the Actor's grants entirely. Only an Admin token can give it; a Session token request that includes `grants` gets `403`.
+        `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting from all Actors in the same Workspace).
+        A request with no `name`, no fields in `launchSpec` or `schedule`, and neither `grants` nor `acceptFrom` gets `400`.
+        Changes to launchSpec and Schedule leave the current Session untouched and take effect from the next launch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { $ref: "#/components/schemas/Key" }
+                launchSpec: { $ref: "#/components/schemas/LaunchSpecPatch" }
+                schedule:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    cron: { type: string }
+                    timezone: { type: string }
+                    enabled: { type: boolean }
+                grants: { $ref: "#/components/schemas/Grants" }
+                acceptFrom:
+                  oneOf:
+                    - $ref: "#/components/schemas/AcceptFrom"
+                    - type: "null"
+                caller: { $ref: "#/components/schemas/Caller" }
+      responses:
+        "200":
+          description: The updated Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Actor]
+      operationId: deleteActor
+      summary: Soft-deletes an Actor
+      description: 'Records `deletedAt`. A deleted Actor is reached with `GET /v1/actors/{actor}`.'
+      responses:
+        "200":
+          description: The deleted Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: The current Session is running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/actors/{actor}:
+    parameters:
+      - name: actor
+        in: path
+        required: true
+        description: The `id` of the Actor
+        schema: { type: string, examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
+    get:
+      tags: [Actor]
+      operationId: getActorById
+      summary: Returns an Actor by `id`
+      description: Also returns deleted Actors.
+      responses:
+        "200":
+          description: Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}/actors/{actor}/start:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+    post:
+      tags: [Actor]
+      operationId: startActor
+      summary: Launches the next-generation Session with the Actor's launchSpec
+      description: |
+        Launches when admission passes. `startKind` is `start` for the first generation, and `replacement` when a previous generation exists.
+        Records spawned for each request; when called with a `sessionToken`, the Actor of that Session becomes the `spawner`.
+        An Actor without a `launchSpec`, and a launch that admission rejects, get `409`.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      responses:
+        "200":
+          description: The launched Session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StartResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}/actors/{actor}/attach:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+    post:
+      tags: [Actor]
+      operationId: attachActor
+      summary: Attaches a running Runtime as a Session of the Actor
+      description: |
+        Creates an Actor of kind `agent` and a Session with `startKind` `attach` and `ownership` `attached`. Creates the Actor if it does not exist; for an existing Actor, keeps its `launchSpec`.
+        If the Runtime process to attach is the same entity as an `attached` current Session, reissues the token without creating a Session, invalidates the old token, and sets `reattached` to `true`.
+        A Workspace key or Actor name that does not match the grammar, and a `runtime` or `placement.provider` that is not installed, get `400`; a nonexistent Workspace gets `404`.
+        An Actor of kind `job`, a Runtime process that is the current Session of another Actor, and an attach that admission rejects get `409`.
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [placement, runtime]
+              properties:
+                placement: { $ref: "#/components/schemas/Placement" }
+                runtime: { type: string, examples: [claude-code, codex] }
+                runtimeTelemetryPrepared:
+                  type: boolean
+                  default: true
+                  description: Whether the Runtime process started with the telemetry environment Feld prepared. When false, the Session metrics other than context window utilization are `unavailable`, and `source` holds the reason
+      responses:
+        "200":
+          description: The attached Session and its Session token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AttachResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}/actors/{actor}/restart:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+    post:
+      tags: [Actor]
+      operationId: restartActor
+      summary: Stops the current Session and launches the next generation
+      description: |
+        Accepted only when the current Session is `owned` and running; otherwise returns `409`. Responds once stop has been requested for the current Session, and launches the next generation as `replacement` when that Session closes.
+        Records spawned.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      responses:
+        "200":
+          description: The Session that stop was requested for, and the next generation launched by the time of the response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestartResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/workspaces/{workspace}/actors/{actor}/messages:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+    post:
+      tags: [Message]
+      operationId: sendMessage
+      summary: Sends a Message to an Actor
+      description: |
+        `from` and `fromSessionId` are determined by the token: Admin for a `localToken`, and the Actor of that Session for a `sessionToken`.
+        `toSessionId` is the recipient's current Session at the time of acceptance.
+        A `body` that is empty after trimming, and a `label` that does not match the `Key` grammar, get `400`.
+        With a `sessionToken`, sending to an Actor in another Workspace, or to an Actor whose `acceptFrom` does not accept that Session's Actor, gets `403`.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                label: { type: string, description: A name given to the kind of Message. Follows the same grammar as `Key` }
+                body: { type: string }
+      responses:
+        "200":
+          description: The accepted Message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions:
+    get:
+      tags: [Session]
+      operationId: listSessions
+      summary: Lists Sessions
+      description: Returns newest first. A time range selects Sessions whose `[start, end)` overlaps it.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceFilter"
+        - $ref: "#/components/parameters/ActorFilter"
+        - name: kind
+          in: query
+          description: The kind of the Actor
+          schema: { $ref: "#/components/schemas/ActorKind" }
+        - name: current
+          in: query
+          description: 'Returns only Sessions without `end`'
+          allowEmptyValue: true
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/Start"
+        - $ref: "#/components/parameters/End"
+        - name: subAgents
+          in: query
+          description: Includes in `subAgents` the Sub Agent Sessions projected from the transcript entries of the returned Sessions
+          allowEmptyValue: true
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: The list of Sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Session" }
+                  subAgents:
+                    description: 'Returned only when `subAgents` is specified.'
+                    type: array
+                    items: { $ref: "#/components/schemas/SubAgentSession" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    get:
+      tags: [Session]
+      operationId: getSession
+      summary: Returns a Session and the Sub Agent Sessions projected from its transcript entries
+      description: Given the ID of a Sub Agent Session, returns that Sub Agent Session projected from the transcript entries of the parent Session.
+      responses:
+        "200":
+          description: The Session, or the Sub Agent Session
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SessionResponse"
+                  - $ref: "#/components/schemas/SubAgentSessionResponse"
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}/stop:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    post:
+      tags: [Session]
+      operationId: stopSession
+      summary: Requests a Session to stop
+      description: |
+        Records `lifecycle.stop` and `stop.requested`. Only `owned` Sessions accept it; other Sessions and closed Sessions get `409`.
+        A stop after a stop, or after a kill, on a Session that is not closed returns the existing record and sets `alreadyRequested` to `true`. A stop whose `observed` is `unknown` returns a retried record.
+        A Session whose observation is `lost` / `mismatched` closes with `endKind: unknown`.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      responses:
+        "200": { $ref: "#/components/responses/Lifecycle" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}/kill:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    post:
+      tags: [Session]
+      operationId: killSession
+      summary: Requests a Session to be killed
+      description: |
+        Records `lifecycle.kill` and `kill.requested` in the same form as stop. Accepted after a stop is accepted, as long as there is no `end`.
+        A kill after a kill on a Session that is not closed returns the existing record and sets `alreadyRequested` to `true`. A kill whose `observed` is `unknown` returns a retried record.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      responses:
+        "200": { $ref: "#/components/responses/Lifecycle" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}/observe:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    post:
+      tags: [Session]
+      operationId: observeSession
+      summary: Has the Provider observe the Session's entity now, and records and returns the result
+      description: A closed Session gets `409`.
+      responses:
+        "200":
+          description: The Session after observation. `subAgents` is always empty.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}/transcript:
+    parameters:
+      - name: session
+        in: path
+        required: true
+        description: A Session ID, or the ID of a Sub Agent Session
+        schema: { type: string }
+    get:
+      tags: [Session]
+      operationId: getTranscript
+      summary: Returns the transcript of an agent-runtime Session
+      description: A sequence of transcript entries that the Runtime Adapter projects from the transcript file into a common form. Given the ID of a Sub Agent Session, returns the transcript entries of that Sub Agent.
+      parameters:
+        - $ref: "#/components/parameters/TranscriptAfter"
+        - $ref: "#/components/parameters/TranscriptBefore"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/TranscriptTail"
+        - name: view
+          in: query
+          description: '`conversation` excludes transcript entries of kind `other`'
+          schema: { type: string, enum: [conversation, all], default: all }
+      responses:
+        "200":
+          description: A page of the transcript
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranscriptPage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: A program Session was specified
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}/output:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    get:
+      tags: [Session]
+      operationId: getOutput
+      summary: Returns the log (stdout / stderr lines) of a program Session
+      parameters:
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Before"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Tail"
+      responses:
+        "200":
+          description: A page of output
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutputPage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: An agent-runtime Session was specified
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/sessions/{session}/metrics:
+    parameters:
+      - name: session
+        in: path
+        required: true
+        description: A Session ID, or the ID of a Sub Agent Session
+        schema: { type: string }
+    get:
+      tags: [Metrics]
+      operationId: getSessionMetrics
+      summary: Returns Session metrics
+      description: Returns, from the Session's Runtime telemetry, the `status` and `source` of each metric, plus series when `reported`. Omitting the range aggregates the whole Session. Given the ID of a Sub Agent Session, returns every metric as `n/a` ("Included in the parent Session").
+      parameters:
+        - $ref: "#/components/parameters/Start"
+        - $ref: "#/components/parameters/End"
+        - $ref: "#/components/parameters/Bucket"
+        - name: metric
+          in: query
+          description: Narrows the returned metrics to one
+          schema: { $ref: "#/components/schemas/MetricName" }
+      responses:
+        "200":
+          description: The list of metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionMetrics" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/records:
+    get:
+      tags: [Record]
+      operationId: listRecords
+      summary: Searches records
+      description: 'Returns records in `sequence` order (the overall order along time). Pass `nextAfter` as `after` to read the rest.'
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceFilter"
+        - $ref: "#/components/parameters/ActorFilter"
+        - name: session
+          in: query
+          description: ID of the Session the record belongs to. A `spawned` record also belongs to the Session of `spawnerSessionId`
+          schema: { type: string }
+        - name: kind
+          in: query
+          schema: { $ref: "#/components/schemas/RecordKind" }
+        - $ref: "#/components/parameters/Start"
+        - $ref: "#/components/parameters/End"
+        - name: after
+          in: query
+          description: Returns records after this `sequence`
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: The list of records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [records, nextAfter]
+                properties:
+                  records:
+                    type: array
+                    items: { $ref: "#/components/schemas/Record" }
+                  nextAfter: { type: integer, description: The `sequence` of the last record. The request's `after` when there is none }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/messages:
+    get:
+      tags: [Message]
+      operationId: listMessages
+      summary: Returns Messages that are not deleted
+      description: 'Returns Messages oldest `accepted` first. The time range filters on `accepted`. An Actor''s mailbox is the result of filtering by `to`. The body is shown as `preview`; read the full text with `GET /v1/messages/{message}`.'
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceFilter"
+        - name: from
+          in: query
+          description: The `name` of the sender Actor
+          schema: { type: string }
+        - name: to
+          in: query
+          description: The `name` of the recipient Actor
+          schema: { type: string }
+        - name: label
+          in: query
+          description: The `label` of the Message
+          schema: { type: string }
+        - name: waiting
+          in: query
+          description: 'Returns only Messages without `read`'
+          allowEmptyValue: true
+          schema: { type: boolean, default: false }
+        - $ref: "#/components/parameters/Start"
+        - $ref: "#/components/parameters/End"
+      responses:
+        "200":
+          description: The list of Messages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageSummaryList" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/messages/{message}:
+    parameters:
+      - name: message
+        in: path
+        required: true
+        schema: { type: string, examples: [message_3a9cde0fa6424ab2a2c249f85bba7552] }
+    get:
+      tags: [Message]
+      operationId: getMessage
+      summary: Returns a Message
+      description: Also returns deleted Messages.
+      responses:
+        "200":
+          description: Message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Message]
+      operationId: deleteMessage
+      summary: Deletes a Message
+      description: 'Records `deletedAt`.'
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+      responses:
+        "200":
+          description: The deleted Message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: 'The Message has `read` or `queued`'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/events:
+    get:
+      tags: [Events]
+      operationId: streamEvents
+      summary: Notifies resource changes with Server-Sent Events
+      description: |
+        Every event has the event name `resource`, and its data is the JSON `{"resource": <kind>, "id": <ID>}`. It carries no values; the client redoes the corresponding read.
+        The kinds are `workspace`, `actor`, `session`, `record`, `message`, `log`, `quota`, plus `daemon` and `resync`, which handle the connection.
+        The ID of `actor` is the Actor's `name`; the ID of `record` is the ID of the Session the record was added to (the Actor's `name` for a record without a Session); the ID of `log` is the ID of the Session whose log cursor advanced. Workspace creation and deletion are notified as `workspace`, which belongs to no Workspace. Telemetry arrival is notified as `session` for a change in Session metrics, and as `quota` (whose ID is the request ID), which belongs to no Workspace, for a change in the quota of Runtime metrics.
+        Right after connecting, sends `{"resource":"daemon","id":<instanceId>}`. When the daemon starts to stop, sends `{"resource":"daemon","id":"shutdown"}` and closes.
+        When notifications fall behind, sends `{"resource":"resync","id":<workspace or "*">}`.
+        Sends a keep-alive comment every 15 seconds.
+        A `sessionToken` connection that omits `workspace` is treated as specifying the Session's Workspace, and any other `workspace` gets `403`. Of the `workspace` events, it receives only those of the Session's Workspace. `browserToken` and `sessionToken` connections close when the token becomes invalid.
+      parameters:
+        - name: workspace
+          in: query
+          description: Sends only events of this Workspace and events that belong to no Workspace
+          schema: { $ref: "#/components/schemas/Key" }
+      responses:
+        "200":
+          description: The event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                examples:
+                  - "event: resource\ndata: {\"resource\":\"session\",\"id\":\"session_a248d4409be346b0ba85b3addd900222\"}\n\n"
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /v1/ui/pairing-codes:
+    post:
+      tags: [Pairing]
+      operationId: createPairingCode
+      summary: Issues a pairing code
+      description: |
+        The code is 8 characters drawn from 31 characters, the digits and uppercase letters excluding `0`, `1`, `I`, `L`, and `O`, and is returned in the form `XXXX-XXXX`. It is valid for 5 minutes after issue and can be used once. The daemon keeps the code only in memory, as a hash.
+        `name` becomes the name of the browser token issued on redemption. `browserToken` and `sessionToken` get `403`.
+      security:
+        - localToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, default: browser, examples: [laptop] }
+      responses:
+        "200":
+          description: The issued pairing code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PairingCode" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /v1/ui/pair:
+    post:
+      tags: [Pairing]
+      operationId: pairBrowser
+      summary: Redeems a pairing code for a browser token
+      description: |
+        `code` is matched ignoring case and hyphens, and is consumed. Issues a browser token and returns the cookie value in `Set-Cookie` and the key in the body's `key`. If the request carries a valid browser token cookie and key, revokes that token before issuing.
+        `403` if `Origin` does not match the request's destination. `401` if the code does not exist, has expired, or is already used. After 5 consecutive `401`s, invalidates all codes valid at that moment.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [code]
+              properties:
+                code: { type: string, examples: [K7QM-4XPD] }
+      responses:
+        "200":
+          description: The issued browser token. The cookie value appears only in `Set-Cookie`, and the key only in the body's `key`
+          headers:
+            Set-Cookie:
+              description: '`feld_browser_<port>=<browser token>; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=2592000`. `<port>` is the port the daemon listens on. `Secure` is set only when `Origin` is https'
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [browser, key]
+                properties:
+                  browser: { $ref: "#/components/schemas/Browser" }
+                  key: { type: string, description: "The value the Web UI keeps in the origin's `localStorage` and sends with the cookie in the `X-Feld-Browser-Key` header" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /v1/ui/unpair:
+    post:
+      tags: [Pairing]
+      operationId: unpairBrowser
+      summary: Revokes the request's browser token and clears the cookie
+      description: Sign out of the Web UI. `localToken` and `sessionToken` get `403`.
+      security:
+        - browserToken: []
+          browserKey: []
+      responses:
+        "204":
+          description: Revoked
+          headers:
+            Set-Cookie:
+              description: '`feld_browser_<port>=; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=0`. `Secure` is set only when `Origin` is https'
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /v1/ui/browsers:
+    get:
+      tags: [Pairing]
+      operationId: listBrowsers
+      summary: Lists valid browser tokens
+      description: Returns browser tokens that are unexpired and not revoked, in order of issue time. Values are not included. `browserToken` and `sessionToken` get `403`.
+      security:
+        - localToken: []
+      responses:
+        "200":
+          description: The list of browser tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [browsers]
+                properties:
+                  browsers:
+                    type: array
+                    items: { $ref: "#/components/schemas/Browser" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /v1/ui/browsers/{browserId}:
+    parameters:
+      - name: browserId
+        in: path
+        required: true
+        description: The `id` of the browser token
+        schema: { type: string, examples: [browser_5c1f0e9a2b7d4c86a3e1f4b2d9c07a51] }
+    delete:
+      tags: [Pairing]
+      operationId: revokeBrowser
+      summary: Revokes a browser token
+      description: The browser's next request gets `401`. An `id` that does not exist, has expired, or is already revoked gets `404`. `browserToken` and `sessionToken` get `403`.
+      security:
+        - localToken: []
+      responses:
+        "200":
+          description: The revoked browser token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [browser]
+                properties:
+                  browser: { $ref: "#/components/schemas/Browser" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /v1/self:
+    get:
+      tags: [Self]
+      operationId: getSelf
+      summary: Returns the caller's Session
+      security:
+        - sessionToken: []
+      responses:
+        "200":
+          description: The caller's Session and its Sub Agent Sessions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/SelfForbidden" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/self/messages:
+    get:
+      tags: [Self]
+      operationId: getSelfMessages
+      summary: Takes unread Messages from the mailbox of the caller's Actor
+      description: |
+        Returns Messages without `read` in FIFO order and records nothing.
+        With `wait=true`, holds the response until an unread Message arrives. Returns `503` when the daemon starts to stop.
+      security:
+        - sessionToken: []
+      parameters:
+        - name: limit
+          in: query
+          description: The maximum number of Messages to return. Omitted, returns all.
+          schema: { type: integer, minimum: 0 }
+        - name: wait
+          in: query
+          allowEmptyValue: true
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Unread Messages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageList" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/SelfForbidden" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+
+  /v1/self/messages/queued:
+    post:
+      tags: [Self]
+      operationId: queueSelfMessages
+      summary: Records `queued` for Messages put into the Runtime's queue
+      description: Records and returns `queued` for each Message. For a Message that already has `queued`, returns that `queued`.
+      security:
+        - sessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: The list of Message IDs
+              items: { type: string }
+      responses:
+        "200":
+          description: The recorded `queued`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued]
+                properties:
+                  queued:
+                    type: array
+                    items: { $ref: "#/components/schemas/MessageQueued" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403":
+          description: 'Called with `localToken` or `browserToken`, or specified a Message not addressed to the caller''s Actor'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/self/messages/{message}/queued:
+    delete:
+      tags: [Self]
+      operationId: unqueueSelfMessage
+      summary: Withdraws `queued` from Messages the Runtime did not put into its queue
+      description: Removes the `queued` recorded by the caller's Session and returns the Messages. Returns as-is a Message that has `read` or whose `queued` another Session recorded.
+      security:
+        - sessionToken: []
+      parameters:
+        - { name: message, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403":
+          description: 'Called with `localToken` or `browserToken`, or specified a Message not addressed to the caller''s Actor'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/self/messages/read:
+    post:
+      tags: [Self]
+      operationId: readSelfMessages
+      summary: Records `read` for Messages whose delivery is done
+      description: Records and returns `read` for each Message. For a Message that already has `read`, returns that `read`.
+      security:
+        - sessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: The list of Message IDs
+              items: { type: string }
+      responses:
+        "200":
+          description: The recorded `read`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reads]
+                properties:
+                  reads:
+                    type: array
+                    items: { $ref: "#/components/schemas/MessageRead" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403":
+          description: 'Called with `localToken` or `browserToken`, or specified a Message not addressed to the caller''s Actor'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/self/runtime:
+    post:
+      tags: [Self]
+      operationId: recordRuntimeIdentity
+      summary: Records the Runtime identity of the caller's Session
+      description: |
+        Records the Runtime-side session id, the location of the transcript file, and `model`. Resending the same content is idempotent, and its arrival flows to `GET /v1/events` as a change in the Session's log cursor.
+        The session id and location do not change once recorded, and a different pair returns `409`. When attach reissues the token, the record is cleared, and the next pair that arrives with the new token is recorded. `model` takes each non-null value that arrives, and null keeps the recorded value.
+        A Session that is not agent-runtime returns `409`.
+      security:
+        - sessionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuntimeIdentity" }
+      responses:
+        "200":
+          description: The Session after recording. `subAgents` is always empty.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/SelfForbidden" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/self/telemetry:
+    post:
+      tags: [Telemetry]
+      operationId: recordTelemetry
+      summary: Attributes telemetry received by the Collector to a Session and stores it as Telemetry
+      description: The request body is limited to 8 MiB, and the base64-decoded payload to 4 MiB.
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [requestId, token, signal, contentType, payload]
+              properties:
+                requestId: { type: string, minLength: 1, description: The ID the Collector gave the request }
+                token: { type: string, minLength: 1, description: The telemetry token the Runtime Adapter put in the OTLP header (a value derived from the Session token) }
+                signal: { type: string, enum: [metrics, logs] }
+                contentType: { type: string, const: application/x-protobuf }
+                payload: { type: string, contentEncoding: base64 }
+      responses:
+        "200":
+          description: Stored, or Telemetry with the same request ID is already stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, duplicate, session]
+                properties:
+                  accepted: { type: boolean, const: true }
+                  duplicate: { type: boolean }
+                  session: { type: string }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "409":
+          description: Different content arrived with the same `requestId`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "422":
+          description: No Session can be identified from the token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/self/telemetry/token:
+    post:
+      tags: [Telemetry]
+      operationId: checkTelemetryToken
+      summary: Checks the telemetry token before the Collector reads the export body
+      security:
+        - internalToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                token: { type: string, minLength: 1, description: The telemetry token the Runtime Adapter put in the OTLP header }
+      responses:
+        "204":
+          description: The token derives from the current token of a Session without `end`
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "422":
+          description: No Session can be identified from the token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /:
+    get:
+      tags: [Web UI]
+      operationId: redirectRoot
+      summary: Redirects to the Web UI
+      security: []
+      responses:
+        "307":
+          description: 'Redirects to `/ui/`'
+          headers:
+            Location: { schema: { type: string, const: /ui/ } }
+
+  /ui:
+    get:
+      tags: [Web UI]
+      operationId: redirectUi
+      summary: Redirects to the Web UI
+      description: The query (`workspace`, `session`) is appended as-is to the redirect target.
+      security: []
+      responses:
+        "307":
+          description: 'Redirects to `/ui/` (`/ui/?<query>` when there is a query)'
+          headers:
+            Location: { schema: { type: string, examples: [/ui/, "/ui/?workspace=default"] } }
+
+  /ui/:
+    get:
+      tags: [Web UI]
+      operationId: getUiIndex
+      summary: Returns the index.html of the Web UI
+      security: []
+      responses:
+        "200":
+          description: index.html
+          content:
+            text/html:
+              schema: { type: string }
+        "304":
+          description: '`If-None-Match` matches the `ETag` of index.html'
+
+  /ui/{path}:
+    get:
+      tags: [Web UI]
+      operationId: getUiAsset
+      summary: Returns a file of the Web UI build, or index.html for a page route
+      description: |-
+        If `path` is a file of the build, returns that file. For a path without an extension (a page route such as `daemon` or `settings`),
+        returns index.html, and the page renders the route. Every file is returned with `Cache-Control: no-cache` and an `ETag` of the SHA-256 of its content,
+        and `304` is returned if `If-None-Match` matches the `ETag`.
+      security: []
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+            examples:
+              - app.js
+              - app.css
+              - index.html
+              - assets/feld-logo-dark-<hash>.png
+              - daemon
+              - settings
+      responses:
+        "200":
+          description: A file of the build, or index.html
+          content:
+            text/html: { schema: { type: string } }
+            text/javascript: { schema: { type: string } }
+            text/css: { schema: { type: string } }
+            image/png: { schema: { type: string, contentMediaType: image/png } }
+        "304":
+          description: '`If-None-Match` matches the `ETag` of the file'
+        "404":
+          description: No file exists for a path with an extension, or the path contains a `..` segment
+
+components:
+  securitySchemes:
+    localToken:
+      type: http
+      scheme: bearer
+      description: 'The local token in `FELD_HOME/admin/api-token`. Treated as Admin.'
+    sessionToken:
+      type: http
+      scheme: bearer
+      description: Session token. Treated as the Actor of that Session.
+    internalToken:
+      type: http
+      scheme: bearer
+      description: The internal token the daemon passes to the OTel Collector.
+    browserToken:
+      type: apiKey
+      in: cookie
+      name: feld_browser_7381
+      description: The cookie of the browser token issued by pairing. The cookie name is `feld_browser_<port>`, where `<port>` is the port the daemon listens on. Used together with `browserKey` and treated as Admin.
+    browserKey:
+      type: apiKey
+      in: header
+      name: X-Feld-Browser-Key
+      description: The `key` of the pairing response. Passes as a browser token only together with the `browserToken` cookie.
+
+  parameters:
+    Workspace:
+      name: workspace
+      in: path
+      required: true
+      description: The key of the Workspace
+      schema: { type: string, examples: [default] }
+    WorkspaceFilter:
+      name: workspace
+      in: query
+      description: Filters the target by Workspace key. Omitted, targets all Workspaces.
+      schema: { type: string }
+    Actor:
+      name: actor
+      in: path
+      required: true
+      description: The `name` of the Actor
+      schema: { type: string }
+    ActorFilter:
+      name: actor
+      in: query
+      description: Filters the target by Actor `name`
+      schema: { type: string }
+    Session:
+      name: session
+      in: path
+      required: true
+      schema: { type: string, examples: [session_a248d4409be346b0ba85b3addd900222] }
+    IncludeDeleted:
+      name: includeDeleted
+      in: query
+      description: Includes deleted ones
+      allowEmptyValue: true
+      schema: { type: boolean, default: false }
+    Start:
+      name: start
+      in: query
+      description: The start of the range (inclusive). RFC 3339.
+      schema: { type: string, format: date-time }
+    End:
+      name: end
+      in: query
+      description: The end of the range (exclusive). RFC 3339.
+      schema: { type: string, format: date-time }
+    Bucket:
+      name: bucket
+      in: query
+      description: The width of a time-series bin in seconds. 60 or more. Omitted, the whole range is one bin.
+      schema: { type: integer, minimum: 60 }
+    After:
+      name: after
+      in: query
+      description: Returns rows after this sequence, oldest first
+      schema: { type: integer, minimum: 0, default: 0 }
+    Before:
+      name: before
+      in: query
+      description: Returns `limit` rows before this sequence, from the newest side. `400` when used with `after` or `tail`.
+      schema: { type: integer, minimum: 0 }
+    Limit:
+      name: limit
+      in: query
+      description: The maximum number of rows to return. A value over 1000 is rounded down to 1000. Omitted, all rows.
+      schema: { type: integer, minimum: 0 }
+    Tail:
+      name: tail
+      in: query
+      description: 'When `after` is 0, returns the latest `limit` rows'
+      allowEmptyValue: true
+      schema: { type: boolean, default: false }
+    TranscriptAfter:
+      name: after
+      in: query
+      description: Returns transcript entries after this cursor, oldest first. The cursor is a string defined by the Runtime Adapter. A cursor that points to no transcript entry gets `400`.
+      schema: { type: string }
+    TranscriptBefore:
+      name: before
+      in: query
+      description: Returns `limit` transcript entries before this cursor, from the newest side. `400` when used with `after` or `tail`. A cursor that points to no transcript entry gets `400`.
+      schema: { type: string }
+    TranscriptTail:
+      name: tail
+      in: query
+      description: 'When `after` is absent, returns the latest `limit` entries'
+      allowEmptyValue: true
+      schema: { type: boolean, default: false }
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SelfForbidden:
+      description: 'Called with `localToken` or `browserToken`'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SessionClosed:
+      description: The token's Session is closed (session closed)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Lifecycle:
+      description: The accepted stop / kill. `alreadyRequested` is `true` when an existing record is returned.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [session, alreadyRequested]
+            properties:
+              session: { $ref: "#/components/schemas/Session" }
+              alreadyRequested: { type: boolean }
+
+  schemas:
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        next:
+          type: string
+          description: The next step for a person to take. Only rejections that can show one have it
+          examples: ["feld workspace create default"]
+
+    Key:
+      type: string
+      pattern: ^[a-z0-9][a-z0-9-]*$
+
+    Plugin:
+      type: object
+      description: The name and display name of an installed Plugin. The display name is the manifest's label.
+      required: [name, label]
+      properties:
+        name: { type: string, examples: ["claude-code", "codex", "tmux", "herdr"] }
+        label: { type: string, examples: ["Claude Code", "Codex", "tmux", "herdr"] }
+
+    RuntimeEntry:
+      description: An installed Runtime. runningSessions is the number of current Sessions across all Workspaces whose execution uses that Runtime.
+      allOf:
+        - $ref: "#/components/schemas/Plugin"
+        - type: object
+          required: [runningSessions]
+          properties:
+            runningSessions: { type: integer, minimum: 0 }
+
+    ProviderEntry:
+      description: An installed Execution Provider. nodes are the daemon's Nodes, and runningSessions is the number of current Sessions across all Workspaces placed on that Provider.
+      allOf:
+        - $ref: "#/components/schemas/Plugin"
+        - type: object
+          required: [nodes, runningSessions]
+          properties:
+            nodes: { type: array, items: { type: string } }
+            runningSessions: { type: integer, minimum: 0 }
+
+    DaemonStatus:
+      type: object
+      required: [state, version, instanceId, pid, home, api, startedAt, serverTime, historyStart, timezone, runtimes, providers, nodes, webUi, allowedHosts, otlp, restored, scheduler]
+      properties:
+        state: { type: string, const: running }
+        version: { type: string, description: 'The same value as `feld --version`.', examples: ["0.6.0 (built 2026-09-28T00:00:00Z)"] }
+        instanceId: { type: string }
+        pid: { type: integer }
+        home: { type: string }
+        api: { type: string, examples: ["http://127.0.0.1:7381"] }
+        startedAt: { type: string, format: date-time }
+        serverTime: { type: string, format: date-time }
+        historyStart: { type: [string, "null"], format: date-time, description: The at of the oldest record. null when there is no record. }
+        timezone: { type: string, description: The daemon's local timezone (IANA). Used as the default for Schedules. UTC when it cannot be determined. }
+        runtimes:
+          type: array
+          description: Installed Runtime Adapters.
+          items: { $ref: "#/components/schemas/Plugin" }
+        providers:
+          type: array
+          description: Installed Execution Providers.
+          items: { $ref: "#/components/schemas/Plugin" }
+        nodes:
+          type: array
+          items: { type: string, const: local }
+        webUi: { type: [string, "null"], examples: ["http://127.0.0.1:7381/ui/"] }
+        allowedHosts:
+          type: array
+          description: "Names allowed with `--allow-host`. Excludes loopback names."
+          items: { type: string, examples: ["macbook.tail1234.ts.net"] }
+        otlp: { type: [string, "null"], description: "OTLP endpoint of the Collector. null if the Collector is not running." }
+        restored:
+          type: object
+          required: [actors, runningSessions, schedules]
+          properties:
+            actors: { type: integer }
+            runningSessions: { type: integer }
+            schedules: { type: integer }
+        scheduler:
+          type: object
+          required: [wokeAt, planned, restarts, lastRestart]
+          properties:
+            wokeAt: { type: [string, "null"], format: date-time, description: Time the Scheduler last woke }
+            planned:
+              type: array
+              description: Ticks that enabled Schedules are waiting for, earliest planned time first
+              items:
+                type: object
+                required: [workspace, actor, planned]
+                properties:
+                  workspace: { type: string }
+                  actor: { type: string }
+                  planned: { type: string, format: date-time }
+            restarts: { type: integer, description: Number of times the Scheduler has been restarted since the daemon started }
+            lastRestart:
+              type: [object, "null"]
+              required: [at, reason]
+              properties:
+                at: { type: string, format: date-time }
+                reason: { type: string }
+
+    Workspace:
+      type: object
+      required: [id, key, actorCount, createdAt, deletedAt]
+      properties:
+        id: { type: string, examples: [workspace_c164df316fda46ad8f682500e6a2b691] }
+        key: { $ref: "#/components/schemas/Key" }
+        actorCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        deletedAt: { type: [string, "null"], format: date-time }
+
+    WorkspaceResponse:
+      type: object
+      required: [workspace]
+      properties:
+        workspace: { $ref: "#/components/schemas/Workspace" }
+
+    ActorKind:
+      type: string
+      enum: [agent, job]
+
+    Grants:
+      type: array
+      uniqueItems: true
+      description: Operations on other Actors in the same Workspace that Admin allows the Actor's Session
+      items:
+        type: string
+        enum: [read, control, manage-agent, manage-job]
+
+    AcceptFrom:
+      type: array
+      uniqueItems: true
+      description: Names of Actors in the same Workspace from which the Actor receives Messages in addition to Admin
+      items: { $ref: "#/components/schemas/Key" }
+
+    Caller:
+      type: object
+      description: The caller's own location, obtained by the creating or updating CLI from the Provider's `self`. The Provider's `resolve` fills omitted `providerOptions` from it.
+      examples:
+        - { socket: /tmp/tmux-501/default, pane: "%3" }
+        - { session: /tmp/feldherdr/herdr/sessions/feldtest/herdr.sock, pane: "w1:p1" }
+
+    LaunchSpec:
+      type: object
+      additionalProperties: false
+      required: [workdir, provider, node]
+      description: |
+        Has exactly one of `runtime` and `command`. `runtime` is the name of an installed Runtime Adapter, and `provider`
+        the name of an installed Execution Provider; an unknown name is rejected with 400.
+        `workdir` must be an absolute path, and `node` must be `local`.
+        `providerOptions` is stored with omitted values filled by the Provider's `resolve`; options the Provider rejects return 400.
+      properties:
+        runtime: { type: string, examples: ["claude-code", "codex"] }
+        runtimeSettings:
+          type: object
+          additionalProperties: true
+          description: |
+            Runtime settings. The Runtime Adapter defines the contents; the daemon stores them without reading and passes them to the Adapter at launch. `codex` takes the items of Codex's `config.toml`.
+            Keys owned by the Adapter (`ownedSettings` in the manifest: `otelHeadersHelper` and `statusLine` for `claude-code`, `hooks` and `otel` for `codex`) cannot be specified.
+            Requires `runtime`.
+        trustWorkdir:
+          type: boolean
+          description: |
+            Whether Admin allows settings that the workdir brings into the Runtime (such as Codex's `.codex/` settings and hooks) to take effect without confirmation. Defaults to false.
+            Handling is defined by each Runtime Adapter. Requires `runtime`.
+            Only an Admin token can set it to true; a Session token request that includes true returns 403.
+        command:
+          type: array
+          minItems: 1
+          items: { type: string }
+        workdir: { type: string }
+        env:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            Environment variables added to the environment that launches the Session. Names consist of alphanumerics and `_` and do not start with a digit.
+            Variables that Feld sets (such as `FELD_*`) take precedence over values of the same name.
+          examples:
+            - { GH_CONFIG_DIR: /home/me/.config/gh-agent, GIT_AUTHOR_NAME: agent }
+        provider: { type: string, examples: ["tmux", "herdr"] }
+        node: { type: string, enum: [local] }
+        providerOptions:
+          type: object
+          additionalProperties: true
+          description: |
+            Provider-specific options, built from the CLI's `--<provider>-<key> <value>`.
+            tmux has `socket`, `unit` (`session` / `window` / `pane`), and the borrowed `session` / `window`.
+            herdr has `session` (a session name or socket path), `unit` (`workspace` / `tab` / `pane`), the borrowed `workspace` / `pane`, and `split` (`right` / `down`) when `unit` is `pane`.
+          examples:
+            - { socket: feld, unit: session }
+            - { session: feldtest, unit: workspace }
+
+    LaunchSpecPatch:
+      type: object
+      additionalProperties: false
+      description: For each top-level field, replaces it if present, keeps it if absent, and removes it if `null`.
+      properties:
+        runtime: { type: [string, "null"] }
+        runtimeSettings: { type: [object, "null"], additionalProperties: true }
+        trustWorkdir: { type: [boolean, "null"] }
+        command: { type: [array, "null"], items: { type: string } }
+        workdir: { type: [string, "null"] }
+        env: { type: [object, "null"], additionalProperties: { type: string }, description: Replaced as a whole }
+        provider: { type: [string, "null"] }
+        node: { type: [string, "null"] }
+        providerOptions: { type: [object, "null"], additionalProperties: true, description: Replaced as a whole }
+
+    Schedule:
+      type: object
+      required: [cron, timezone, enabled, createdAt, pausedAt, enabledAt, nextRun, skippedTicks, overdueTick]
+      properties:
+        cron: { type: string }
+        timezone: { type: string }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        pausedAt: { type: [string, "null"], format: date-time }
+        enabledAt: { type: [string, "null"], format: date-time }
+        nextRun: { type: [string, "null"], format: date-time, description: "Next run time (UTC) when enabled. `cron` is interpreted in the time of `timezone`" }
+        skippedTicks: { type: integer, description: "Number of the Actor's `schedule.skipped` records" }
+        overdueTick: { type: [string, "null"], format: date-time, description: "Planned time of the latest tick, after the daemon started and after the Actor's last change, for which neither a Session nor `schedule.skipped` nor `schedule.missed` remains 60 seconds past its planned time" }
+
+    Actor:
+      type: object
+      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, createdAt, updatedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
+      properties:
+        id: { type: string, description: "ID assigned by Feld. Remains on the Actor after deletion", examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
+        name: { $ref: "#/components/schemas/Key" }
+        workspace: { type: string }
+        kind: { $ref: "#/components/schemas/ActorKind" }
+        launchSpec:
+          description: null for an Actor created only by attach, and for another Actor read with a `sessionToken`
+          oneOf:
+            - $ref: "#/components/schemas/LaunchSpec"
+            - type: "null"
+        schedule:
+          oneOf:
+            - $ref: "#/components/schemas/Schedule"
+            - type: "null"
+        grants: { $ref: "#/components/schemas/Grants" }
+        acceptFrom:
+          description: If null, receives from every Actor in the same Workspace
+          oneOf:
+            - $ref: "#/components/schemas/AcceptFrom"
+            - type: "null"
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: [string, "null"], format: date-time }
+        currentSession:
+          description: 'Session without `end`'
+          oneOf:
+            - $ref: "#/components/schemas/Session"
+            - type: "null"
+        latestSession:
+          description: 'First of `sessions`'
+          oneOf:
+            - $ref: "#/components/schemas/Session"
+            - type: "null"
+        sessions:
+          description: Newest first
+          type: array
+          items: { $ref: "#/components/schemas/Session" }
+        attention:
+          type: boolean
+          description: True when the evaluated Session (current, or latest if none) has outcome `failed`, `exited`, or `unknown`, or is running with observation `lost` or `mismatched`
+        waitingCount: { type: integer, description: Number of unread Messages }
+        unreadMail: { type: boolean }
+        skipMark: { type: boolean }
+        unlinkedMark: { type: boolean, description: "True when the current Session is an `owned` `agent-runtime` Session whose Runtime identity has not arrived yet" }
+
+    ActorResponse:
+      type: object
+      required: [actor]
+      properties:
+        actor: { $ref: "#/components/schemas/Actor" }
+
+    Requester:
+      oneOf:
+        - type: object
+          required: [type]
+          properties:
+            type: { type: string, const: admin }
+        - type: object
+          required: [type, id, workspace, name]
+          properties:
+            type: { type: string, const: actor }
+            id: { type: string, description: "`id` of the Actor" }
+            workspace: { type: string }
+            name: { type: string }
+
+    ActorReference:
+      type: object
+      required: [id, workspace, name]
+      properties:
+        id: { type: string, description: "`id` of the Actor" }
+        workspace: { type: string }
+        name: { type: string }
+
+    Outcome:
+      type: string
+      enum: [running, stopped, succeeded, failed, exited, ended, unknown]
+
+    ObservationKind:
+      type: string
+      enum: [running, relocated, gone, lost, mismatched, unknown]
+
+    Observation:
+      type: object
+      required: [kind, at]
+      properties:
+        kind: { $ref: "#/components/schemas/ObservationKind" }
+        at: { type: string, format: date-time }
+        since:
+          type: string
+          format: date-time
+          description: Time the current kind was recorded (the time of the `observation` record where the kind changed). Present on the latest observation of a Session
+        detail: { type: string }
+        exitCode: { type: integer }
+
+    Execution:
+      type: object
+      required: [type, label, command, ai]
+      properties:
+        type: { type: string, enum: [agent-runtime, program] }
+        runtime:
+          type: string
+          description: Name of the Runtime Adapter. Present on Sessions whose `type` is `agent-runtime`.
+          examples: ["claude-code", "codex"]
+        label: { type: string, description: "Label from the Runtime Adapter's manifest, or a display name built from the program's argv.", examples: [Claude Code, Codex, echo program] }
+        command:
+          type: [array, "null"]
+          items: { type: string }
+          description: argv of the launched `program`. null for `agent-runtime`, where the Adapter manages the launch. Also null for the Session of another Actor read with a `sessionToken`.
+        ai: { type: boolean }
+
+    ProcessIncarnation:
+      type: object
+      required: [pid, startTime]
+      properties:
+        pid: { type: integer }
+        startTime: { type: string }
+
+    TmuxPlacement:
+      type: object
+      required: [summary, endpoint, unit, borrowed, workdir, server, sessionId, sessionCreatedAt, sessionOrigin, windowId, windowOrigin, paneId, paneOrigin, paneProcess]
+      properties:
+        summary: { type: string, description: "Unit, stable ID, name at read time, and origin", examples: ["session $1 (feld-default-hello-1, created)"] }
+        attachCommand: { type: string, examples: ["tmux -L feld attach-session -t '$1'"] }
+        endpoint:
+          type: object
+          required: [kind, value]
+          properties:
+            kind: { type: string, enum: [name, path] }
+            value: { type: string }
+        unit: { type: string, enum: [session, window, pane] }
+        borrowed: { type: [string, "null"] }
+        workdir: { type: string }
+        server: { $ref: "#/components/schemas/ProcessIncarnation" }
+        sessionId: { type: string }
+        sessionCreatedAt: { type: integer }
+        sessionOrigin: { type: string, enum: [created, existing] }
+        windowId: { type: string }
+        windowOrigin: { type: string, enum: [created, existing] }
+        paneId: { type: string }
+        paneOrigin: { type: string, enum: [created, existing] }
+        paneProcess: { $ref: "#/components/schemas/ProcessIncarnation" }
+        program: { $ref: "#/components/schemas/ProcessIncarnation" }
+        process: { $ref: "#/components/schemas/ProcessIncarnation" }
+
+    HerdrPlacement:
+      type: object
+      required: [summary, endpoint, unit, workdir]
+      properties:
+        summary: { type: string, description: "Unit, ID, name at read time, and origin", examples: ["workspace w1 (feld-default-hello-1, created)"] }
+        attachCommand: { type: string, examples: ["herdr --session feldtest terminal attach term_65bf2ed9cdf7a1"] }
+        endpoint:
+          type: object
+          required: [kind, value]
+          properties:
+            kind: { type: string, enum: [session, path] }
+            value: { type: string }
+        unit: { type: string, enum: [workspace, tab, pane] }
+        split: { type: string, enum: [right, down], description: "Split direction when `unit` is `pane`" }
+        borrowed:
+          type: object
+          description: Borrowed existing resource. Consists of the selector a person wrote and IDs checked right before creating resources
+          required: [selector, workspaceId]
+          properties:
+            selector: { type: string }
+            workspaceId: { type: string }
+            tabId: { type: string }
+            paneId: { type: string }
+            terminalId: { type: string }
+        workdir: { type: string }
+        workspaceId: { type: string, examples: ["w1"] }
+        workspaceOrigin: { type: string, enum: [created, existing] }
+        tabId: { type: string, examples: ["w1:t1"] }
+        tabOrigin: { type: string, enum: [created, existing] }
+        paneId: { type: string, examples: ["w1:p1"] }
+        paneOrigin: { type: string, enum: [created, existing] }
+        terminalId: { type: string, description: "id that herdr assigns to the pane's actual terminal. Changes when the server restarts", examples: ["term_65bf2ed9cdf7a1"] }
+        paneProcess: { $ref: "#/components/schemas/ProcessIncarnation" }
+        program: { $ref: "#/components/schemas/ProcessIncarnation" }
+        process: { $ref: "#/components/schemas/ProcessIncarnation" }
+
+    Placement:
+      type: object
+      required: [provider, node, workdir, placement]
+      properties:
+        provider: { type: string, examples: [tmux, herdr] }
+        node: { type: string, examples: [local] }
+        workdir: { type: string }
+        placement:
+          description: |
+            Placement returned by the Provider, stored as is. Until the launch is settled, it holds the in-progress placement (a subset of the fields).
+            core reads only four keys; the rest belong to the Provider.
+            `summary` is how to read the resource and `attachCommand` is the command a person uses to reach the resource; core writes both as answered by the Provider.
+            The Runtime process that an `attached` Session attached goes into the Provider-independent `process`, and the process of the `<command>` that an `owned` Session launched goes into `program`.
+          anyOf:
+            - $ref: "#/components/schemas/TmuxPlacement"
+            - $ref: "#/components/schemas/HerdrPlacement"
+            - type: object
+
+    LifecycleAction:
+      type: object
+      required: [accepted, requesterSessionId, attempt, observed]
+      properties:
+        accepted: { type: string, format: date-time }
+        requesterSessionId: { type: [string, "null"], description: 'Requester''s Session when requested with `sessionToken`' }
+        attempt: { type: [string, "null"], description: "What the Provider attempted. null while not settled" }
+        observed:
+          oneOf:
+            - $ref: "#/components/schemas/Observation"
+            - type: "null"
+
+    StartKind:
+      type: string
+      enum: [start, replacement, attach, schedule]
+
+    Session:
+      type: object
+      required: [id, workspace, actorId, actor, actorKind, generation, start, end, startKind, ownership, endKind, exitCode, planned, execution, placement, lifecycle, observation, outcome]
+      properties:
+        id: { type: string }
+        workspace: { type: string }
+        actorId: { type: string, description: "`id` of the Actor" }
+        actor: { type: string, description: "`name` of the Actor" }
+        actorKind: { $ref: "#/components/schemas/ActorKind" }
+        generation: { type: integer, minimum: 1 }
+        start: { type: string, format: date-time }
+        end: { type: [string, "null"], format: date-time }
+        startKind: { $ref: "#/components/schemas/StartKind" }
+        ownership: { type: string, enum: [owned, attached] }
+        endKind: { type: string, enum: [running, stopped, exited, unknown] }
+        exitCode: { type: [integer, "null"] }
+        planned: { type: [string, "null"], format: date-time, description: Planned time (UTC) of a launch by the Schedule }
+        execution: { $ref: "#/components/schemas/Execution" }
+        placement: { $ref: "#/components/schemas/Placement" }
+        lifecycle:
+          type: object
+          required: [startSettled, startFailed, stop, kill]
+          properties:
+            startSettled: { type: [string, "null"], format: date-time }
+            startFailed:
+              type: [string, "null"]
+              format: date-time
+              description: Time it was settled that the Provider finished the launch without creating the entity and the Session did not start
+            stop:
+              oneOf:
+                - $ref: "#/components/schemas/LifecycleAction"
+                - type: "null"
+            kill:
+              oneOf:
+                - $ref: "#/components/schemas/LifecycleAction"
+                - type: "null"
+        observation:
+          oneOf:
+            - $ref: "#/components/schemas/Observation"
+            - type: "null"
+        model: { $ref: "#/components/schemas/SessionModel" }
+        spawnedBy:
+          type: object
+          description: Projection of the spawned record that launched this Session
+          required: [spawner, spawnerSessionId]
+          properties:
+            spawner: { $ref: "#/components/schemas/Requester" }
+            spawnerSessionId: { type: [string, "null"] }
+        outcome: { $ref: "#/components/schemas/Outcome" }
+        turn:
+          $ref: "#/components/schemas/Turn"
+          description: Turn of a current `agent-runtime` Session. Session and Actor reads derive it from the transcript and attach it
+        lastEntryAt:
+          type: [string, "null"]
+          format: date-time
+          description: '`at` of the transcript entry that the turn was derived from. Present only on Sessions with `turn`; null for `unavailable` and for a turn derived from an entry without `at`'
+
+    Turn:
+      type: string
+      enum: [responding, waiting-input, unavailable]
+
+    ConsoleState:
+      type: string
+      enum: [pending, missing, lost, readable]
+
+    SubAgentSession:
+      type: object
+      required: [id, workspace, actor, subAgent, parentSession, start, end, startKind, ownership, endKind, exitCode, execution, model, placement, observation, outcome, consoleState, consoleDetail]
+      properties:
+        id: { type: string, description: "Parent Session ID and Sub Agent ID joined with `_subagent_`" }
+        workspace: { type: string }
+        actor: { type: string }
+        subAgent: { type: string, description: "ID of the Sub Agent indicated by the transcript entry's `subAgent`" }
+        parentSession: { type: string }
+        start: { type: [string, "null"], format: date-time }
+        end: { type: [string, "null"], format: date-time }
+        startKind: { type: string, const: sub-agent }
+        ownership: { type: "null" }
+        endKind: { type: "null" }
+        exitCode: { type: [integer, "null"] }
+        execution: { $ref: "#/components/schemas/Execution" }
+        model:
+          oneOf:
+            - $ref: "#/components/schemas/SessionModel"
+            - type: "null"
+        placement: {}
+        observation: {}
+        outcome: { $ref: "#/components/schemas/Outcome" }
+        consoleState: { $ref: "#/components/schemas/ConsoleState" }
+        consoleDetail: { type: [string, "null"] }
+
+    SessionResponse:
+      type: object
+      required: [session, subAgents]
+      properties:
+        session: { $ref: "#/components/schemas/Session" }
+        subAgents:
+          type: array
+          items: { $ref: "#/components/schemas/SubAgentSession" }
+
+    SubAgentSessionResponse:
+      type: object
+      required: [subAgentSession]
+      properties:
+        subAgentSession: { $ref: "#/components/schemas/SubAgentSession" }
+
+    StartResponse:
+      type: object
+      required: [session, replacedSession]
+      properties:
+        session: { $ref: "#/components/schemas/Session" }
+        replacedSession: { type: [string, "null"], description: Session ID of the previous generation that this launch replaced }
+
+    RestartResponse:
+      type: object
+      required: [stopped, session]
+      properties:
+        stopped: { $ref: "#/components/schemas/Session" }
+        session:
+          description: The next generation, when the stopped Session closed before the response. Otherwise null, and it launches when the Session closes
+          oneOf:
+            - $ref: "#/components/schemas/Session"
+            - type: "null"
+
+    PairingCode:
+      type: object
+      required: [code, name, expiresAt]
+      properties:
+        code: { type: string, examples: [K7QM-4XPD] }
+        name: { type: string, description: Name of the browser token issued on redemption }
+        expiresAt: { type: string, format: date-time }
+
+    Browser:
+      type: object
+      required: [id, name, pairedAt, lastUsedAt, expiresAt]
+      properties:
+        id: { type: string, examples: [browser_5c1f0e9a2b7d4c86a3e1f4b2d9c07a51] }
+        name: { type: string, examples: [laptop] }
+        pairedAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: 'The earlier of 7 days from `lastUsedAt` and 30 days from `pairedAt`' }
+        revokedAt: { type: string, format: date-time, description: Present only in the revocation response }
+
+    AttachResponse:
+      type: object
+      required: [session, token, reattached]
+      properties:
+        session: { $ref: "#/components/schemas/Session" }
+        token: { type: string, description: Session token }
+        reattached: { type: boolean, description: Whether the token of an existing Session was reissued }
+
+    SessionModel:
+      type: array
+      description: Pair of the Runtime's display name and the model reported by the Runtime Adapter (null if not reported). Present on Sessions whose Runtime identity has arrived
+      prefixItems:
+        - { type: string, examples: [Claude Code] }
+        - { description: Model the Runtime is running, examples: [claude-haiku] }
+      minItems: 2
+      maxItems: 2
+
+    RuntimeIdentity:
+      type: object
+      required: [sessionId, transcriptPath, model]
+      properties:
+        sessionId: { type: string, description: Session id on the Runtime side }
+        transcriptPath: { type: string, description: Location of the transcript file }
+        model: { description: "Model the Runtime is running. null keeps the recorded value" }
+
+    RecordKind:
+      type: string
+      enum: [session.started, session.ended, spawned, message.accepted, message.sent, message.read, stop.requested, kill.requested, observation, schedule.skipped, schedule.missed]
+
+    Record:
+      type: object
+      description: record
+      required: [sequence, at, kind, actor, sessionId, data]
+      properties:
+        sequence: { type: integer, description: Global order }
+        at: { type: string, format: date-time }
+        kind: { $ref: "#/components/schemas/RecordKind" }
+        actor: { $ref: "#/components/schemas/ActorReference" }
+        sessionId: { type: [string, "null"] }
+        data:
+          type: object
+          description: |
+            Contents per kind.
+            `spawned`: `spawner`, `spawnerSessionId`.
+            `session.started`: `startKind`, `planned`.
+            `session.ended`: `endKind`, `exitCode`.
+            `observation`: `kind`, `detail`, `exitCode`.
+            `stop.requested` / `kill.requested`: `requesterSessionId`.
+            `message.sent`: `messageId`, `to`, `toSessionId`, `anchor`.
+            `message.accepted`: `messageId`, `from`, `fromSessionId`, and `waiting` at read time.
+            `message.read`: `messageId`, `readId`, `fifo`.
+            `schedule.skipped`: `planned`, `currentSessionId`.
+            `schedule.missed`: `planned`, `reason`.
+
+    TranscriptEntry:
+      type: object
+      description: Transcript entry in the common form projected by the Runtime Adapter
+      required: [cursor, at, kind, text, raw]
+      properties:
+        cursor: { type: string, description: "Adapter-defined string pointing to this transcript entry" }
+        at: { type: [string, "null"], format: date-time }
+        kind:
+          type: string
+          enum: [input, notification, response, thinking, tool-call, tool-result, system, other]
+        text: { type: string, description: "Body for display. The name and input for a tool call, the result for a tool result" }
+        error: { type: boolean, description: "Whether the tool result reports a failure. Present only on `tool-result`" }
+        state:
+          type: string
+          enum: [readable, lost]
+          description: Whether what this transcript entry represents is readable. `lost` means the transcript file is unreachable, and `text` gives the reason
+        subAgent: { type: string, description: ID of the Sub Agent this transcript entry belongs to }
+        subAgentEnded: { type: string, description: ID of the Sub Agent whose completion this transcript entry indicates }
+        raw: { description: The line as written by the Runtime to the transcript file }
+
+    TranscriptPage:
+      type: object
+      required: [session, state, detail, after, nextAfter, previousBefore, hasOlder, records]
+      properties:
+        session: { type: string }
+        state: { $ref: "#/components/schemas/ConsoleState" }
+        detail: { type: [string, "null"] }
+        after: { type: [string, "null"] }
+        nextAfter: { type: [string, "null"], description: "Cursor to pass to `after` next" }
+        previousBefore: { type: [string, "null"], description: "Cursor to pass to `before` next" }
+        hasOlder: { type: boolean }
+        records:
+          type: array
+          items: { $ref: "#/components/schemas/TranscriptEntry" }
+
+    OutputPage:
+      type: object
+      required: [session, after, nextAfter, previousBefore, hasOlder, lines]
+      properties:
+        session: { type: string }
+        after: { type: integer }
+        nextAfter: { type: integer }
+        previousBefore: { type: [integer, "null"] }
+        hasOlder: { type: boolean }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [sequence, stream, timestamp, text]
+            properties:
+              sequence: { type: integer }
+              stream: { type: string, enum: [stdout, stderr] }
+              timestamp: { type: string, format: date-time }
+              text: { type: string }
+
+    MetricName:
+      type: string
+      enum: [token_usage, estimated_cost, api_errors, prompt_cache_hit_rate, api_request_latency_p95, tool_calls, context_window_utilization, active_time]
+
+    MetricStatus:
+      type: string
+      enum: [reported, unavailable, n/a]
+
+    MetricBin:
+      type: object
+      required: [start, end, value]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: [string, "null"], format: date-time }
+        value: {}
+        session: { type: string, description: "Session whose value the bin took, for the context window utilization of Runtime metrics" }
+
+    SessionMetrics:
+      type: object
+      required: [session, start, end, bucket, metrics]
+      properties:
+        session: { type: string }
+        start: { type: [string, "null"], format: date-time }
+        end: { type: [string, "null"], format: date-time }
+        bucket: { type: [integer, "null"] }
+        metrics:
+          type: array
+          items:
+            type: object
+            required: [metric, status, source]
+            properties:
+              metric: { $ref: "#/components/schemas/MetricName" }
+              status: { $ref: "#/components/schemas/MetricStatus" }
+              source: { type: string, description: "Source of the value, or the reason there is no value", examples: ["Claude Code Runtime telemetry", "Claude Code status line", "Codex Runtime telemetry", "Codex rollout"] }
+              series:
+                description: 'Time series when `reported`'
+                type: array
+                items: { $ref: "#/components/schemas/MetricBin" }
+
+    RuntimeMetrics:
+      type: object
+      required: [runtime, start, end, bucket, metrics]
+      properties:
+        runtime: { type: string, examples: ["claude-code", "codex"] }
+        start: { type: [string, "null"], format: date-time }
+        end: { type: [string, "null"], format: date-time }
+        bucket: { type: [integer, "null"] }
+        metrics:
+          description: Session metrics aggregated by the rule of each metric
+          type: array
+          items:
+            type: object
+            required: [metric, status, source, sessions]
+            properties:
+              metric: { $ref: "#/components/schemas/MetricName" }
+              status: { $ref: "#/components/schemas/MetricStatus" }
+              source: { type: string }
+              sessions:
+                type: object
+                description: Count of aggregated Sessions per status
+                required: [reported, unavailable, n/a]
+                properties:
+                  reported: { type: integer }
+                  unavailable: { type: integer }
+                  n/a: { type: integer }
+              accounts:
+                description: 'Series aggregated from `reported` Sessions per account'
+                type: array
+                items:
+                  type: object
+                  required: [series]
+                  properties:
+                    account:
+                      $ref: "#/components/schemas/Account"
+                      description: Account of the Session. Sessions with an unknown account have no series
+                    series:
+                      type: array
+                      items: { $ref: "#/components/schemas/MetricBin" }
+        quota: { $ref: "#/components/schemas/RuntimeQuota" }
+
+    Account:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string, description: "Display name. The ID if absent" }
+
+    RuntimeQuota:
+      type: object
+      description: 5-hour / 7-day quota of the account
+      required: [status, source]
+      properties:
+        status: { $ref: "#/components/schemas/MetricStatus" }
+        source: { type: string, examples: ["Claude Code status line", "Codex rollout", "No rate limit report"] }
+        series:
+          type: array
+          items:
+            type: object
+            required: [window, resetsAt, end, points, latest, reportedBy]
+            properties:
+              account:
+                $ref: "#/components/schemas/Account"
+                description: Account of the report. Present on series of reports whose account is known
+              window: { type: string, enum: [five_hour, seven_day] }
+              resetsAt: { type: string, format: date-time }
+              end: { type: string, format: date-time }
+              points:
+                type: array
+                items: { $ref: "#/components/schemas/QuotaPoint" }
+              latest: { $ref: "#/components/schemas/QuotaPoint" }
+              reportedBy:
+                type: object
+                required: [session, workspace, actor]
+                properties:
+                  session: { type: string }
+                  workspace: { type: string }
+                  actor: { type: string }
+
+    QuotaPoint:
+      type: object
+      required: [at, usedPercent]
+      properties:
+        at: { type: string, format: date-time }
+        usedPercent: { type: number }
+
+    MessageQueued:
+      type: object
+      required: [sessionId, at]
+      properties:
+        sessionId: { type: string }
+        at: { type: string, format: date-time }
+
+    MessageRead:
+      type: object
+      required: [sessionId, at, readId, fifo]
+      properties:
+        sessionId: { type: string }
+        at: { type: string, format: date-time }
+        readId: { type: string }
+        fifo: { type: integer }
+
+    MessageSummary:
+      type: object
+      description: Message in a list. The body is shown in `preview`
+      required: [id, fifo, from, fromSessionId, to, toSessionId, accepted, label, queued, read, preview, anchor, waiting, deletedAt]
+      properties:
+        id: { type: string }
+        fifo: { type: integer, description: Order within the destination mailbox }
+        from: { $ref: "#/components/schemas/Requester" }
+        fromSessionId: { type: [string, "null"] }
+        to: { $ref: "#/components/schemas/ActorReference" }
+        toSessionId: { type: [string, "null"] }
+        accepted: { type: string, format: date-time }
+        label:
+          oneOf:
+            - $ref: "#/components/schemas/Key"
+            - type: "null"
+        queued:
+          oneOf:
+            - $ref: "#/components/schemas/MessageQueued"
+            - type: "null"
+        read:
+          oneOf:
+            - $ref: "#/components/schemas/MessageRead"
+            - type: "null"
+        preview: { type: string, description: "First 48 characters of the body after redaction. Ends with `…` if more follows" }
+        anchor: { type: string, examples: ["feld:message_3a9cde0fa6424ab2a2c249f85bba7552"] }
+        waiting: { type: boolean }
+        deletedAt: { type: [string, "null"], format: date-time }
+
+    Message:
+      allOf:
+        - $ref: "#/components/schemas/MessageSummary"
+        - type: object
+          required: [body]
+          properties:
+            body: { type: string }
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { $ref: "#/components/schemas/Message" }
+
+    MessageList:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/Message" }
+
+    MessageSummaryList:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/MessageSummary" }

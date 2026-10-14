@@ -1,0 +1,5 @@
+/target/
+/dist/
+/web/node_modules/
+/web/tools/*/node_modules/
+.DS_Store

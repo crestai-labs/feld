@@ -1,0 +1,39 @@
+#!/bin/sh
+# A Runtime Adapter that answers every operation with a fixed response and records what
+# core handed it, so that the tests can read back the request, the argv, and the
+# environment of each call.
+set -e
+operation="$1"
+calls="$FELD_PLUGIN_DIR/calls"
+mkdir -p "$calls"
+cat > "$calls/$operation.request.json"
+{
+  echo "argv=$*"
+  echo "FELD_HOME=$FELD_HOME"
+  echo "FELD_API=$FELD_API"
+  echo "FELD_PLUGIN_DIR=$FELD_PLUGIN_DIR"
+  echo "FELD_FIXTURE_INHERITED=$FELD_FIXTURE_INHERITED"
+  echo "PWD=$PWD"
+} > "$calls/$operation.env"
+echo "$operation" >> "$calls/log"
+case "$operation" in
+  launch)
+    echo '{"command":["/bin/sh","-c","exit 0"],"env":{"FIXTURE_RUNTIME":"1"}}'
+    ;;
+  match)
+    echo '{"matched":true,"telemetryPrepared":true}'
+    ;;
+  identity)
+    echo '{"identity":null}'
+    ;;
+  prepare)
+    echo '{"entries":[],"prepared":true,"notes":["the fixture Runtime is ready"]}'
+    ;;
+  transcript)
+    echo '{"state":"missing","reason":"the fixture Runtime writes no records","records":[],"next":null}'
+    ;;
+  *)
+    echo "the fixture Runtime has no operation $operation" >&2
+    exit 3
+    ;;
+esac

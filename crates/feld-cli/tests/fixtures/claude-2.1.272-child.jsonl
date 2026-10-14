@@ -1,0 +1,3 @@
+{"type":"fork-context-ref","agentId":"a2d1f8842487e78ce","parentSessionId":"bf4dad8c-a5cc-48af-8e88-9fecd33590ca","parentLastUuid":"0c4bc77f-365c-47d3-b42d-0938a8e8420a","contextLength":262}
+{"type":"assistant","agentId":"a2d1f8842487e78ce","message":{"role":"assistant","content":[{"type":"text","text":"fixture"}]}}
+{"type":"progress","agentId":"a2d1f8842487e78ce","attributionAgent":"Explore","timestamp":"2026-09-15T01:00:07Z","data":{"type":"hook_progress"}}

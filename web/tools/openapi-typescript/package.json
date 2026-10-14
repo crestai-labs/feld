@@ -1,0 +1,11 @@
+{
+  "name": "feld-web-openapi-typescript",
+  "private": true,
+  "scripts": {
+    "types": "openapi-typescript ../../../docs/guide/daemon-api.openapi.yaml -o ../../types/feld-api.generated.d.ts --empty-objects-unknown"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

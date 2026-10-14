@@ -1,0 +1,85 @@
+#!/bin/sh
+# An Execution Provider that keeps one state file instead of an execution. `state` is what
+# `observe` reports, and the tests move it. Every call is recorded beside the plugin.
+set -e
+operation="$1"
+calls="$FELD_PLUGIN_DIR/calls"
+mkdir -p "$calls"
+request="$calls/$operation.request.json"
+cat > "$request"
+{
+  echo "argv=$*"
+  echo "FELD_HOME=$FELD_HOME"
+  echo "FELD_API=$FELD_API"
+  echo "FELD_PLUGIN_DIR=$FELD_PLUGIN_DIR"
+  echo "FELD_FIXTURE_INHERITED=$FELD_FIXTURE_INHERITED"
+  echo "PWD=$PWD"
+} > "$calls/$operation.env"
+echo "$operation" >> "$calls/log"
+state_file="$FELD_PLUGIN_DIR/state"
+if [ ! -f "$state_file" ]; then
+  echo running > "$state_file"
+fi
+state=$(cat "$state_file")
+case "$operation" in
+  self)
+    if [ "$FIXTURE_SELF_FAILS" = "$(basename "$FELD_PLUGIN_DIR")" ]; then
+      echo 'the fixture Provider cannot answer self' >&2
+      exit 1
+    elif [ -n "$FIXTURE_SELF" ]; then
+      printf '{"selector":{"id":"%s"}}\n' "$FIXTURE_SELF"
+    else
+      echo '{"selector":null}'
+    fi
+    ;;
+  resolve)
+    echo '{"options":{"fixture":"resolved"}}'
+    ;;
+  place)
+    echo '{"placement":{"fixtureResource":"pending"},"summary":"fixture placement (pending)"}'
+    ;;
+  launch)
+    echo running > "$state_file"
+    echo '{"placement":{"fixtureResource":"running","incarnation":"1"},"observation":{"kind":"running","detail":"the fixture execution is running"},"summary":"fixture execution","attachCommand":"fixture attach"}'
+    ;;
+  observe)
+    count=$(grep -o '"fixtureResource"' "$request" | wc -l | tr -d ' ')
+    printf '{"results":['
+    index=0
+    while [ "$index" -lt "$count" ]; do
+      if [ "$index" -gt 0 ]; then
+        printf ','
+      fi
+      printf '{"observation":{"kind":"%s","exitCode":0,"detail":"the fixture execution is %s"},"summary":"fixture execution"}' "$state" "$state"
+      index=$((index + 1))
+    done
+    printf ']}\n'
+    ;;
+  stop)
+    input=$(sed -n 's/.*"input":\[\([^]]*\)\].*/\1/p' "$request" | tr -d '"' | tr ',' ' ')
+    echo gone > "$state_file"
+    printf '{"attempt":"the fixture Provider delivered %s","observation":{"kind":"gone","exitCode":0,"detail":"the fixture execution ended"}}\n' "$input"
+    ;;
+  kill)
+    if [ ! -f "$FELD_PLUGIN_DIR/kill-answers" ]; then
+      echo "the fixture Provider refuses to kill" >&2
+      exit 4
+    fi
+    echo gone > "$state_file"
+    echo '{"attempt":"the fixture Provider killed the execution","observation":{"kind":"gone","exitCode":137,"detail":"the fixture execution was killed"}}'
+    ;;
+  cleanup)
+    if [ -f "$FELD_PLUGIN_DIR/cleanup-fails" ]; then
+      echo "the fixture Provider cannot clean up" >&2
+      exit 5
+    fi
+    echo '{}'
+    ;;
+  attach)
+    echo '{"placement":{"fixtureResource":"attached","incarnation":"1"},"workdir":"/tmp","process":null,"selector":{"resource":"attached"},"summary":"fixture attach","attachCommand":null}'
+    ;;
+  *)
+    echo "the fixture Provider has no operation $operation" >&2
+    exit 3
+    ;;
+esac

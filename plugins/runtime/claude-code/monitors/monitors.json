@@ -1,0 +1,1 @@
+[{"name":"feld","command":"${CLAUDE_PLUGIN_ROOT}/bin/monitor","description":"Feld mailbox: a Message from the Admin or another Actor; its fromKind says whose word it is"}]
