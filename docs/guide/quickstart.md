@@ -1,5 +1,7 @@
 # Quickstart
 
+English · <a href="quickstart.zh-CN.md">简体中文</a> · <a href="quickstart.ja.md">日本語</a>
+
 Install Feld and handle Claude Code on tmux from Feld. It takes about 10 minutes.
 
 This guide assumes Claude Code and tmux. Differences for Codex and herdr are noted where they apply. The options and output of each section's commands are in the [CLI reference](cli.md). Other user documents are in the [Guide](README.md), and the source of truth for contracts is in [`docs/spec/`](../spec/).

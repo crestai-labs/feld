@@ -11,7 +11,7 @@ When the implementation changes, update the relevant documents to match the actu
 
 ## Documents
 
-- [Quickstart](quickstart.md): install Feld, place Plugins with `feld init`, and try attaching and starting Claude Code on tmux, Messages, Jobs, and the Web UI in about 10 minutes.
+- [Quickstart](quickstart.md): install Feld, place Plugins with `feld init`, and try attaching and starting Claude Code on tmux, Messages, Jobs, and the Web UI in about 10 minutes. Also available in [Japanese](quickstart.ja.md) and [Simplified Chinese](quickstart.zh-CN.md).
 - [Web UI views](webui.md): what the Console, Actor card, Timeline, Now, and Metrics lane draw.
 - [CLI reference](cli.md): the arguments, options, behavior, and output of each `feld` command.
 - [daemon API](daemon-api.md): the rules common to the `feld daemon` HTTP API (authentication, errors, name grammar, soft delete, time ranges, cursors, derived values, SSE).

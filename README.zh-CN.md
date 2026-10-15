@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="#支持的产品">支持的产品</a> · <a href="#安装">安装</a> · <a href="#开始使用">开始使用</a> · <a href="docs/guide/quickstart.md">Quickstart</a> · <a href="#文档">文档</a>
+  <a href="#支持的产品">支持的产品</a> · <a href="#安装">安装</a> · <a href="#开始使用">开始使用</a> · <a href="docs/guide/quickstart.zh-CN.md">Quickstart</a> · <a href="#文档">文档</a>
 </p>
 
 <p align="center">
@@ -127,7 +127,7 @@ feld ui
 # 或者请求"把你自己 attach 到 Feld"
 ```
 
-后续内容见 [Quickstart](docs/guide/quickstart.md)。
+后续内容见 [Quickstart](docs/guide/quickstart.zh-CN.md)。
 
 ## 用法
 
@@ -170,7 +170,7 @@ macOS（Apple Silicon）和 Linux（x86_64）。详见[支持的产品](#支持�
 
 | 文档 | 内容 |
 |---|---|
-| [Quickstart](docs/guide/quickstart.md) | 首先阅读的入门指南 |
+| [Quickstart](docs/guide/quickstart.zh-CN.md) | 首先阅读的入门指南 |
 | [CLI 参考](docs/guide/cli.md) | 命令、选项和输出 |
 | [兼容性](docs/guide/compatibility.md) | 升级方法，以及 0.x 期间的兼容性承诺 |
 | [Data and privacy](docs/guide/data-and-privacy.md) | Feld 不发送什么、读取和写入什么、如何删除 |
