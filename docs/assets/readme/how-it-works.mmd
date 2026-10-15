@@ -1,0 +1,13 @@
+%% Regenerate from the repository root (same for how-it-works-ja.mmd and how-it-works-zh-CN.mmd with the matching PNG names):
+%% npx -y -p @mermaid-js/mermaid-cli mmdc -i docs/assets/readme/how-it-works.mmd -o docs/assets/readme/how-it-works-light.png -t default -b transparent -s 2
+%% npx -y -p @mermaid-js/mermaid-cli mmdc -i docs/assets/readme/how-it-works.mmd -o docs/assets/readme/how-it-works-dark.png -t dark -b transparent -s 2
+%%{init: {"flowchart": {"wrappingWidth": 260}}}%%
+flowchart TB
+  CLI["CLI"] --> Daemon
+  WebUI["Web UI"] --> Daemon
+  Daemon(["Feld daemon"])
+  subgraph Provider["Execution environment (tmux / herdr)"]
+    Runtime["Coding agent<br/>Claude Code / Codex"]
+  end
+  Daemon -- "start / stop / Message" --> Runtime
+  Runtime -- "transcript / metrics" --> Daemon

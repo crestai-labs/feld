@@ -1,0 +1,13 @@
+%% Regenerate from the repository root:
+%% npx -y -p @mermaid-js/mermaid-cli mmdc -i docs/assets/readme/how-it-works-zh-CN.mmd -o docs/assets/readme/how-it-works-zh-CN-light.png -t default -b transparent -s 2
+%% npx -y -p @mermaid-js/mermaid-cli mmdc -i docs/assets/readme/how-it-works-zh-CN.mmd -o docs/assets/readme/how-it-works-zh-CN-dark.png -t dark -b transparent -s 2
+%%{init: {"flowchart": {"wrappingWidth": 260}}}%%
+flowchart TB
+  CLI["CLI"] --> Daemon
+  WebUI["Web UI"] --> Daemon
+  Daemon(["Feld daemon"])
+  subgraph Provider["执行环境（tmux / herdr）"]
+    Runtime["Coding Agent<br/>Claude Code / Codex"]
+  end
+  Daemon -- "启动・停止・Message" --> Runtime
+  Runtime -- "transcript・metrics" --> Daemon

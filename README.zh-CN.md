@@ -58,17 +58,10 @@ Feld 接管这一部分。它为 Agent 和 Job 赋予持久的 identity，把 Se
 
 ## 工作原理
 
-```mermaid
-flowchart TB
-  CLI["CLI"] --> Daemon
-  WebUI["Web UI"] --> Daemon
-  Daemon(["Feld daemon"])
-  subgraph Provider["执行环境（tmux / herdr）"]
-    Runtime["Coding Agent<br/>Claude Code / Codex"]
-  end
-  Daemon -- "启动・停止・Message" --> Runtime
-  Runtime -- "transcript・metrics" --> Daemon
-```
+<p align="center">
+  <img src="docs/assets/readme/how-it-works-zh-CN-light.png#gh-light-mode-only" alt="Feld 的工作原理：CLI 和 Web UI 使用 Feld daemon，daemon 启动和停止 tmux 或 herdr 中的 Coding Agent（Claude Code / Codex），投递 Message，并接收 transcript 和 metrics" width="360" />
+  <img src="docs/assets/readme/how-it-works-zh-CN-dark.png#gh-dark-mode-only" alt="Feld 的工作原理：CLI 和 Web UI 使用 Feld daemon，daemon 启动和停止 tmux 或 herdr 中的 Coding Agent（Claude Code / Codex），投递 Message，并接收 transcript 和 metrics" width="360" />
+</p>
 
 处于中心的是 Feld daemon。人和 Harness 通过 CLI 和 Web UI 使用 daemon。Coding Agent 在 tmux 或 herdr 中照常运行。daemon 启动和停止它们的 Session，投递 Message，并把从 Agent 收到的 transcript 和 metrics 记录在一条时间线上。
 

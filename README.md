@@ -58,17 +58,10 @@ Policy, such as which agent to run next or when to give up, stays in your harnes
 
 ## How it works
 
-```mermaid
-flowchart TB
-  CLI["CLI"] --> Daemon
-  WebUI["Web UI"] --> Daemon
-  Daemon(["Feld daemon"])
-  subgraph Provider["Execution environment (tmux / herdr)"]
-    Runtime["Coding agent<br/>Claude Code / Codex"]
-  end
-  Daemon -- "start / stop / Message" --> Runtime
-  Runtime -- "transcript / metrics" --> Daemon
-```
+<p align="center">
+  <img src="docs/assets/readme/how-it-works-light.png#gh-light-mode-only" alt="How Feld works: the CLI and the Web UI use the Feld daemon, which starts and stops the coding agent (Claude Code / Codex) in tmux or herdr, delivers Messages, and receives its transcript and metrics" width="360" />
+  <img src="docs/assets/readme/how-it-works-dark.png#gh-dark-mode-only" alt="How Feld works: the CLI and the Web UI use the Feld daemon, which starts and stops the coding agent (Claude Code / Codex) in tmux or herdr, delivers Messages, and receives its transcript and metrics" width="360" />
+</p>
 
 The Feld daemon sits at the center. Humans and harnesses use it through the CLI and the Web UI. Coding agents run inside tmux or herdr just as they normally do. The daemon starts and stops their Sessions, delivers Messages, and records the transcripts and metrics it receives from the agents on one timeline.
 
