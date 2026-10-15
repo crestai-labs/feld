@@ -22,7 +22,13 @@ This guide assumes Claude Code and tmux. Differences for Codex and herdr are not
 
 ## Install
 
-The install script fetches the archive for this machine from GitHub Releases, verifies the checksum, and places `feld` and the bundled Plugins in `~/.local/bin`. Choose the location with `FELD_INSTALL_DIR` and the version with `FELD_VERSION`.
+With Homebrew (macOS, or Linux with Homebrew):
+
+```sh
+brew install crestai-labs/tap/feld
+```
+
+Otherwise, the install script fetches the archive for this machine from GitHub Releases, verifies the checksum, and places `feld` and the bundled Plugins in `~/.local/bin`. Choose the location with `FELD_INSTALL_DIR` and the version with `FELD_VERSION`.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
@@ -247,6 +253,6 @@ To remove Feld, run `feld uninstall`. It stops the daemon and the Sessions Feld 
 feld uninstall
 ```
 
-`sessions/` and the store remain, so running `feld init` again lets you read the same history. To remove them too, add `--purge`. Finally, following the `next:` lines, remove `eval "$(feld env)"` from the shell config file and the `feld` executable.
+`sessions/` and the store remain, so running `feld init` again lets you read the same history. To remove them too, add `--purge`. Finally, following the `next:` lines, remove `eval "$(feld env)"` from the shell config file and the `feld` executable (`brew uninstall feld` for a Homebrew install).
 
 CLI reference: [`feld uninstall`](cli.md#feld-uninstall)

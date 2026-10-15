@@ -20,7 +20,7 @@ Patch versions (such as 0.1.0 → 0.1.1) contain only compatible changes.
 ## Upgrading
 
 1. If the [Release notes](https://github.com/crestai-labs/feld/releases) of the target version have a `### Breaking` section, follow the migration steps there
-2. Run the install script again to replace `feld` and the bundled Plugin executables with the new version. Choose the version with `FELD_VERSION` (e.g. `FELD_VERSION=v0.2.0`). If you installed to a different location with `FELD_INSTALL_DIR`, pass the same value
+2. Run `brew upgrade feld` for a Homebrew install, or the install script again, to replace `feld` and the bundled Plugin executables with the new version. The script takes the version from `FELD_VERSION` (e.g. `FELD_VERSION=v0.2.0`); if you installed to a different location with `FELD_INSTALL_DIR`, pass the same value
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh

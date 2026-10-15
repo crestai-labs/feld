@@ -95,6 +95,14 @@ Feld works with at least one execution environment and one coding agent. Install
 
 ## Install
 
+With Homebrew (macOS, or Linux with Homebrew):
+
+```sh
+brew install crestai-labs/tap/feld
+```
+
+Otherwise, use the install script:
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
 ```
@@ -104,11 +112,11 @@ The script downloads the archive for your machine from GitHub Releases, verifies
 ## Upgrade
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
+brew upgrade feld   # or run the install script again
 feld init
 ```
 
-Running the install script again replaces the executables. Running `feld init` again puts the new Plugins in `~/.feld/plugins/`, replaces the Feld skill and hooks in the Claude Code and Codex settings, and restarts the daemon. The daemon migrates the store when it starts, and Sessions keep running through the restart, so agents need not stop. Details are in [Compatibility](docs/guide/compatibility.md#upgrading).
+`brew upgrade feld` and the install script both replace the executables. Running `feld init` again puts the new Plugins in `~/.feld/plugins/`, replaces the Feld skill and hooks in the Claude Code and Codex settings, and restarts the daemon. The daemon migrates the store when it starts, and Sessions keep running through the restart, so agents need not stop. Details are in [Compatibility](docs/guide/compatibility.md#upgrading).
 
 ## Getting started
 
