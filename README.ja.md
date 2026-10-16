@@ -58,17 +58,10 @@ Feld はこの部分を引き受けます。Agent と Job に恒久的な identi
 
 ## 仕組み
 
-```mermaid
-flowchart TB
-  CLI["CLI"] --> Daemon
-  WebUI["Web UI"] --> Daemon
-  Daemon(["Feld daemon"])
-  subgraph Provider["実行環境（tmux / herdr）"]
-    Runtime["Coding Agent<br/>Claude Code / Codex"]
-  end
-  Daemon -- "起動・停止・Message" --> Runtime
-  Runtime -- "transcript・metrics" --> Daemon
-```
+<p align="center">
+  <img src="docs/assets/readme/how-it-works-ja-light.png#gh-light-mode-only" alt="Feld の仕組み。CLI と Web UI は Feld daemon を使い、daemon は tmux や herdr の中の Coding Agent（Claude Code / Codex）を起動・停止し、Message を届け、transcript と metrics を受け取る" width="360" />
+  <img src="docs/assets/readme/how-it-works-ja-dark.png#gh-dark-mode-only" alt="Feld の仕組み。CLI と Web UI は Feld daemon を使い、daemon は tmux や herdr の中の Coding Agent（Claude Code / Codex）を起動・停止し、Message を届け、transcript と metrics を受け取る" width="360" />
+</p>
 
 中心にいるのは Feld daemon です。人や Harness は CLI と Web UI から daemon を使います。Coding Agent は tmux や herdr の中で、いつもの姿のまま動きます。daemon はその Session を起動・停止し、Message を届け、Agent から transcript と metrics を受け取って一つの timeline に記録します。
 
