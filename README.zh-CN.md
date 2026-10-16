@@ -95,6 +95,14 @@ flowchart TB
 
 ## 安装
 
+使用 Homebrew（macOS，或装有 Homebrew 的 Linux）：
+
+```sh
+brew install crestai-labs/tap/feld
+```
+
+否则使用安装脚本：
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
 ```
@@ -104,11 +112,11 @@ curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh |
 ## 升级
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
+brew upgrade feld   # 或再次运行安装脚本
 feld init
 ```
 
-再次运行安装脚本会替换可执行文件。再次运行 `feld init` 会把新的 Plugin 放到 `~/.feld/plugins/`，替换 Claude Code 和 Codex 设置中的 Feld skill 与 hook，并重启 daemon。daemon 启动时会自动迁移 store，Session 在重启期间继续运行，因此无需停止 Agent 即可升级。详见 [兼容性](docs/guide/compatibility.md#upgrading)。
+`brew upgrade feld` 和安装脚本都会替换可执行文件。再次运行 `feld init` 会把新的 Plugin 放到 `~/.feld/plugins/`，替换 Claude Code 和 Codex 设置中的 Feld skill 与 hook，并重启 daemon。daemon 启动时会自动迁移 store，Session 在重启期间继续运行，因此无需停止 Agent 即可升级。详见 [兼容性](docs/guide/compatibility.md#upgrading)。
 
 ## 开始使用
 

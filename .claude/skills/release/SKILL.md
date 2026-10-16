@@ -1,6 +1,6 @@
 ---
 name: release
-description: Steps to ship a new version of Feld (feld). Covers, in one flow, choosing the version number, updating Cargo.toml / OpenAPI, `make check`, running the pre-release `ci.yml` on the Release commit, pushing the annotated tag with the Release notes as its message, and verifying the Release that GitHub Actions creates from the tag. Whenever asked for any part of cutting a version, such as "cut a release", "release v0.2.0", "tag and create the Release" or "write the Release notes", follow this skill to keep the whole consistent.
+description: Steps to ship a new version of Feld (feld). Covers, in one flow, choosing the version number, updating Cargo.toml / OpenAPI, `make check`, running the pre-release `ci.yml` on the Release commit, pushing the annotated tag with the Release notes as its message, verifying the Release that GitHub Actions creates from the tag, and updating the Homebrew formula. Whenever asked for any part of cutting a version, such as "cut a release", "release v0.2.0", "tag and create the Release" or "write the Release notes", follow this skill to keep the whole consistent.
 ---
 
 # Release
@@ -117,7 +117,19 @@ diff <(gh release view vX.Y.Z --json body --jq .body) <(.claude/skills/release/s
 
 Check that the Release has `feld-vX.Y.Z-aarch64-apple-darwin.tar.gz`, `feld-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz` and their `.sha256` files attached, that the body is the tag message body (the output of `notes.sh X.Y.Z`), and that `--version` shows `X.Y.Z`.
 
-## 9. Report
+## 9. Update the Homebrew formula
 
-Show the Release URL, the tag, and the names and sha256 of the attached archives. As a record of the release verification, also include the URL of the `ci.yml` run from 5.
-Work on the distribution side (the install script and tap) is handled outside this skill.
+In a clone of [crestai-labs/homebrew-tap](https://github.com/crestai-labs/homebrew-tap):
+
+```sh
+scripts/update.sh X.Y.Z
+git commit -am "feld X.Y.Z"
+git push
+```
+
+`update.sh` downloads the `.sha256` files of the Release and rewrites the `url` and `sha256` of `Formula/feld.rb`. Then check that `brew update` followed by `brew install crestai-labs/tap/feld` (`brew upgrade feld` when it is already installed) gives the new version: `"$(brew --prefix)/bin/feld" --version` shows `X.Y.Z`.
+
+## 10. Report
+
+Show the Release URL, the tag, the names and sha256 of the attached archives, and the tap commit from 9. As a record of the release verification, also include the URL of the `ci.yml` run from 5.
+Work on the install script is handled outside this skill.

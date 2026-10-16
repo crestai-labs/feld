@@ -95,6 +95,14 @@ flowchart TB
 
 ## インストール
 
+Homebrew（macOS、または Homebrew のある Linux）ではこの 1 行です。
+
+```sh
+brew install crestai-labs/tap/feld
+```
+
+それ以外は install script を使います。
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
 ```
@@ -104,11 +112,11 @@ GitHub の Release からこのマシン用の archive を取り、checksum を�
 ## アップグレード
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
+brew upgrade feld   # または install script をもう一度実行
 feld init
 ```
 
-install script をもう一度実行すると、実行ファイルが新しい版に置き換わります。`feld init` をもう一度実行すると、新しい Plugin を `~/.feld/plugins/` に置き、Claude Code と Codex の設定にある Feld の skill と hook を置き換え、daemon を再起動します。daemon は起動時に store を自動で移行し、Session は再起動の間も動き続けるので、Agent を止めずに版を上げられます。詳しくは [互換性](docs/guide/compatibility.md#upgrading) にあります。
+`brew upgrade feld` でも install script でも、実行ファイルが新しい版に置き換わります。`feld init` をもう一度実行すると、新しい Plugin を `~/.feld/plugins/` に置き、Claude Code と Codex の設定にある Feld の skill と hook を置き換え、daemon を再起動します。daemon は起動時に store を自動で移行し、Session は再起動の間も動き続けるので、Agent を止めずに版を上げられます。詳しくは [互換性](docs/guide/compatibility.md#upgrading) にあります。
 
 ## はじめる
 
