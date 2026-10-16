@@ -16,7 +16,7 @@
 #                      the GitHub API, which a private repository requires
 set -eu
 
-repo=${FELD_REPO:crestai-labs/feld}
+repo=${FELD_REPO:-crestai-labs/feld}
 dir=${FELD_INSTALL_DIR:-$HOME/.local/bin}
 [ "$dir" = / ] || dir=${dir%/}
 version=${FELD_VERSION:-}
