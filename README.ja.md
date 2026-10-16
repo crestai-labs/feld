@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="#対応製品">対応製品</a> · <a href="#インストール">インストール</a> · <a href="#はじめる">はじめる</a> · <a href="docs/guide/quickstart.md">Quickstart</a> · <a href="#ドキュメント">ドキュメント</a>
+  <a href="#対応製品">対応製品</a> · <a href="#インストール">インストール</a> · <a href="#はじめる">はじめる</a> · <a href="docs/guide/quickstart.ja.md">Quickstart</a> · <a href="#ドキュメント">ドキュメント</a>
 </p>
 
 <p align="center">
@@ -127,7 +127,7 @@ feld ui
 # あるいは「あなた自身を Feld にアタッチして」と頼む
 ```
 
-続きは [Quickstart](docs/guide/quickstart.md) にあります。
+続きは [Quickstart](docs/guide/quickstart.ja.md) にあります。
 
 ## 使い方
 
@@ -170,7 +170,7 @@ WSL2 の中で使えます。Native 対応は検討中です。
 
 | 文書 | 内容 |
 |---|---|
-| [Quickstart](docs/guide/quickstart.md) | 最初に読む手引き |
+| [Quickstart](docs/guide/quickstart.ja.md) | 最初に読む手引き |
 | [CLI リファレンス](docs/guide/cli.md) | コマンド、オプション、出力 |
 | [互換性](docs/guide/compatibility.md) | 版の上げ方と、0.x の間の互換性の約束 |
 | [Data and privacy](docs/guide/data-and-privacy.md) | Feld が送らないもの、読むもの、書くもの、消し方 |
