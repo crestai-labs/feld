@@ -628,9 +628,7 @@ feld-agents {
 /* Compact shell (phones and narrow tablets). The sidebar's own elements are re-laid out
    as a top brand bar and a bottom tab bar (Actors and Settings); no markup is
    duplicated. Components fill .app between the two bars and need no knowledge of them;
-   only fixed-position overlays read --shell-tabbar-height to stay clear of the tab bar.
-   index.html renders its own workspace switcher inside .app, so it marks the body
-   .has-page-workspace-switcher and the brand bar takes the whole top row. */
+   only fixed-position overlays read --shell-tabbar-height to stay clear of the tab bar. */
 @media (max-width: 760px) {
   :root {
     --shell-topbar-height: 48px;
@@ -640,20 +638,12 @@ feld-agents {
   .viewport,
   .viewport[data-sidebar-collapsed] {
     grid-template-areas:
-      "brand workspace"
-      "app app"
-      "nav nav";
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      "brand"
+      "app"
+      "nav";
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr) var(--shell-tabbar-height);
     transition: none;
-  }
-
-  .has-page-workspace-switcher .viewport,
-  .has-page-workspace-switcher .viewport[data-sidebar-collapsed] {
-    grid-template-areas:
-      "brand brand"
-      "app app"
-      "nav nav";
   }
 
   .sidebar,
