@@ -193,7 +193,7 @@ export function Pairing({ notice, pairPage, send }: { notice: PairingNotice | nu
                 autoComplete="one-time-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text"
                 aria-describedby="feld-pairing-message" disabled={locked}
                 onChange={(event) => {
-                  // The field keeps what was typed as the code reads: capitals, a hyphen after four.
+                  // The field keeps what was typed as the code reads: capitals, a hyphen after five.
                   setCode(normalizeCode(event.target.value).slice(0, CODE_LENGTH));
                   setResult(null);
                   setFailure(null);
