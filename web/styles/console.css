@@ -1397,6 +1397,14 @@
   color: #e8caa0;
 }
 
+/* The compact layout wraps long lines in place of scrolling them. */
+@media (max-width: 760px) {
+  .feld-console__log-line pre {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
+
 .feld-console__log > .feld-console__feld {
   margin-top: 10px;
   margin-bottom: 10px;

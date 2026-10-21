@@ -27,6 +27,7 @@ import {
   emptyActorDraft,
   isPinned,
   isWithin,
+  matchesCompactLayout,
   orderWithMove,
   pinsWith,
   reachesNow,
@@ -91,7 +92,7 @@ function anchorUpToNow(anchor: Instant, duration: number, now: Instant) {
 // ---- State -------------------------------------------------------------------------------
 
 // The page opens Live: the window ends at now and follows it.
-export function createInitialState(workspace: string | null | undefined, now: Instant): AgentsState {
+export function createInitialState(workspace: string | null | undefined, now: Instant, compactLayout = matchesCompactLayout()): AgentsState {
   return {
     // The Workspace the page is filtered to, or null for all Workspaces: the
     // `workspace` query of the range reads, present or omitted.
@@ -135,10 +136,12 @@ export function createInitialState(workspace: string | null | undefined, now: In
     metricsPickerOpen: false,
     expandedMetricIds: new Set(),
     emphasizedSeries: null,
-    // Actors and Metrics start open; folded, the Actors header keeps how many Actors run
-    // and the Metrics header the latest reading of every visible lane.
+    compactLayout,
+    // Actors start open, and so does Metrics apart from the compact layout; folded, the
+    // Actors header keeps how many Actors run and the Metrics header the latest reading of
+    // every visible lane.
     actorsCollapsed: false,
-    metricsCollapsed: false,
+    metricsCollapsed: compactLayout,
     visibleMetricIds: new Set(METRIC_LANES.filter((metric) => metric.defaultVisible).map((metric) => metric.id)),
     metricChoices: storedMetricChoices(),
     agentsPaneHeight: null,
@@ -196,6 +199,8 @@ export function openCard(state: AgentsState): OpenCard | null {
 export interface ActorsActions {
   // A fresh page, as a first visit opens it.
   reset(workspace: string | null | undefined, now: Instant): void;
+  // The viewport crossed the compact breakpoint; the lanes change their geometry.
+  setCompactLayout(compact: boolean): void;
 
   // The Workspace the page shows, from the switcher, from a Workspace just created, or
   // from the URL. The range reads are keyed by it, so the range is read again.
@@ -359,6 +364,10 @@ export const useActorsStore = create<ActorsStore>()((set, get) => ({
 
   reset(workspace, now) {
     set(createInitialState(workspace, now));
+  },
+
+  setCompactLayout(compactLayout) {
+    if (compactLayout !== get().compactLayout) set({ compactLayout });
   },
 
   selectWorkspace(workspace) {

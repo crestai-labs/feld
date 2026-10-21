@@ -65,9 +65,15 @@ export interface ActorsClock {
 
 // ---- Geometry ------------------------------------------------------------------------
 
+// What the lane geometry reads from the page state.
+type LaneState = Pick<AgentsState, "showSubAgents"> & Partial<Pick<AgentsState, "compactLayout">>;
+
 // Actor lane geometry. `mainOffset` is the main line's y inside the lane; the metric
 // histogram sits above it.
 export const LANE = Object.freeze({ laneHeight: 44, mainOffset: 30, subAgentRowHeight: 28, barBase: 2, barRange: 13 });
+// On the compact layout a lane starts with the Actor's name row (its marks beside the name),
+// and the Timeline row under it spans the full width.
+export const COMPACT_LANE = Object.freeze({ nameRowHeight: 30, laneHeight: 62, mainOffset: 51 });
 export const METRIC_LANE_HEIGHT = 56;
 // A lane's chart runs from the lane's top line to its bottom: 100 % of the range on the
 // line that parts it from the lane above, 0 at the bottom.
@@ -95,6 +101,9 @@ export const PLOT_PAD_RIGHT = 24;
 export const TIMELINE_MIN_WIDTH = 280;
 // Mirrors the compact breakpoint in styles/shell.css and styles/agents.css.
 export const COMPACT_LAYOUT_QUERY = "(max-width: 760px)";
+export function matchesCompactLayout() {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(COMPACT_LAYOUT_QUERY).matches;
+}
 export const TOKEN_BIN_PIXEL_TARGET = 6;
 export const TOKEN_BIN_OPTIONS = [MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE, 15 * MINUTE, 30 * MINUTE, HOUR, 2 * HOUR, 6 * HOUR];
 export const WINDOW_OPTIONS: readonly (readonly [string, number])[] = [
@@ -2279,17 +2288,19 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     return { rows, count: 1 + subAgents.length };
   }
 
-  function laneHeightFor(agentId: string, state: Pick<AgentsState, "showSubAgents">) {
-    return LANE.laneHeight + unreadRowHeightFor(agentId) + (bandRowsFor(agentId, state).count - 1) * LANE.subAgentRowHeight;
+  function laneHeightFor(agentId: string, state: LaneState) {
+    const subAgentRows = (bandRowsFor(agentId, state).count - 1) * LANE.subAgentRowHeight;
+    if (state.compactLayout) return COMPACT_LANE.laneHeight + subAgentRows;
+    return LANE.laneHeight + unreadRowHeightFor(agentId) + subAgentRows;
   }
 
-  function laneLayoutFor(agents: ActorRecord[], state: Pick<AgentsState, "showSubAgents">) {
+  function laneLayoutFor(agents: ActorRecord[], state: LaneState) {
     let top = 0;
     const layout = new Map<string, Lane>();
     agents.forEach((agent) => {
       const bandRows = bandRowsFor(agent.id, state);
       const height = laneHeightFor(agent.id, state);
-      const mainY = top + LANE.mainOffset;
+      const mainY = top + (state.compactLayout ? COMPACT_LANE.mainOffset : LANE.mainOffset);
       layout.set(agent.id, {
         top,
         height,

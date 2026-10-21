@@ -14,6 +14,7 @@ const en: Dictionary = {
   "nav.settings": "Settings",
   "nav.collapse": "Collapse sidebar",
   "nav.expand": "Expand sidebar",
+  "nav.menu": "Menu",
 
   "settings.title": "Settings",
   "settings.sections": "Settings sections",
@@ -202,6 +203,7 @@ const ja: Dictionary = {
   "nav.settings": "設定",
   "nav.collapse": "サイドバーを畳む",
   "nav.expand": "サイドバーを広げる",
+  "nav.menu": "メニュー",
 
   "settings.title": "設定",
   "settings.sections": "設定の区画",
@@ -376,6 +378,7 @@ const zhHans: Dictionary = {
   "nav.settings": "设置",
   "nav.collapse": "收起侧边栏",
   "nav.expand": "展开侧边栏",
+  "nav.menu": "菜单",
 
   "settings.title": "设置",
   "settings.sections": "设置分区",

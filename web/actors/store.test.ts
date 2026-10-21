@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { readingPlaces, useConsoleStore } from "../console/store.ts";
-import { storedActorColumnWidths, storedActorWidth, storedMetricChoices, useActorsStore } from "./store.ts";
+import { createInitialState, storedActorColumnWidths, storedActorWidth, storedMetricChoices, useActorsStore } from "./store.ts";
 import type { ActorRecord } from "./types.ts";
 
 // The transitions of the Actors page's UI state.
@@ -225,4 +225,13 @@ test("stored lane choices that cannot be read fall back to the defaults", () => 
   store().reset(undefined, NOW);
   store().showDefaultMetrics([{ id: "api-errors", defaultVisible: true }, { id: "tool-calls", defaultVisible: false }]);
   expect([...store().visibleMetricIds]).toEqual(["api-errors"]);
+});
+
+test("the compact layout starts with Metrics folded, and follows the viewport across the breakpoint", () => {
+  expect(createInitialState(undefined, NOW, false)).toMatchObject({ compactLayout: false, metricsCollapsed: false });
+  expect(createInitialState(undefined, NOW, true)).toMatchObject({ compactLayout: true, metricsCollapsed: true });
+  store().setCompactLayout(true);
+  expect(store()).toMatchObject({ compactLayout: true, metricsCollapsed: false });
+  store().setCompactLayout(false);
+  expect(store().compactLayout).toBe(false);
 });

@@ -466,6 +466,17 @@ feld-agents {
   background: var(--bg);
 }
 
+/* The Guide in Timeline display, on the compact layout. */
+.feld-agents__timeline-guide.is-menu-item {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 34px;
+  margin: 14px 20px 6px;
+  padding: 4px 12px 4px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .feld-agents__legend-glyph {
   display: block;
   width: 26px;
@@ -3371,35 +3382,71 @@ feld-agents {
   }
 }
 
-/* Compact (phone) layout. The shell turns the sidebar into a top bar and a bottom tab
-   bar at this breakpoint and .app fills the space between them, so the component still
-   takes height: 100%; only fixed overlays read the shell's bar heights. Everything in
-   this block must stay inside the media query so the wide layout is untouched. */
+/* The search button opens the search field on the compact layout only. */
+.feld-agents__button--search {
+  display: none;
+}
+
+/* Compact (phone) layout. The shell's .app takes the whole viewport, so the component
+   still takes height: 100%; only the heading (beside the shell's menu button) and fixed
+   overlays read the shell's measures. Everything in this block must stay inside the media
+   query so the wide layout is untouched. */
 @media (max-width: 760px) {
-  /* Heading: the title with Refresh and New actor on one row, search across the next. */
+  /* Heading: the shell's top bar row, with the Workspace switcher, the search button,
+     Refresh and Live / Paused, and New actor. An opened search field takes the next row. */
   .feld-agents__heading {
     display: grid;
     height: auto;
-    min-height: 0;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    min-height: var(--shell-topbar-height, 48px);
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     align-items: center;
-    gap: 8px 12px;
-    padding: 10px 12px 8px;
+    gap: 4px 6px;
+    padding: 4px 8px 4px var(--shell-menu-width, 12px);
+    border-bottom: 1px solid var(--border);
   }
 
-  /* The New actor button keeps the first row with the title and search, as an
-     icon; its label returns on wide layouts. */
+  .feld-agents__heading:not(.is-searching) .feld-agents__search {
+    display: none;
+  }
+
+  .feld-agents__button--search {
+    display: grid;
+    grid-row: 1;
+    grid-column: 2;
+    place-items: center;
+    width: 40px;
+    padding: 0;
+    color: var(--ink-soft);
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .feld-agents__heading.is-searching .feld-agents__button--search {
+    color: var(--accent-text);
+  }
+
+  .feld-agents__button--search svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 1.7;
+  }
+
+  /* The New actor button is an icon here; its label returns on wide layouts. */
   .feld-agents__button--new {
     grid-row: 1;
-    grid-column: 3;
-    padding-inline: 10px;
+    grid-column: 4;
+    width: 40px;
+    justify-content: center;
+    padding-inline: 0;
   }
 
-  /* Refresh keeps the first row with the title and New actor; search takes the second. */
   .feld-agents__heading .feld-agents__refresh {
     display: flex;
     grid-row: 1;
-    grid-column: 2;
+    grid-column: 3;
   }
 
   /* No room for the words: they stay for screen readers, and the Refresh icon turns (or,
@@ -3443,9 +3490,19 @@ feld-agents {
   }
 
   .feld-agents__heading h1 {
-    grid-row: 1;
-    grid-column: 1;
-    font-size: 19px;
+    min-width: 0;
+    font-size: 18px;
+  }
+
+  .feld-agents__workspace-button {
+    max-width: 100%;
+    margin-block: 0;
+  }
+
+  .feld-agents__workspace-button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .feld-agents__heading-controls {
@@ -3463,6 +3520,7 @@ feld-agents {
     grid-column: 1 / -1;
     width: auto;
     min-width: 0;
+    margin: 0 0 4px calc(8px - var(--shell-menu-width, 12px));
   }
 
   /* The time controls take a row of their own: the range stretches, Refresh and the
@@ -3543,10 +3601,12 @@ feld-agents {
     background: var(--panel);
   }
 
-  /* Workspace and tables. The identity column starts at its 120px minimum and the
-     evidence columns start hidden (both chosen by the component at mount), the Actions
-     column narrows to one button, and the timeline floor drops so the table fits the
-     viewport without horizontal scrolling. The component reads the floor from
+  /* Workspace and tables. Each Actor band is a name row over a Timeline row as wide as
+     the pane: the band's label and its Actions button lie over the top of its lane
+     (COMPACT_LANE in actors/model.ts), and the rest of the name row lets the pointer
+     through to the Timeline. The table has no column head and no Actor table; the Actor
+     card carries the same columns for one Actor. The timeline floor drops so the table
+     fits the viewport without horizontal scrolling; the component reads it from
      --agents-timeline-min-width. */
   .feld-agents__workspace {
     padding: 8px;
@@ -3558,62 +3618,105 @@ feld-agents {
   }
 
   .feld-agents__bands {
-    --agents-identity-width: 140px !important;
+    --agents-identity-width: 0px !important;
     --agents-details-width: 0px !important;
     --agents-timeline-min-width: 160px;
-    --agents-actions-width: 44px;
+    --agents-actions-width: 0px;
+    --agents-head-height: 0px;
     /* Metrics starts at its header plus two lanes so the Agent bands keep a useful share
        of a short workspace. */
     grid-template-rows: auto minmax(96px, var(--agents-pane-height, 1fr)) 7px minmax(110px, var(--metrics-pane-height, 174px));
     border-left: 1px solid var(--border);
   }
 
+  /* Metrics keeps its label column and the column under Actions beside its lanes. */
+  .feld-agents__metrics {
+    --agents-identity-width: 140px;
+    --agents-actions-width: 44px;
+    --agents-pinned-width: 140px;
+  }
+
   .feld-agents__actor-resizer {
     display: none;
   }
 
-  .feld-agents__agent-head-identity {
-    padding-left: 10px;
-    overflow: hidden;
-  }
-
-  .feld-agents__agent-head small {
-    display: block;
-    margin-left: 0;
-  }
-
-  .feld-agents__timeline-head {
-    padding-inline: 10px 12px;
-  }
-
-  .feld-agents__band-identity {
-    gap: 7px;
-    padding: 8px 6px 8px 10px;
-  }
-
-  .feld-agents__actor-name {
-    font-size: 12px;
-  }
-
-  /* The Actor table would leave no Timeline at phone width; the Actor card carries the
-     same columns for one Actor. */
-  .feld-agents__detail-head,
-  .feld-agents__band-details {
+  .feld-agents__band-details,
+  .feld-agents__bands-content .feld-agents__axis-lead,
+  .feld-agents__bands-content .feld-agents__axis-tail {
     display: none;
   }
 
-  .feld-agents__actions-head,
+  .feld-agents__band-labels,
   .feld-agents__actions {
+    position: absolute;
+    top: 0;
+    width: auto;
+    background: transparent;
+    border-left: 0;
     box-shadow: none;
+    pointer-events: none;
   }
 
-  .feld-agents__actions-head button,
-  .feld-agents__metric-spacer button {
+  .feld-agents__band-labels {
+    right: 0;
+    left: 0;
+  }
+
+  .feld-agents__band-label {
+    align-items: flex-start;
+  }
+
+  .feld-agents__band-label.is-focused {
+    background: transparent;
+  }
+
+  .feld-agents__band-label + .feld-agents__band-label,
+  .feld-agents__action-cell + .feld-agents__action-cell {
+    border-top: 0;
+  }
+
+  .feld-agents__bands .feld-agents__band-identity {
+    width: auto;
+    max-width: calc(100% - 44px);
+    height: 30px;
+    gap: 6px;
+    padding: 0 8px 0 10px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    border-radius: 0 8px 8px 0;
+    pointer-events: auto;
+  }
+
+  .feld-agents__band-identity > span:last-child {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .feld-agents__actor-name {
+    width: auto;
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 13px;
+  }
+
+  .feld-agents__marks {
+    flex: none;
+    margin-top: 0;
+  }
+
+  .feld-agents__action-cell {
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .feld-agents__bands .feld-agents__action-button {
     width: 40px;
-    height: 40px;
+    height: 30px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    pointer-events: auto;
   }
 
-  .feld-agents__action-button {
+  .feld-agents__metric-spacer button {
     width: 40px;
     height: 40px;
   }
@@ -3684,13 +3787,14 @@ feld-agents {
   }
 
   /* Inspector column contents (Session, Action, Message, Mailbox inspectors and the
-     Message composer) become a bottom sheet above the tab bar, with a scrim that closes
-     it through the same action as the × button. The Console fills the screen instead. */
+     Message composer) become a bottom sheet down to the screen's edge, its content clear
+     of the safe area, with a scrim that closes it through the same action as the ×
+     button. The Console fills the screen instead. */
   .feld-agents__scrim {
     position: fixed;
     top: var(--shell-topbar-height, 0px);
     right: 0;
-    bottom: var(--shell-tabbar-height, 0px);
+    bottom: 0;
     left: 0;
     z-index: 34;
     display: block;
@@ -3701,13 +3805,13 @@ feld-agents {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: var(--shell-tabbar-height, 0px);
+    bottom: 0;
     left: 0;
     z-index: 35;
     width: auto;
     max-width: none;
     max-height: 72dvh;
-    padding: 0 16px 16px;
+    padding: 0 16px calc(16px + var(--shell-bottom-inset, 0px));
     border-bottom: 0;
     border-radius: 14px 14px 0 0;
     background: var(--panel-raised);
@@ -3753,10 +3857,11 @@ feld-agents {
     bottom: 0;
     display: flex;
     max-height: none;
+    box-sizing: border-box;
     border-radius: 0;
     flex-direction: column;
     overflow: hidden;
-    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+    padding: env(safe-area-inset-top, 0px) 0 var(--shell-bottom-inset, 0px);
   }
 
   .feld-agents__info {
@@ -3770,7 +3875,7 @@ feld-agents {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: var(--shell-tabbar-height, 0px);
+    bottom: 0;
     left: 0;
     z-index: 36;
     width: auto;
@@ -3784,7 +3889,7 @@ feld-agents {
   }
 
   .feld-agents__action-menu {
-    padding: 10px 8px 8px;
+    padding: 10px 8px calc(8px + var(--shell-bottom-inset, 0px));
   }
 
   /* The sheet is detached from its row, so it names the Agent from its accessible label. */
@@ -3914,11 +4019,11 @@ feld-agents {
 }
 
 /* The toasts at the page's corner: a request from an Actions menu in flight, accepted,
-   or refused. Above the tab bar of the compact layout. */
+   or refused. Above the safe area of the compact layout. */
 .feld-agents__toasts {
   position: fixed;
   right: 20px;
-  bottom: calc(20px + var(--shell-tabbar-height, 0px));
+  bottom: calc(20px + var(--shell-bottom-inset, 0px));
   z-index: 40;
   display: grid;
   width: min(360px, calc(100vw - 40px));
@@ -4663,5 +4768,23 @@ span.feld-agents__run-open {
   .feld-agents__section-head .feld-agents__timebar {
     min-width: 0;
     flex: 1;
+  }
+
+  /* Metrics keeps the Actors range, so its header holds the fold, the readings of the
+     folded lanes on the same line, and the lane settings. */
+  .feld-agents__metrics-head {
+    flex-wrap: nowrap;
+  }
+
+  .feld-agents__metrics-head .feld-agents__section-tools {
+    order: 1;
+    flex: none;
+  }
+
+  .feld-agents__section-head .feld-agents__metrics-summary {
+    order: 0;
+    min-width: 0;
+    min-height: 30px;
+    flex: 1 1 0;
   }
 }

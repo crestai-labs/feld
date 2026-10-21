@@ -1,13 +1,17 @@
 // The page heading: the Workspace switcher, the reads' connection, Refresh and the Live /
 // Paused toggle, the search, and New actor. The range button that opens the range
-// picker sits in the Actors section's header.
+// picker sits in the Actors section's header. On the compact layout the heading is the top
+// bar beside the shell's menu button: the search opens from its button, and the Workspace
+// list sits in the shell's drawer.
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent as ReactFocusEvent, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FocusEvent as ReactFocusEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
+import { DRAWER_ID, useDrawer } from "../shell/drawer.ts";
 import { useActorsModel } from "./context.ts";
 import { COMPACT_LAYOUT_QUERY, METRICS_WINDOWS, MODE_TITLES, WINDOW_NAMES, WINDOW_OPTIONS, metricsDurationFor } from "./model.ts";
 import { useActorsStore } from "./store.ts";
-import { useActorsTools, usePageActions } from "./ui.tsx";
+import { focusIn, useActorsTools, usePageActions } from "./ui.tsx";
 
 const CHECK = <svg className="sidebar__check" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9"></path></svg>;
 
@@ -16,15 +20,31 @@ export function Heading() {
   const query = useActorsStore((state) => state.query);
   const newActorOpen = useActorsStore((state) => Boolean(state.newActor));
   const shown = useShownConnection();
+  const { afterRender } = useActorsTools();
+  // The compact layout shows the search field while it is opened or holds a query.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searching = searchOpen || query !== "";
+  function toggleSearch() {
+    if (searching && !query) {
+      setSearchOpen(false);
+      return;
+    }
+    setSearchOpen(true);
+    afterRender((root) => focusIn(root, '[data-action="search"]'));
+  }
   return (
-    <div className="feld-agents__heading">
+    <div className={`feld-agents__heading${searching ? " is-searching" : ""}`}>
       <div className="feld-agents__heading-copy">
         <WorkspaceSwitcher />
       </div>
       <div className="feld-agents__heading-controls">
         <Connection shown={shown} />
+        {/* The button keeps the focus in the field it closes (onMouseDown), so a blur never reopens it. */}
+        <button className="feld-agents__button feld-agents__button--search" type="button" data-action="toggle-search" aria-label="Search actors and metrics" aria-expanded={searching} aria-controls="feld-agents-search" onMouseDown={(event) => event.preventDefault()} onClick={toggleSearch}>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"></circle><path d="m10.4 10.4 3.4 3.4"></path></svg>
+        </button>
         <RefreshControls shown={shown} />
-        <input className="feld-agents__search" type="search" placeholder="Search actors and metrics" aria-label="Search actors and metrics" title="Matches Actor names, Coding Agents, Execution Providers, metric names, Runtimes, and accounts" value={query} data-action="search" onChange={(event) => useActorsStore.getState().setQuery(event.target.value)} />
+        <input className="feld-agents__search" id="feld-agents-search" type="search" placeholder="Search actors and metrics" aria-label="Search actors and metrics" title="Matches Actor names, Coding Agents, Execution Providers, metric names, Runtimes, and accounts" value={query} data-action="search" onChange={(event) => useActorsStore.getState().setQuery(event.target.value)} onBlur={() => setSearchOpen(false)} />
         <button className="feld-agents__button feld-agents__button--primary feld-agents__button--new" type="button" data-action="new-actor" aria-haspopup="dialog" aria-expanded={newActorOpen} title="Declare an Agent or a Job" onClick={actions.openNewActor}>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
           <span>New actor</span>
@@ -113,9 +133,12 @@ export function TimeControls() {
 // Workspaces shown every Actor is. A menu item, a click outside the switcher, and Escape
 // close the menu, and so does the focus leaving the switcher, so the page's Escape never
 // reaches past an open menu. Escape closes only the menu, and returns the focus to its button.
+// On the compact layout the button opens the shell's drawer, which holds the menu's items.
 function WorkspaceSwitcher() {
   const model = useActorsModel();
   const actions = usePageActions();
+  const drawer = useDrawer();
+  const inDrawer = drawer?.slot ?? null;
   const workspace = useActorsStore((state) => state.workspace);
   const [open, setOpen] = useState(false);
   const switcher = useRef<HTMLDivElement>(null);
@@ -133,6 +156,10 @@ function WorkspaceSwitcher() {
   // The button takes the focus itself, since a click does not focus a button everywhere
   // (Safari), so the menu's Escape and focus-out start inside the switcher.
   function toggle() {
+    if (drawer) {
+      drawer.open();
+      return;
+    }
     setOpen(!open);
     button.current?.focus();
   }
@@ -152,18 +179,19 @@ function WorkspaceSwitcher() {
 
   function select(next: string | null) {
     setOpen(false);
+    drawer?.close();
     useActorsStore.getState().selectWorkspace(next);
   }
 
   return (
     <div className="feld-agents__workspace-switcher" ref={switcher} onKeyDown={closeOnEscape} onBlur={closeOnFocusOut}>
       <h1>
-        <button className="feld-agents__workspace-button" type="button" data-action="toggle-workspace-menu" aria-expanded={open} aria-haspopup="menu" aria-label="Select workspace" ref={button} onClick={toggle}>
+        <button className="feld-agents__workspace-button" type="button" data-action="toggle-workspace-menu" aria-expanded={drawer ? drawer.expanded : open} aria-haspopup={drawer ? "true" : "menu"} aria-controls={drawer ? DRAWER_ID : undefined} aria-label="Select workspace" ref={button} onClick={toggle}>
           <span>{workspace ? workspace : "All workspaces"}</span>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"></path></svg>
         </button>
       </h1>
-      <div className="sidebar__popover feld-agents__workspace-menu" data-workspace-menu="" role="menu" hidden={!open}>
+      {portalInto(inDrawer, <div className="sidebar__popover feld-agents__workspace-menu" data-workspace-menu="" role="menu" aria-label="Workspaces" hidden={inDrawer ? false : !open}>
         {model.input.workspaces.map((key) => (
           <button key={key} type="button" data-action="select-workspace" data-workspace={key} role="menuitem" aria-checked={workspace === key} onClick={() => select(key)}>
             <svg className="sidebar__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -175,13 +203,17 @@ function WorkspaceSwitcher() {
           </button>
         ))}
         <button type="button" data-action="all-workspaces" role="menuitem" aria-checked={workspace === null} onClick={() => select(null)}><span>All workspaces</span>{workspace === null ? CHECK : null}</button>
-        <button type="button" data-action="new-workspace" role="menuitem" aria-haspopup="dialog" onClick={() => { setOpen(false); actions.openNewWorkspace(); }}>
+        <button type="button" data-action="new-workspace" role="menuitem" aria-haspopup="dialog" onClick={() => { setOpen(false); drawer?.close(); actions.openNewWorkspace(); }}>
           <svg className="sidebar__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
           <span>New workspace</span>
         </button>
-      </div>
+      </div>)}
     </div>
   );
+}
+
+function portalInto(target: HTMLElement | null, children: ReactNode) {
+  return target ? createPortal(children, target) : children;
 }
 
 // The Metrics window: opens its picker. Live it names the window's length, else its dates.
@@ -275,7 +307,7 @@ function MetricsPickerDialog() {
 }
 
 // The range picker opens under the range button. The historical fields start at the range
-// shown and keep what is typed until Apply.
+// shown and keep what is typed until Apply. On the compact layout they open from Custom….
 export function Picker() {
   const open = useActorsStore((state) => state.pickerOpen);
   return open ? <PickerDialog /> : null;
@@ -288,6 +320,8 @@ function PickerDialog() {
   const [date, setDate] = useState(() => model.toDateInput(store().anchor));
   const [time, setTime] = useState(() => model.timeInput.format(store().anchor));
   const [duration, setDuration] = useState(() => store().duration);
+  const compact = useActorsStore((state) => state.compactLayout);
+  const [custom, setCustom] = useState(false);
   const placement = usePickerPlacement(picker, "[data-range-button]");
   useCloseOnOutsidePress(picker, "[data-range-button]", store().closePicker);
 
@@ -299,9 +333,10 @@ function PickerDialog() {
           {WINDOW_OPTIONS.map(([label, value]) => (
             <button key={value} type="button" data-action="quick-live" data-duration={value} aria-current={store().mode === "live" && value === store().duration ? "true" : undefined} onClick={() => store().quickLive(value, model.now())}>Last {WINDOW_NAMES[value] || label}</button>
           ))}
+          {compact ? <button type="button" data-action="toggle-custom-range" aria-expanded={custom} aria-controls="actors-historical-range" onClick={() => setCustom(!custom)}>Custom…</button> : null}
         </div>
       </div>
-      <div>
+      {compact && !custom ? null : <div id="actors-historical-range">
         <h2>Historical range</h2>
         <div className="feld-agents__picker-fields">
           <label className="feld-agents__picker-feld">
@@ -330,7 +365,7 @@ function PickerDialog() {
           <button className="feld-agents__button" type="button" data-action="close-picker" onClick={() => store().closePicker()}>Cancel</button>
           <button className="feld-agents__button" type="button" data-action="apply-picker" onClick={() => store().applyPicker(model.instantOfLocal(date, time), duration, model.now())}>Apply range</button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

@@ -33,7 +33,7 @@ import { edgeChevronPath, foldIncomingBundles, relationBinDuration, relationBund
 // What the timeline's lanes and records read from the page state.
 export type TimelineView = Pick<AgentsState,
   | "workspace" | "mode" | "anchor" | "duration" | "showSubAgents" | "inspectedSessionId" | "actorCard" | "focusedActorId"
-  | "sessionMetric" | "showScheduleSkips" | "showSpawnLinks" | "showMessageLinks">;
+  | "sessionMetric" | "showScheduleSkips" | "showSpawnLinks" | "showMessageLinks" | "compactLayout">;
 
 function selectTimelineView(state: AgentsState): TimelineView {
   return {
@@ -49,6 +49,7 @@ function selectTimelineView(state: AgentsState): TimelineView {
     showScheduleSkips: state.showScheduleSkips,
     showSpawnLinks: state.showSpawnLinks,
     showMessageLinks: state.showMessageLinks,
+    compactLayout: state.compactLayout,
   };
 }
 
