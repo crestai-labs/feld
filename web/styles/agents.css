@@ -3746,14 +3746,17 @@ feld-agents {
     font-size: 22px;
   }
 
-  /* The Console sheet takes a fixed height and scrolls only its transcript, so the
-     identity bar with Transcript, Details, Live and the model stays in view. */
+  /* The Console fills the screen and scrolls only its transcript, so the identity bar
+     with Transcript, Details, Live and the model stays in view. */
   .feld-agents__inspector.is-console {
+    top: 0;
+    bottom: 0;
     display: flex;
-    height: 72dvh;
+    max-height: none;
+    border-radius: 0;
     flex-direction: column;
     overflow: hidden;
-    padding: 0;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
   }
 
   .feld-agents__info {
