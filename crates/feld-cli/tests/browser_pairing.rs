@@ -714,10 +714,19 @@ fn wrong_codes_wait_their_turn_and_leave_the_pending_codes_alone() {
                 assert_eq!(attempt("WRONG-CODE"), StatusCode::UNAUTHORIZED);
             }
         });
+        // The guesses stop even when the assertion fails.
+        let _stop = StopGuessing(&guessing);
         thread::sleep(Duration::from_millis(1500));
         assert_eq!(attempt(code["code"].as_str().unwrap()), StatusCode::OK);
-        guessing.store(false, Ordering::Relaxed);
     });
+}
+
+struct StopGuessing<'a>(&'a AtomicBool);
+
+impl Drop for StopGuessing<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Relaxed);
+    }
 }
 
 #[test]
