@@ -49,7 +49,7 @@ Fixture mode reads `fixtures/data/*.js` and draws fixtures in place of the daemo
 `dist/` holds only the daemon reads. Open it with `?scenario=` (Actors: `three-days-ago-1h` / `three-days-ago-1d` / `message-density-30m`) and `?state=` (the exchange with the daemon: for Actors,
 `connecting` / `reconnecting` / `error` / `refusing` together with `?scenario=`; for Settings, `running` / `degraded` /
 `unreachable` / `reading` / `refusing`; for both, `unauthorized` / `expired` show the pairing screen). The clock and timezone follow the fixture.
-The pairing screen in fixture mode accepts the fixture code (`K7QM-4XPD`); open it at `/ui/pair?scenario=three-days-ago-1h#code=K7QM-4XPD`.
+The pairing screen in fixture mode accepts the fixture code (`K7QMW-4XPDR`); open it at `/ui/pair?scenario=three-days-ago-1h#code=K7QMW-4XPDR`.
 
 `fixtures/data/session-*.js` are generated from made-up conversations in the shape of Claude Code transcript files (the user is `alice` and the working directory is under `/Users/alice/Dev/`). Do not edit them by hand.
 

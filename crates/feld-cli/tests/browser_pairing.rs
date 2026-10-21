@@ -243,8 +243,8 @@ fn a_pairing_code_becomes_a_browser_token_that_calls_the_api_as_the_admin() {
     let issued = api.issue_code(Some("laptop"));
     let code = issued["code"].as_str().unwrap();
     assert_eq!(issued["name"], "laptop");
-    assert_eq!(code.len(), 9);
-    assert_eq!(&code[4..5], "-");
+    assert_eq!(code.len(), 11);
+    assert_eq!(&code[5..6], "-");
     assert!(
         code.chars()
             .filter(|letter| *letter != '-')
@@ -694,17 +694,17 @@ fn wrong_codes_wait_their_turn_and_leave_the_pending_codes_alone() {
     };
     let code = api.issue_code(None);
 
-    // Each failed check holds the next one back a second, however the guesses arrive.
+    // Each failed check holds the next one back 20 ms, however the guesses arrive.
     let started = Instant::now();
     thread::scope(|scope| {
-        let guesses: Vec<_> = (0..3)
+        let guesses: Vec<_> = (0..26)
             .map(|_| scope.spawn(|| attempt("WRONG-CODE")))
             .collect();
         for guess in guesses {
             assert_eq!(guess.join().unwrap(), StatusCode::UNAUTHORIZED);
         }
     });
-    assert!(started.elapsed() >= Duration::from_secs(2));
+    assert!(started.elapsed() >= Duration::from_millis(500));
 
     // A person's code pairs while wrong codes keep arriving.
     let guessing = AtomicBool::new(true);
@@ -716,7 +716,7 @@ fn wrong_codes_wait_their_turn_and_leave_the_pending_codes_alone() {
         });
         // The guesses stop even when the assertion fails.
         let _stop = StopGuessing(&guessing);
-        thread::sleep(Duration::from_millis(1500));
+        thread::sleep(Duration::from_millis(100));
         assert_eq!(attempt(code["code"].as_str().unwrap()), StatusCode::OK);
     });
 }

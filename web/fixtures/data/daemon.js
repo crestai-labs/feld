@@ -59,7 +59,7 @@
     // POST /v1/ui/pair. `codes` are the pairing codes `feld ui pair` issued and the daemon
     // still holds; each works once.
     pairing: Object.freeze({
-      codes: Object.freeze(["K7QM-4XPD"]),
+      codes: Object.freeze(["K7QMW-4XPDR"]),
     }),
   });
 })(window);

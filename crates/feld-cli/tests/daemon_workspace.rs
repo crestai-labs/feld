@@ -1186,13 +1186,13 @@ fn the_daemon_log_rotates_into_four_generations() {
     }
 }
 
-/// A pairing code as the CLI shows it: `XXXX-XXXX` of the 32 characters that read apart.
+/// A pairing code as the CLI shows it: `XXXXX-XXXXX` of the 31 characters that read apart.
 fn assert_pairing_code(code: &str) {
     let (head, tail) = code
         .split_once('-')
         .unwrap_or_else(|| panic!("code {code}"));
     for part in [head, tail] {
-        assert_eq!(part.len(), 4, "code {code}");
+        assert_eq!(part.len(), 5, "code {code}");
         assert!(
             part.chars()
                 .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase())

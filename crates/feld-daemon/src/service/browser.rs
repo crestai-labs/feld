@@ -14,11 +14,11 @@ use feld_core::time;
 
 /// The 31 letters of a pairing code: digits and capitals without `0`, `1`, `I`, `L`, `O`.
 const CODE_ALPHABET: &[u8; 31] = b"23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-const CODE_LENGTH: usize = 8;
+const CODE_LENGTH: usize = 10;
 const CODE_LIFETIME: Duration = Duration::minutes(5);
 /// The wait after a failed check before the daemon checks the next code, which bounds guesses
-/// to one a second however many requests arrive at once.
-const FAILURE_PAUSE: Pause = Pause::from_secs(1);
+/// to 50 a second however many requests arrive at once.
+const FAILURE_PAUSE: Pause = Pause::from_millis(20);
 
 /// The browser tokens of `auth.md` and the pairing codes a browser exchanges for one.
 pub struct BrowserService {
@@ -95,7 +95,7 @@ impl BrowserService {
             expires,
         });
         PairingCode {
-            code: format!("{}-{}", &letters[..4], &letters[4..]),
+            code: format!("{}-{}", &letters[..5], &letters[5..]),
             name: name.to_owned(),
             expires_at: time::format(expires),
         }

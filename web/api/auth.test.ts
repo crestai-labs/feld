@@ -20,7 +20,7 @@ test("a 401 after an answer says the access ended, and the first reason stays", 
 });
 
 test("a code is matched without regard to case, spaces, and hyphens", () => {
-  expect(normalizeCode(" k7qm-4xpd ")).toBe("K7QM4XPD");
+  expect(normalizeCode(" k7qmw-4xpdr ")).toBe("K7QMW4XPDR");
 });
 
 test("every failed code is invalid alike, however many came before", async () => {

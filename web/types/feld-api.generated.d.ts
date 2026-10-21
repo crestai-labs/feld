@@ -651,7 +651,7 @@ export interface paths {
         put?: never;
         /**
          * Issues a pairing code
-         * @description The code is 8 characters drawn from 31 characters, the digits and uppercase letters excluding `0`, `1`, `I`, `L`, and `O`, and is returned in the form `XXXX-XXXX`. It is valid for 5 minutes after issue and can be used once. The daemon keeps the code only in memory, as a hash.
+         * @description The code is 10 characters drawn from 31 characters, the digits and uppercase letters excluding `0`, `1`, `I`, `L`, and `O`, and is returned in the form `XXXXX-XXXXX`. It is valid for 5 minutes after issue and can be used once. The daemon keeps the code only in memory, as a hash.
          *     `name` becomes the name of the browser token issued on redemption. `browserToken` and `sessionToken` get `403`.
          */
         post: operations["createPairingCode"];
@@ -673,7 +673,7 @@ export interface paths {
         /**
          * Redeems a pairing code for a browser token
          * @description `code` is matched ignoring case and hyphens, and is consumed. Issues a browser token and returns the cookie value in `Set-Cookie` and the key in the body's `key`. If the request carries a valid browser token cookie and key, revokes that token before issuing.
-         *     `403` if `Origin` does not match the request's destination. `401` if the code does not exist, has expired, or is already used. Checks codes one at a time and waits 1 second after each `401` before checking the next.
+         *     `403` if `Origin` does not match the request's destination. `401` if the code does not exist, has expired, or is already used. Checks codes one at a time and waits 20 ms after each `401` before checking the next.
          */
         post: operations["pairBrowser"];
         delete?: never;
@@ -1522,7 +1522,7 @@ export interface components {
             session: components["schemas"]["Session"] | null;
         };
         PairingCode: {
-            /** @example K7QM-4XPD */
+            /** @example K7QMW-4XPDR */
             code: string;
             /** @description Name of the browser token issued on redemption */
             name: string;
@@ -3024,7 +3024,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example K7QM-4XPD */
+                    /** @example K7QMW-4XPDR */
                     code: string;
                 };
             };

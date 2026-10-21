@@ -1452,7 +1452,7 @@ feld ui [OPTIONS]
 
 ```console
 $ feld ui --print-url
-http://127.0.0.1:7381/ui/pair?workspace=default#code=K7QM-4XPD
+http://127.0.0.1:7381/ui/pair?workspace=default#code=K7QMW-4XPDR
 ```
 
 ### feld ui pair
@@ -1470,7 +1470,7 @@ feld ui pair [OPTIONS]
 ```console
 $ feld ui pair --name laptop
 Sign-in code issued.
-  code:       K7QM-4XPD
+  code:       K7QMW-4XPDR
   name:       laptop
   expires_at: 2026-10-01T10:47:09+09:00
 Sign in to the Web UI of the other device with the code within 5 minutes. It works once.
