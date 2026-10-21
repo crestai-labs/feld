@@ -880,6 +880,43 @@ fn a_stop_input_reaches_the_program_through_the_pane() {
     assert_eq!(stopped["observation"]["exitCode"], 5);
 }
 
+/// An input that starts with `-` reaches the pane as it is. One that herdr reads as its
+/// own global option is refused before herdr runs, and the program keeps running.
+#[test]
+fn a_stop_input_starting_with_a_dash_reaches_the_pane_unless_herdr_reads_it_as_its_option() {
+    let Some(fixture) = Fixture::new("dash") else {
+        return;
+    };
+    fixture.launch(
+        "dasher",
+        &[],
+        &[
+            "sh",
+            "-c",
+            "read line; case \"$line\" in --help) exit 5 ;; *) exit 9 ;; esac",
+        ],
+    );
+    let running = fixture.wait_for_kind("dasher", &["running"]);
+    fixture.stop_daemon();
+    for refused in ["--session", "--remote=host"] {
+        let stopped = fixture.plugin(
+            "stop",
+            &json!({ "placement": placement(&running), "input": [refused] }),
+        );
+        assert_eq!(stopped["observation"]["kind"], "unknown", "{stopped}");
+        assert!(
+            text(&stopped["observation"], "detail").contains("as its own option"),
+            "{stopped}"
+        );
+    }
+    let stopped = fixture.plugin(
+        "stop",
+        &json!({ "placement": placement(&running), "input": ["--help"] }),
+    );
+    assert_eq!(stopped["observation"]["kind"], "gone", "{stopped}");
+    assert_eq!(stopped["observation"]["exitCode"], 5);
+}
+
 /// A stop ends the program alone: the pane's process passes to the launch script's `sleep`
 /// under the same pid, so every observation after the stop still matches it and reads
 /// `gone`, never a pane process on its way out.
