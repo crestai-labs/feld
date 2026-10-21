@@ -1198,3 +1198,50 @@ fn a_session_token_reaches_what_its_grants_open_over_tcp_and_the_spool() {
     ));
     assert_eq!(spooled["status"], 200, "{spooled}");
 }
+
+/// A directory handles a limited number of requests at once and keeps the rest waiting until
+/// one ends, while the directory of another Session is answered.
+#[test]
+fn a_directory_of_the_spool_handles_a_limited_number_of_requests_at_once() {
+    const LIMIT: usize = 16;
+    let fixture = Fixture::new();
+    fixture.succeed(&["daemon", "start"]);
+    let worker = fixture.start_job("worker");
+    let peer = fixture.start_job("peer");
+    let directory = fixture.directory(&worker);
+    let count = |state: &str| {
+        fs::read_dir(&directory)
+            .unwrap()
+            .filter(|entry| {
+                let name = entry.as_ref().unwrap().file_name();
+                name.to_str().unwrap().ends_with(state)
+            })
+            .count()
+    };
+
+    let mut waiting: Vec<(String, File)> = (0..LIMIT + 4)
+        .map(|_| {
+            fixture.write_request_in(
+                &directory,
+                &request("/v1/self/messages?wait=true", environment(&worker)),
+                true,
+            )
+        })
+        .collect();
+    wait_until("the directory takes its limit", || count(".taken") == LIMIT);
+    thread::sleep(Duration::from_millis(500));
+    assert_eq!(count(".taken"), LIMIT);
+    assert_eq!(count(".request"), 4);
+
+    let other = fixture.exchange(&request("/v1/self", environment(&peer)));
+    assert_eq!(other["status"], 200, "{other}");
+
+    // A CLI that ends lets its request go, and a waiting one is taken in its place.
+    let taken = waiting
+        .iter()
+        .position(|(id, _)| directory.join(format!("{id}.taken")).exists())
+        .unwrap();
+    waiting.remove(taken);
+    wait_until("a waiting request is taken", || count(".request") == 3);
+    assert_eq!(count(".taken"), LIMIT);
+}

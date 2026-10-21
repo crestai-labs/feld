@@ -2,6 +2,7 @@
 //! inside a Runtime's sandbox writes as files, hands them to the same router as TCP, and
 //! writes the responses back as files.
 
+use std::collections::HashMap;
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
@@ -15,7 +16,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{HeaderValue, Method, StatusCode, Uri, header};
 use fs2::FileExt;
 use notify::Watcher as _;
-use tokio::sync::{Notify, watch};
+use tokio::sync::{Notify, OwnedSemaphorePermit, Semaphore, watch};
 use tokio::task::JoinSet;
 use tower::ServiceExt as _;
 
@@ -35,6 +36,11 @@ const STALE_AGE: Duration = Duration::from_secs(10 * 60);
 /// rest of the request to.
 const BODY_LIMIT: u64 = 2 * 1024 * 1024;
 const FILE_LIMIT: u64 = BODY_LIMIT + 64 * 1024;
+/// How many requests of one directory the daemon handles at once. The rest wait in the
+/// directory, so a sandbox that writes many requests delays only its own.
+const HANDLING_LIMIT: usize = 16;
+/// How many requests the daemon checks off the async workers at once.
+const ADMIT_LIMIT: usize = 8;
 
 /// Serves the spool of the Feld home until `shutdown`. The daemon creates the spool when it
 /// starts, and the requests a daemon before it left are settled first.
@@ -46,7 +52,8 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
         settle_left_behind(&directory);
     }
 
-    // However many notifications come between two passes, one pass answers them all.
+    // However many notifications come between two passes, one pass answers them all. The end
+    // of a request wakes the pass too, for the requests its directory kept waiting.
     let woken = Arc::new(Notify::new());
     // Without notifications the scan still takes every request, only later.
     let watcher = notify::recommended_watcher({
@@ -68,6 +75,8 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
     }
 
     let mut handling = JoinSet::new();
+    let mut limits: HashMap<PathBuf, Arc<Semaphore>> = HashMap::new();
+    let admitting = Arc::new(Semaphore::new(ADMIT_LIMIT));
     let mut scan = tokio::time::interval(SCAN_INTERVAL);
     loop {
         tokio::select! {
@@ -85,21 +94,31 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
             break;
         }
         while handling.try_join_next().is_some() {}
-        for (owner, directory) in directories(&spool) {
-            for id in waiting_requests(&directory) {
-                if let Some(taken) = take(&directory, &id) {
-                    handling.spawn(handle(
-                        state.clone(),
-                        router.clone(),
-                        Place {
-                            owner: owner.clone(),
-                            path: directory.clone(),
-                        },
-                        id,
-                        taken,
-                        shutdown.clone(),
-                    ));
-                }
+        let present = directories(&spool);
+        limits.retain(|path, _| present.iter().any(|(_, directory)| directory == path));
+        for (owner, directory) in present {
+            let limit = limits
+                .entry(directory.clone())
+                .or_insert_with(|| Arc::new(Semaphore::new(HANDLING_LIMIT)));
+            for (id, taken, permit) in take_waiting(&directory, limit) {
+                let handled = handle(
+                    state.clone(),
+                    router.clone(),
+                    admitting.clone(),
+                    Place {
+                        owner: owner.clone(),
+                        path: directory.clone(),
+                    },
+                    id,
+                    taken,
+                    shutdown.clone(),
+                );
+                let woken = Arc::clone(&woken);
+                handling.spawn(async move {
+                    handled.await;
+                    drop(permit);
+                    woken.notify_one();
+                });
             }
         }
     }
@@ -196,6 +215,27 @@ fn answering(directory: &Path) -> bool {
     })
 }
 
+/// Takes the requests waiting in `directory` while `limit` has room, each with the permit
+/// it holds until it is handled. A directory at its limit is not read.
+fn take_waiting(
+    directory: &Path,
+    limit: &Arc<Semaphore>,
+) -> Vec<(String, File, OwnedSemaphorePermit)> {
+    if limit.available_permits() == 0 {
+        return Vec::new();
+    }
+    let mut taken = Vec::new();
+    for id in waiting_requests(directory) {
+        let Ok(permit) = limit.clone().try_acquire_owned() else {
+            break;
+        };
+        if let Some(file) = take(directory, &id) {
+            taken.push((id, file, permit));
+        }
+    }
+    taken
+}
+
 /// The ids of the requests waiting in the spool.
 fn waiting_requests(spool: &Path) -> Vec<String> {
     entries(spool)
@@ -253,12 +293,13 @@ fn abandoned(file: &File) -> bool {
 async fn handle(
     state: AppState,
     router: Router,
+    admitting: Arc<Semaphore>,
     place: Place,
     id: String,
     file: File,
     shutdown: watch::Receiver<bool>,
 ) {
-    let Some(response) = answer(state, router, &place, &id, &file).await else {
+    let Some(response) = answer(state, router, admitting, &place, &id, &file).await else {
         return;
     };
     // A response that comes while the daemon stops may answer for the stop itself; the request
@@ -273,6 +314,7 @@ async fn handle(
 async fn answer(
     state: AppState,
     router: Router,
+    admitting: Arc<Semaphore>,
     place: &Place,
     id: &str,
     file: &File,
@@ -287,6 +329,8 @@ async fn answer(
         let id = id.to_owned();
         let file = file.try_clone();
         let owner = place.owner.clone();
+        // The semaphore is never closed.
+        let _permit = admitting.acquire_owned().await;
         tokio::task::spawn_blocking(move || admit(&state, &owner, file, &id)).await
     };
     let request = match admitted {
@@ -797,6 +841,24 @@ mod tests {
         )
         .unwrap();
         assert!(collect().iter().any(wakes));
+    }
+
+    #[test]
+    fn a_directory_hands_out_no_more_requests_than_its_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        for n in 0..HANDLING_LIMIT + 4 {
+            let id = format!("{n:032}");
+            fs::write(dir.path().join(wire::file_name(&id, State::Request)), b"").unwrap();
+        }
+        let limit = Arc::new(Semaphore::new(HANDLING_LIMIT));
+        let mut taken = take_waiting(dir.path(), &limit);
+        assert_eq!(taken.len(), HANDLING_LIMIT);
+        assert_eq!(waiting_requests(dir.path()).len(), 4);
+        assert!(take_waiting(dir.path(), &limit).is_empty());
+
+        taken.truncate(HANDLING_LIMIT - 1);
+        assert_eq!(take_waiting(dir.path(), &limit).len(), 1);
+        assert_eq!(waiting_requests(dir.path()).len(), 3);
     }
 
     #[test]
