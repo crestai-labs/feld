@@ -18,8 +18,7 @@ function click(element: Element | null) {
 }
 
 // The density scenario in fixture mode: each Session opens its Console with Feld's own
-// records, and Details shows its Session facts. Opening every Session takes seconds, longer
-// than the default timeout once other test files load the machine.
+// records, and Details shows its Session facts.
 test("fixture mode opens the density Sessions' Consoles and Session facts", async () => {
   const errors: unknown[] = [];
   window.addEventListener("error", (event) => errors.push(event.error));
@@ -55,4 +54,4 @@ test("fixture mode opens the density Sessions' Consoles and Session facts", asyn
   }
   expect(errors).toEqual([]);
   await act(async () => root.unmount());
-}, 20_000);
+});
