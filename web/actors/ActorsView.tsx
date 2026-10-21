@@ -14,7 +14,7 @@ import { InspectorResizer, type ResizeKind } from "./resize.tsx";
 import { useActorsStore, useActorsUrlSync } from "./store.ts";
 import { Toasts } from "./Toasts.tsx";
 import type { ActorsData } from "./useActorsData.ts";
-import { ActorsToolsContext, focusIn, timelineGuideOpener, useActorsTools, usePageActions, type ActorsTools } from "./ui.tsx";
+import { ActorsToolsContext, actionButtonSelector, focusIn, timelineGuideOpener, useActorsTools, usePageActions, type ActorsTools } from "./ui.tsx";
 import { TimelineGuide } from "./charts/Guide.tsx";
 import { ChartTooltip } from "./charts/hover.tsx";
 
@@ -153,6 +153,9 @@ function Actors({ inspector, steps }: { inspector: ActorsData["inspector"]; step
     if (restore?.metrics) focus('[data-action="toggle-metrics-menu"]');
     if (restore?.guide) focus(timelineGuideOpener());
     if (restore?.card) returnFocus(restore.card);
+    if (restore?.picker) focus("[data-range-button]");
+    if (restore?.metricsPicker) focus("[data-metrics-button]");
+    if (restore?.menu) focus(actionButtonSelector(restore.menu), { preventScroll: true });
   }
 
   function leaveInfo(event: PointerEvent<HTMLElement>) {
