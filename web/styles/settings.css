@@ -99,6 +99,10 @@ feld-settings {
   padding-top: 18px;
 }
 
+.feld-settings__nav-select {
+  display: none;
+}
+
 .feld-settings__nav-scope {
   margin: 14px 0 6px;
   padding: 0 10px;
@@ -1102,7 +1106,11 @@ feld-settings {
 @media (max-width: 760px) {
   .feld-settings__heading {
     width: auto;
-    align-items: flex-start;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin: 0;
     padding: 18px 16px 12px;
   }
 
@@ -1117,6 +1125,18 @@ feld-settings {
   .feld-settings__nav {
     margin: 0 -16px;
     padding: 8px 16px;
+  }
+
+  /* The sections are named in a select in place of the row of links. */
+  .feld-settings__nav a {
+    display: none;
+  }
+
+  .feld-settings .feld-settings__nav-select {
+    display: block;
+    max-width: none;
+    height: 40px;
+    font-weight: 600;
   }
 
   .feld-settings__row,

@@ -307,7 +307,7 @@ function MetricsPickerDialog() {
 }
 
 // The range picker opens under the range button. The historical fields start at the range
-// shown and keep what is typed until Apply.
+// shown and keep what is typed until Apply. On the compact layout they open from Custom….
 export function Picker() {
   const open = useActorsStore((state) => state.pickerOpen);
   return open ? <PickerDialog /> : null;
@@ -320,6 +320,8 @@ function PickerDialog() {
   const [date, setDate] = useState(() => model.toDateInput(store().anchor));
   const [time, setTime] = useState(() => model.timeInput.format(store().anchor));
   const [duration, setDuration] = useState(() => store().duration);
+  const compact = useActorsStore((state) => state.compactLayout);
+  const [custom, setCustom] = useState(false);
   const placement = usePickerPlacement(picker, "[data-range-button]");
   useCloseOnOutsidePress(picker, "[data-range-button]", store().closePicker);
 
@@ -331,9 +333,10 @@ function PickerDialog() {
           {WINDOW_OPTIONS.map(([label, value]) => (
             <button key={value} type="button" data-action="quick-live" data-duration={value} aria-current={store().mode === "live" && value === store().duration ? "true" : undefined} onClick={() => store().quickLive(value, model.now())}>Last {WINDOW_NAMES[value] || label}</button>
           ))}
+          {compact ? <button type="button" data-action="toggle-custom-range" aria-expanded={custom} aria-controls="actors-historical-range" onClick={() => setCustom(!custom)}>Custom…</button> : null}
         </div>
       </div>
-      <div>
+      {compact && !custom ? null : <div id="actors-historical-range">
         <h2>Historical range</h2>
         <div className="feld-agents__picker-fields">
           <label className="feld-agents__picker-feld">
@@ -362,7 +365,7 @@ function PickerDialog() {
           <button className="feld-agents__button" type="button" data-action="close-picker" onClick={() => store().closePicker()}>Cancel</button>
           <button className="feld-agents__button" type="button" data-action="apply-picker" onClick={() => store().applyPicker(model.instantOfLocal(date, time), duration, model.now())}>Apply range</button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

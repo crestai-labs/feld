@@ -180,6 +180,23 @@ test("a range picker closes when the pointer goes down outside it, and stays whi
   expect(page.querySelector(".feld-agents__metrics-picker")).toBeNull();
 });
 
+test("on the compact layout the range picker shows the Quick ranges and opens the Historical range from Custom…", async () => {
+  await click(element('[data-action="toggle-picker"]'));
+  expect(page.querySelector('[data-action="toggle-custom-range"]')).toBeNull();
+  expect(page.querySelector('[data-action="apply-picker"]')).not.toBeNull();
+  await click(element('[data-action="close-picker"]'));
+
+  await act(async () => store().setCompactLayout(true));
+  await click(element('[data-action="toggle-picker"]'));
+  const custom = element('[data-action="toggle-custom-range"]');
+  expect(page.querySelectorAll('[data-action="quick-live"]').length).toBeGreaterThan(0);
+  expect(page.querySelector('[data-action="apply-picker"]')).toBeNull();
+  expect(custom.getAttribute("aria-expanded")).toBe("false");
+  await click(custom);
+  expect(custom.getAttribute("aria-expanded")).toBe("true");
+  expect(page.querySelector('[data-action="apply-picker"]')).not.toBeNull();
+});
+
 test("a Job's Schedule line opens its Actor card at the Job section, whose edit form Escape closes first", async () => {
   const line = element(".feld-agents__schedule[data-agent-id]");
   const agentId = line.getAttribute("data-agent-id")!;
