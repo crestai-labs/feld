@@ -96,9 +96,9 @@ impl BrowserService {
         }
     }
 
-    /// Exchanges a pairing code for a new browser token, revoking `replacing`, the credential
+    /// Exchanges a pairing code for a new browser token, revoking `replacing`, the credentials
     /// of the token the browser still holds. `None` when the code is unknown, expired, or used.
-    pub fn pair(&self, code: &str, replacing: Option<&str>) -> Result<Option<Paired>> {
+    pub fn pair(&self, code: &str, replacing: &[String]) -> Result<Option<Paired>> {
         let now = Utc::now();
         let normalized: String = code
             .chars()
@@ -127,17 +127,20 @@ impl BrowserService {
         let token = fresh_token();
         let key = fresh_token();
         let id = fresh_id("browser");
-        let replacing = replacing.map(hash);
+        let replacing: Vec<String> = replacing
+            .iter()
+            .map(|credential| hash(credential))
+            .collect();
         let browser = self.store.pair_browser(
             NewBrowser {
                 id: &id,
                 token_hash: &hash(&credential(&token, &key)),
                 name: &name,
             },
-            replacing.as_deref(),
+            &replacing,
             now,
         )?;
-        if replacing.is_some() {
+        if !replacing.is_empty() {
             self.revocations.send_replace(());
         }
         Ok(Some(Paired {

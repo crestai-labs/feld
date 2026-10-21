@@ -65,7 +65,7 @@ pub(super) async fn pair_browser(
 ) -> Result<Response, ApiError> {
     let paired = state
         .browsers
-        .pair(&request.code, caller.replacing.as_deref())
+        .pair(&request.code, &caller.replacing)
         .map_err(internal)?
         .ok_or_else(|| {
             error(
