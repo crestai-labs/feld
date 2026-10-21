@@ -3685,7 +3685,7 @@ feld-agents {
 
   /* Inspector column contents (Session, Action, Message, Mailbox inspectors and the
      Message composer) become a bottom sheet above the tab bar, with a scrim that closes
-     it through the same action as the × button. */
+     it through the same action as the × button. The Console fills the screen instead. */
   .feld-agents__scrim {
     position: fixed;
     top: var(--shell-topbar-height, 0px);
