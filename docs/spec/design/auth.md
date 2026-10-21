@@ -92,7 +92,7 @@ pairing is the procedure that exchanges a short-lived code issued on the daemon'
 4. Before moving on, the Web UI tries a read to confirm the browser token works. On 401, it shows on the pairing screen that the browser did not save the cookie or the key
 5. Subsequent reads, writes, and SSE pass with the cookie and key
 
-When `POST /v1/ui/pair` fails 5 times in a row, the daemon invalidates all codes valid at that point. A person issues a new code on the daemon's device. A success resets the count.
+The daemon checks codes one at a time in arrival order and waits 1 second after a failed check before the next, so guesses are bounded to one a second across the daemon. Failures leave the pending codes valid, so a code a person enters pairs, after a wait, while wrong codes keep arriving.
 
 ## cookie and key
 

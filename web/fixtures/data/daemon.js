@@ -57,11 +57,9 @@
       delete: "Actor '{actor}' has a running current Session '{session}'; stop it before the delete",
     }),
     // POST /v1/ui/pair. `codes` are the pairing codes `feld ui pair` issued and the daemon
-    // still holds; each works once. After `failureLimit` failures in a row the daemon drops
-    // every code, so the mock accepts none until the page is reloaded.
+    // still holds; each works once.
     pairing: Object.freeze({
       codes: Object.freeze(["K7QM-4XPD"]),
-      failureLimit: 5,
     }),
   });
 })(window);

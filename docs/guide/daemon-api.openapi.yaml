@@ -1041,7 +1041,7 @@ paths:
       summary: Redeems a pairing code for a browser token
       description: |
         `code` is matched ignoring case and hyphens, and is consumed. Issues a browser token and returns the cookie value in `Set-Cookie` and the key in the body's `key`. If the request carries a valid browser token cookie and key, revokes that token before issuing.
-        `403` if `Origin` does not match the request's destination. `401` if the code does not exist, has expired, or is already used. After 5 consecutive `401`s, invalidates all codes valid at that moment.
+        `403` if `Origin` does not match the request's destination. `401` if the code does not exist, has expired, or is already used. Checks codes one at a time and waits 1 second after each `401` before checking the next.
       security: []
       requestBody:
         required: true

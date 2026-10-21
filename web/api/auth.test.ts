@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { browserAccess, DaemonRefusal, keyHeaders, noteAnswered, noteUnauthorized, normalizeCode, PAIRING_FAILURE_LIMIT, pairingClient, showPairing, signIn, unpair, useAuth } from "./auth.ts";
+import { browserAccess, DaemonRefusal, keyHeaders, noteAnswered, noteUnauthorized, normalizeCode, pairingClient, showPairing, signIn, unpair, useAuth } from "./auth.ts";
 
 beforeEach(() => {
   useAuth.setState({ answered: false, pairing: false, notice: null });
@@ -23,14 +23,12 @@ test("a code is matched without regard to case, spaces, and hyphens", () => {
   expect(normalizeCode(" k7qm-4xpd ")).toBe("K7QM4XPD");
 });
 
-test("a run of failed codes is told apart from one, and a success counts again", async () => {
-  const answers = [false, true, ...Array(PAIRING_FAILURE_LIMIT).fill(false)];
+test("every failed code is invalid alike, however many came before", async () => {
+  const answers = [false, true, ...Array(6).fill(false)];
   const pair = pairingClient(async () => answers.shift()!);
   expect(await pair("A")).toBe("invalid");
   expect(await pair("B")).toBe("paired");
-  const results = [];
-  for (let attempt = 0; attempt < PAIRING_FAILURE_LIMIT; attempt += 1) results.push(await pair("C"));
-  expect(results).toEqual([...Array(PAIRING_FAILURE_LIMIT - 1).fill("invalid"), "exhausted"]);
+  for (let attempt = 0; attempt < 6; attempt += 1) expect(await pair("C")).toBe("invalid");
 });
 
 test("a light read tells whether the browser cookie works", async () => {

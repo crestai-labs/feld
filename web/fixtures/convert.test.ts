@@ -263,7 +263,7 @@ const STATUS: FeldApi.DaemonStatus = {
   scheduler: { wokeAt: "2026-09-02T15:00:00+09:00", planned: [], restarts: 0, lastRestart: null },
 };
 const REFUSALS = { restart: "cannot restart", shutdown: "cannot shut down", start: "no start", stop: "closed", kill: "closed", delete: "running" };
-const DAEMON: MockDaemonData = { status: STATUS, degradedStatus: { ...STATUS, otlp: null }, lastRead: "2026-09-02T14:52:18+09:00", readFailure: "503", refusals: REFUSALS, pairing: { codes: ["K7QM-4XPD"], failureLimit: 5 } };
+const DAEMON: MockDaemonData = { status: STATUS, degradedStatus: { ...STATUS, otlp: null }, lastRead: "2026-09-02T14:52:18+09:00", readFailure: "503", refusals: REFUSALS, pairing: { codes: ["K7QM-4XPD"] } };
 
 test("the Settings page reads each fixture daemon state on the fixture's clock", () => {
   const actors = actorsData({ workspaces: ["default", "home"], defaultWorkspace: "default" });
@@ -282,11 +282,9 @@ test("the Settings page reads each fixture daemon state on the fixture's clock",
   expect(daemonStateOf("unauthorized")).toBe("running");
 });
 
-test("the fixture's daemon takes each pairing code once and drops them all after a run of failures", () => {
+test("the fixture's daemon takes each pairing code once, whatever failed before", () => {
   const pair = pairingOf(DAEMON.pairing);
+  for (let failure = 0; failure < 5; failure += 1) expect(pair("ABCD-EFGH")).toBe(false);
   expect(pair("k7qm4xpd")).toBe(true);
   expect(pair("K7QM-4XPD")).toBe(false);
-  const again = pairingOf(DAEMON.pairing);
-  for (let failure = 0; failure < 5; failure += 1) expect(again("ABCD-EFGH")).toBe(false);
-  expect(again("K7QM-4XPD")).toBe(false);
 });

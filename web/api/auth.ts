@@ -19,7 +19,7 @@ export function keyHeaders(): Record<string, string> {
 // Why the pairing screen took the place of the page: a read answered 401 after the page
 // had read (the token expired or was revoked), or the person removed this device.
 export type PairingNotice = "ended" | "removed";
-export type PairingResult = "paired" | "invalid" | "exhausted" | "cookieRejected";
+export type PairingResult = "paired" | "invalid" | "cookieRejected";
 // A sign-in without a result: the request never reached the daemon, the daemon answered
 // with an error, or it took the code but the check of the cookie failed.
 export interface PairingFailure {
@@ -29,10 +29,6 @@ export interface PairingFailure {
 
 // An error the daemon answered, told apart from a request that never reached it.
 export class DaemonRefusal extends Error {}
-
-// The daemon drops every code after this many failed pairings in a row. It answers each
-// failure alike, so the page counts its own.
-export const PAIRING_FAILURE_LIMIT = 5;
 
 interface AuthState {
   // A read the daemon answered: a later 401 means the access ended.
@@ -77,17 +73,7 @@ export async function browserAccess() {
 // hold is 401.
 // A fixture passes its own `send` (`fixturePairingOf` in fixtures/index.ts).
 export function pairingClient(send: (code: string) => Promise<boolean> = sendCode) {
-  let failures = 0;
-  return async (code: string): Promise<PairingResult> => {
-    if (await send(code)) {
-      failures = 0;
-      return "paired";
-    }
-    failures += 1;
-    if (failures < PAIRING_FAILURE_LIMIT) return "invalid";
-    failures = 0;
-    return "exhausted";
-  };
+  return async (code: string): Promise<PairingResult> => (await send(code)) ? "paired" : "invalid";
 }
 
 // A sign-in with a code. `check` confirms the browser kept the cookie and the key; a fixture

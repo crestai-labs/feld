@@ -56,7 +56,7 @@ A write settles its menu or dialog when the daemon accepts it. It does not wait 
 
 Reads, writes, and `GET /v1/events` pass with the browser token's cookie and key ([cookie and key](auth.md#cookie-and-key)). The cookie is HttpOnly, so the page cannot tell whether it has one; when a request returns 401, the page switches to the Sign in screen, and reads and the event stream stop there. A 401 after a successful read shows "access has ended".
 
-The pairing procedure follows [auth.md](auth.md#pairing). `/ui/pair#code=` shows only the logo, and every other page reloads itself after pairing. The daemon answers every failed code with 401, so the page counts 5 consecutive failures and shows "all codes are now invalid".
+The pairing procedure follows [auth.md](auth.md#pairing). `/ui/pair#code=` shows only the logo, and every other page reloads itself after pairing. The daemon answers every failed code with 401, and the page shows that the code is wrong, expired, or used.
 
 ## Viewer settings
 
