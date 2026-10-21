@@ -129,10 +129,10 @@ impl FromRequestParts<AppState> for BrowserCaller {
     }
 }
 
-/// A pairing request, which carries no token: the credential of the browser token it still
+/// A pairing request, which carries no token: the credentials of the browser token it still
 /// holds, after its `Origin` is checked.
 pub(super) struct PairCaller {
-    pub(super) replacing: Option<String>,
+    pub(super) replacing: Vec<String>,
     pub(super) secure_cookie: bool,
 }
 
@@ -144,7 +144,7 @@ impl FromRequestParts<AppState> for PairCaller {
             return Err(cross_origin());
         }
         Ok(Self {
-            replacing: browser_credential(&parts.headers, state),
+            replacing: browser_credentials(&parts.headers, state),
             secure_cookie: secure_cookie(&parts.headers),
         })
     }
@@ -220,26 +220,36 @@ fn supplied_token(headers: &HeaderMap) -> Option<&str> {
         .map(|(_, token)| token)
 }
 
-/// The value of the cookie `name`.
-fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+/// The values of the cookies named `name`, in the order the request carries them.
+fn cookies<'a>(headers: &'a HeaderMap, name: &str) -> Vec<&'a str> {
     headers
         .get_all(axum::http::header::COOKIE)
         .iter()
         .filter_map(|value| value.to_str().ok())
         .flat_map(|value| value.split(';'))
         .filter_map(|pair| pair.trim().split_once('='))
-        .find(|(key, _)| *key == name)
+        .filter(|(key, _)| *key == name)
         .map(|(_, value)| value)
+        .collect()
 }
 
-/// The credential of the browser token the cookie and [`BROWSER_KEY`] carry together.
-fn browser_credential(headers: &HeaderMap, state: &AppState) -> Option<String> {
-    let token = cookie(headers, state.browsers.cookie())?;
-    let key = headers.get(BROWSER_KEY)?.to_str().ok()?;
-    Some(credential(token, key))
+/// The credentials the cookies of the browser token and [`BROWSER_KEY`] carry together. A
+/// browser sends every cookie of the name whose path matches, and one of a longer path, such
+/// as one a server on another port of the host set, comes first, so each is a candidate.
+fn browser_credentials(headers: &HeaderMap, state: &AppState) -> Vec<String> {
+    let Some(key) = headers
+        .get(BROWSER_KEY)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return Vec::new();
+    };
+    cookies(headers, state.browsers.cookie())
+        .into_iter()
+        .map(|token| credential(token, key))
+        .collect()
 }
 
-/// The `id` of the valid browser token the cookie and its key carry, when the request has
+/// The `id` of the first valid browser token a cookie and its key carry, when the request has
 /// no `Authorization`, which alone decides the caller when it is there. A request other
 /// than `GET` must come from the origin it is sent to.
 fn browser_token(parts: &Parts, state: &AppState) -> Result<Option<String>, ApiError> {
@@ -249,10 +259,14 @@ fn browser_token(parts: &Parts, state: &AppState) -> Result<Option<String>, ApiE
     {
         return Ok(None);
     }
-    let Some(credential) = browser_credential(&parts.headers, state) else {
-        return Ok(None);
-    };
-    let Some(browser) = state.browsers.authenticate(&credential).map_err(internal)? else {
+    let mut browser = None;
+    for credential in browser_credentials(&parts.headers, state) {
+        browser = state.browsers.authenticate(&credential).map_err(internal)?;
+        if browser.is_some() {
+            break;
+        }
+    }
+    let Some(browser) = browser else {
         return Ok(None);
     };
     if !matches!(parts.method, Method::GET | Method::HEAD) && !same_origin(&parts.headers) {

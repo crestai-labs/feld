@@ -488,6 +488,44 @@ fn the_cookie_a_server_on_another_port_receives_calls_nothing() {
     assert_eq!(api.status_as_browser(&other), StatusCode::OK);
 }
 
+#[test]
+fn a_cookie_of_the_same_name_ahead_of_the_browser_token_hides_nothing() {
+    let fixture = Fixture::new();
+    let api = fixture.start();
+    let (token, _) = api.pair(api.issue_code(None)["code"].as_str().unwrap());
+
+    // A server on another port of the host can set a cookie of the same name with a longer
+    // path, which the browser sends first.
+    let planted = |request: RequestBuilder, token: &Token| {
+        request
+            .header(
+                "Cookie",
+                format!("{0}=planted; {0}={1}", api.cookie, token.cookie),
+            )
+            .header("X-Feld-Browser-Key", &token.key)
+            .header("Origin", &api.api)
+            .send()
+            .unwrap()
+    };
+    assert_eq!(
+        planted(api.client.get(api.url("/v1/workspaces")), &token).status(),
+        StatusCode::OK
+    );
+
+    // Pairing again behind the planted cookie still replaces the token.
+    let response = planted(
+        api.pair_request(api.issue_code(None)["code"].as_str().unwrap()),
+        &token,
+    );
+    let (second, _) = api.paired(response);
+    assert_eq!(api.status_as_browser(&token), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        planted(api.client.get(api.url("/v1/workspaces")), &second).status(),
+        StatusCode::OK
+    );
+    assert_eq!(api.browsers().len(), 1);
+}
+
 /// The host name of the HTTPS proxy the tests allow.
 const PROXY: &str = "feld.example.ts.net";
 
