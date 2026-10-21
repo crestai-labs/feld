@@ -128,11 +128,11 @@ feld init [OPTIONS]
 - `--provider <NAME>`: Execution Provider to install. `tmux` or `herdr`. Can be given multiple times
 - `-y, --yes`: Without asking, install the Plugins found on PATH, consent to changing the Runtime config and appending to the shell config file, and start the daemon
 
-On a TTY, it prints the `∿ Feld v0.1.0` wordmark first and stacks the steps along a `│` rule. Only the step being answered is open with `◆`; answered steps collapse to a single `◇ heading  answer` line. Steps that need no question appear collapsed from the start. The final `└` line shows whether Feld is ready (`✓` / `✗`) and the next step.
+On a TTY, it prints the `∿ Feld v0.2.0` wordmark first and stacks the steps along a `│` rule. Only the step being answered is open with `◆`; answered steps collapse to a single `◇ heading  answer` line. Steps that need no question appear collapsed from the start. The final `└` line shows whether Feld is ready (`✓` / `✗`) and the next step.
 
 ```console
 $ feld init
-∿ Feld v0.1.0
+∿ Feld v0.2.0
 
 ◇ Feld home  /Users/alice/.feld
 │
@@ -152,7 +152,7 @@ When not on a TTY, it prints the collapsed form as plain `key: value`.
 
 ```console
 $ feld init --yes | cat
-Feld v0.1.0
+Feld v0.2.0
 Feld home:   /Users/alice/.feld
 Plugins:     runtimes: claude-code  providers: tmux
 Claude Code: prepared · otelHeadersHelper replaced · statusLine chained
@@ -320,7 +320,7 @@ Each line shows the result (`ok` / `warn` / `fail`), the check name, and the det
 
 ```console
 $ feld doctor
-ok    executables       feld 0.1.0 · feld-plugin-claude-code, codex, tmux, herdr 0.1.0 · /Users/alice/.local/bin
+ok    executables       feld 0.2.0 · feld-plugin-claude-code, codex, tmux, herdr 0.2.0 · /Users/alice/.local/bin
 ok    home              /Users/alice/.feld · runtimes: claude-code · providers: tmux
 ok    store             schema 15
 fail  daemon            not running · port 7381 is in use on 127.0.0.1
@@ -424,7 +424,7 @@ It shows whether the daemon is running, its version (the same value as `feld --v
 $ feld daemon status
 Daemon
   state:      running
-  version:    0.1.0 (built 2026-10-01T00:00:00Z)
+  version:    0.2.0 (built 2026-10-01T00:00:00Z)
   pid:        48213
   home:       /Users/alice/.feld
   api:        http://127.0.0.1:7381
