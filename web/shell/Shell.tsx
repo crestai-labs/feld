@@ -67,7 +67,8 @@ export function Shell({ children }: { children: ReactNode }) {
   // The compact shell's drawer has no collapsed form; the stored preference is kept for the
   // wide layout.
   const applied = collapsed && !compact;
-  const drawer = useShellDrawer(compact, sidebar);
+  const menu = useRef<HTMLButtonElement>(null);
+  const drawer = useShellDrawer(compact, sidebar, menu);
 
   useEffect(() => {
     document.body.classList.toggle("is-resizing-sidebar", resizing);
@@ -116,7 +117,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="viewport" data-sidebar-collapsed={applied ? "" : undefined} data-drawer-open={drawer.expanded ? "" : undefined} style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}>
       <header className="topbar" inert={drawer.expanded}>
-        <button className="topbar__menu" type="button" data-action="toggle-drawer" aria-label={t("nav.menu")} aria-expanded={drawer.expanded} aria-controls={DRAWER_ID} onClick={drawer.expanded ? drawer.close : drawer.open}>
+        <button ref={menu} className="topbar__menu" type="button" data-action="toggle-drawer" aria-label={t("nav.menu")} aria-expanded={drawer.expanded} aria-controls={DRAWER_ID} onClick={drawer.expanded ? drawer.close : drawer.open}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14"></path></svg>
         </button>
       </header>
@@ -179,8 +180,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
 // The compact layout's drawer. It opens with the focus on the current Workspace or page,
 // and closes on the scrim, on Escape, and after a navigation; closing returns the focus to
-// the control that opened it.
-function useShellDrawer(compact: boolean, sidebar: React.RefObject<HTMLElement | null>) {
+// the control that opened it, or to the menu button after a page change.
+function useShellDrawer(compact: boolean, sidebar: React.RefObject<HTMLElement | null>, menu: React.RefObject<HTMLElement | null>) {
   const [open, setOpen] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -236,9 +237,14 @@ function useShellDrawer(compact: boolean, sidebar: React.RefObject<HTMLElement |
     return () => document.removeEventListener("keydown", keepFocus);
   }, [expanded, sidebar, context]);
 
-  // A link in the drawer that leads to the page already shown closes it too.
+  // A link in the drawer that leads to the page already shown closes it too. A link to
+  // another page returns the focus to the menu button, since the page it leaves may take
+  // the opener with it.
   function closeOnLink(event: MouseEvent<HTMLElement>) {
-    if (expanded && (event.target as Element).closest("a")) context?.close();
+    const link = (event.target as Element).closest("a");
+    if (!expanded || !link) return;
+    if (link.pathname !== pathname || link.search !== search) opener.current = menu.current;
+    context?.close();
   }
 
   return {

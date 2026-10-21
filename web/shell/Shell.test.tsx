@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createQueryClient } from "../api/queries.ts";
 import { ActorsPage } from "../actors/ActorsPage.tsx";
@@ -117,6 +117,42 @@ test("the search button opens the field, which stays open while it holds a query
 
   await act(async () => useActorsStore.getState().setQuery(""));
   expect(heading.classList.contains("is-searching")).toBe(false);
+});
+
+test("a page change from the drawer returns the focus to the menu button, whichever control opened it", async () => {
+  await act(async () => root.render(
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={["/ui/?scenario=three-days-ago-1h"]}>
+        <Shell>
+          <Routes>
+            <Route path="/ui/" element={<ActorsPage />} />
+            <Route path="/ui/settings" element={<p>Settings</p>} />
+          </Routes>
+        </Shell>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  ));
+  await vi.waitFor(() => expect(page.querySelector('[data-action="toggle-workspace-menu"]')).not.toBeNull(), { timeout: 10000 });
+  const settings = () => element('.sidebar__nav a[href^="/ui/settings"]');
+  const actors = () => element('.sidebar__nav a[href^="/ui/?"]');
+
+  menu().focus();
+  await click(menu());
+  await click(settings());
+  expect(drawerOpen()).toBe(false);
+  expect(document.activeElement).toBe(menu());
+
+  await click(menu());
+  await click(actors());
+  await vi.waitFor(() => expect(page.querySelector('[data-action="toggle-workspace-menu"]')).not.toBeNull(), { timeout: 10000 });
+  const switcher = element('[data-action="toggle-workspace-menu"]');
+  switcher.focus();
+  await click(switcher);
+  expect(drawerOpen()).toBe(true);
+  await click(settings());
+  expect(drawerOpen()).toBe(false);
+  expect(switcher.isConnected).toBe(false);
+  expect(document.activeElement).toBe(menu());
 });
 
 test("Escape in the drawer closes only the drawer, and leaves the page's card open", async () => {
