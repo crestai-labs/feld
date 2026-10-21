@@ -285,7 +285,6 @@ export async function submitNewActor(client: QueryClient | null, model: ActorsMo
 }
 
 // The composer's Message, addressed to the Actor's mailbox.
-// DOM once it lands: focus `[data-composer] textarea`.
 export async function sendComposedMessage(client: QueryClient | null, model: ActorsModel) {
   const state = useActorsStore.getState();
   const agentId = state.composeAgentId;
