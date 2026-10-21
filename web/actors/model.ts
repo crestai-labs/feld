@@ -74,6 +74,10 @@ export const METRIC_LANE_HEIGHT = 56;
 export const METRIC_CHART_INSET = Object.freeze({ top: 0, bottom: 0 });
 // Each reading row past the second makes a lane this much taller.
 export const METRIC_ROW_HEIGHT = 16;
+// In the compact layout a lane label stacks its readings under its name and caption, which
+// take this much with the padding; each reading row and the "+N more" row adds
+// METRIC_ROW_HEIGHT.
+export const METRIC_COMPACT_LABEL_HEIGHT = 50;
 // A lane lists this many series and folds the rest behind "+N more".
 export const METRIC_ROW_LIMIT = 3;
 // The colours of accounts (--series-account-N), apart from the Runtime colours.
@@ -2334,8 +2338,9 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
 
   // The lanes as the Metrics section lists them, each in listedSeriesOrder by the latest
   // reading. A lane with more than METRIC_ROW_LIMIT series folds the rest unless it is
-  // expanded, and grows by one reading row per row it lists past two.
-  function metricLanesFor(state: Pick<AgentsState, "mode" | "anchor" | "duration" | "metricsDuration" | "visibleMetricIds" | "query" | "expandedMetricIds">): ListedMetricLane[] {
+  // expanded, and grows by one reading row per row it lists past two; in the compact
+  // layout, it is as tall as its stacked label.
+  function metricLanesFor(state: Pick<AgentsState, "mode" | "anchor" | "duration" | "metricsDuration" | "visibleMetricIds" | "query" | "expandedMetricIds">, compact = false): ListedMetricLane[] {
     const range = metricsRangeFor(state);
     let top = 0;
     return visibleMetrics(state).map(({ metric, series: searched }) => {
@@ -2348,7 +2353,9 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
       const expanded = foldable && state.expandedMetricIds.has(metric.id);
       const series = foldable && !expanded ? ordered.slice(0, METRIC_ROW_LIMIT) : ordered;
       const rows = series.length + (foldable ? 1 : 0);
-      const height = Math.max(METRIC_LANE_HEIGHT, METRIC_LANE_HEIGHT + (rows - 2) * METRIC_ROW_HEIGHT);
+      const height = Math.max(METRIC_LANE_HEIGHT, compact
+        ? METRIC_COMPACT_LABEL_HEIGHT + rows * METRIC_ROW_HEIGHT
+        : METRIC_LANE_HEIGHT + (rows - 2) * METRIC_ROW_HEIGHT);
       const lane = { metric, series, hiddenCount: ordered.length - series.length, expanded, top, height };
       top += height;
       return lane;

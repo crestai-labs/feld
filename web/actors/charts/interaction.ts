@@ -3,7 +3,7 @@
 // click on the timeline opens.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from "react";
-import { PLOT_PAD_LEFT, PLOT_PAD_RIGHT, TIMELINE_MIN_WIDTH, metricsDurationFor, type ActorsModel } from "../model.ts";
+import { COMPACT_LAYOUT_QUERY, PLOT_PAD_LEFT, PLOT_PAD_RIGHT, TIMELINE_MIN_WIDTH, metricsDurationFor, type ActorsModel } from "../model.ts";
 import { useActorsStore } from "../store.ts";
 import { usePageActions } from "../ui.tsx";
 import type { AgentsState, Instant } from "../types.ts";
@@ -23,6 +23,18 @@ export function timelineMinWidth(element: Element) {
   const bands = element.closest(".feld-agents__bands");
   const declared = bands ? Number.parseFloat(getComputedStyle(bands).getPropertyValue("--agents-timeline-min-width")) : Number.NaN;
   return Number.isFinite(declared) && declared > 0 ? declared : TIMELINE_MIN_WIDTH;
+}
+
+// Whether the page has the compact layout, followed as the window crosses its breakpoint.
+export function useCompactLayout() {
+  const [compact, setCompact] = useState(() => window.matchMedia(COMPACT_LAYOUT_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(COMPACT_LAYOUT_QUERY);
+    const follow = () => setCompact(query.matches);
+    query.addEventListener("change", follow);
+    return () => query.removeEventListener("change", follow);
+  }, []);
+  return compact;
 }
 
 export interface PlotBox {

@@ -768,11 +768,13 @@ test("a quota lane lists its accounts highest first and folds past three", () =>
     series: [account("a", 10), account("b", 70), account("c", 40), account("d", 90)],
   };
   const model = modelOf({ metrics: [quota] });
-  const listed = (expanded: string[]) => model.metricLanesFor(state({ visibleMetricIds: new Set(["quota-5h"]), expandedMetricIds: new Set(expanded) }))[0];
+  const listed = (expanded: string[], compact = false) => model.metricLanesFor(state({ visibleMetricIds: new Set(["quota-5h"]), expandedMetricIds: new Set(expanded) }), compact)[0];
   const folded = listed([]);
   expect([folded.series.map((series) => series.account), folded.hiddenCount, folded.height]).toEqual([["d", "b", "c"], 1, 88]);
   const expanded = listed(["quota-5h"]);
   expect([expanded.series.map((series) => series.account), expanded.hiddenCount, expanded.height]).toEqual([["d", "b", "c", "a"], 0, 104]);
+  // The compact layout stacks the readings under the name, so every row adds to the lane.
+  expect([listed([], true).height, listed(["quota-5h"], true).height]).toEqual([114, 130]);
   expect(model.metricReadingFor(quota, quota.series[0], model.metricsRangeFor(state())).resetTime).toBe(`resets ${model.timeOnly.format(NOW + HOUR)}`);
 });
 
