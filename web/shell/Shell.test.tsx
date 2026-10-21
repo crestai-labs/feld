@@ -96,3 +96,30 @@ test("the search button opens the field, which stays open while it holds a query
   await act(async () => useActorsStore.getState().setQuery(""));
   expect(heading.classList.contains("is-searching")).toBe(false);
 });
+
+test("Escape in the drawer closes only the drawer, and leaves the page's card open", async () => {
+  const agentId = element(".feld-agents__actor-name").getAttribute("data-agent-id")!;
+  await act(async () => useActorsStore.getState().openActorCard(agentId));
+  await click(menu());
+  expect(drawerOpen()).toBe(true);
+  await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  expect(drawerOpen()).toBe(false);
+  expect(useActorsStore.getState().actorCard?.agentId).toBe(agentId);
+});
+
+test("the compact Actors table has no column head, one range button, folded Metrics, and the Guide in Timeline display", async () => {
+  expect(page.querySelector(".feld-agents__bands-head")).toBeNull();
+  expect(page.querySelectorAll(".feld-agents__button--range")).toHaveLength(1);
+  expect(page.querySelector('[data-action="toggle-metrics-picker"]')).toBeNull();
+  expect(element('[data-action="toggle-metrics"]').getAttribute("aria-expanded")).toBe("false");
+  expect(page.querySelector(".feld-agents__metrics-summary")).not.toBeNull();
+
+  const settings = element('[data-action="toggle-agent-display-menu"]');
+  await click(settings);
+  expect(page.querySelector("[data-actor-detail]")).toBeNull();
+  await click(element('.feld-agents__display-menu [data-action="open-timeline-guide"]'));
+  expect(useActorsStore.getState()).toMatchObject({ timelineGuideOpen: true, agentDisplayMenuOpen: false });
+  await click(element('[data-action="close-timeline-guide"]'));
+  expect(useActorsStore.getState().timelineGuideOpen).toBe(false);
+  await vi.waitFor(() => expect(document.activeElement).toBe(element('[data-action="toggle-agent-display-menu"]')));
+});

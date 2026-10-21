@@ -14,7 +14,7 @@ import { InspectorResizer, type ResizeKind } from "./resize.tsx";
 import { useActorsStore, useActorsUrlSync } from "./store.ts";
 import { Toasts } from "./Toasts.tsx";
 import type { ActorsData } from "./useActorsData.ts";
-import { ActorsToolsContext, focusIn, useActorsTools, usePageActions, type ActorsTools } from "./ui.tsx";
+import { ActorsToolsContext, focusIn, timelineGuideOpener, useActorsTools, usePageActions, type ActorsTools } from "./ui.tsx";
 import { TimelineGuide } from "./charts/Guide.tsx";
 import { ChartTooltip } from "./charts/hover.tsx";
 
@@ -129,8 +129,10 @@ function Actors({ inspector, steps }: { inspector: ActorsData["inspector"]; step
     return () => behind.forEach((element) => { element.inert = false; });
   }, [openDialog]);
 
+  // The Workspace list the page lays in the shell's drawer is a portal: its Escape closes
+  // only the drawer.
   function escape(event: KeyboardEvent<HTMLElement>) {
-    if (event.key !== "Escape" || modalOpen) return;
+    if (event.key !== "Escape" || modalOpen || !event.currentTarget.contains(event.target as Node)) return;
     const infoButton = (event.target as Element).closest<HTMLElement>(".feld-agents__info");
     if (infoButton) {
       // Close only the popover: blur ends the focus-shown state, and the dismissed class
@@ -149,7 +151,7 @@ function Actors({ inspector, steps }: { inspector: ActorsData["inspector"]; step
     const restore = store().escapeAll();
     if (restore?.display) focus('[data-action="toggle-agent-display-menu"]');
     if (restore?.metrics) focus('[data-action="toggle-metrics-menu"]');
-    if (restore?.guide) focus('[data-action="open-timeline-guide"]');
+    if (restore?.guide) focus(timelineGuideOpener());
     if (restore?.card) returnFocus(restore.card);
   }
 

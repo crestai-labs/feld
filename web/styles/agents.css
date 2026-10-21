@@ -466,6 +466,17 @@ feld-agents {
   background: var(--bg);
 }
 
+/* The Guide in Timeline display, on the compact layout. */
+.feld-agents__timeline-guide.is-menu-item {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 34px;
+  margin: 14px 20px 6px;
+  padding: 4px 12px 4px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .feld-agents__legend-glyph {
   display: block;
   width: 26px;
@@ -3590,10 +3601,12 @@ feld-agents {
     background: var(--panel);
   }
 
-  /* Workspace and tables. The identity column starts at its 120px minimum and the
-     evidence columns start hidden (both chosen by the component at mount), the Actions
-     column narrows to one button, and the timeline floor drops so the table fits the
-     viewport without horizontal scrolling. The component reads the floor from
+  /* Workspace and tables. Each Actor band is a name row over a Timeline row as wide as
+     the pane: the band's label and its Actions button lie over the top of its lane
+     (COMPACT_LANE in actors/model.ts), and the rest of the name row lets the pointer
+     through to the Timeline. The table has no column head and no Actor table; the Actor
+     card carries the same columns for one Actor. The timeline floor drops so the table
+     fits the viewport without horizontal scrolling; the component reads it from
      --agents-timeline-min-width. */
   .feld-agents__workspace {
     padding: 8px;
@@ -3605,62 +3618,105 @@ feld-agents {
   }
 
   .feld-agents__bands {
-    --agents-identity-width: 140px !important;
+    --agents-identity-width: 0px !important;
     --agents-details-width: 0px !important;
     --agents-timeline-min-width: 160px;
-    --agents-actions-width: 44px;
+    --agents-actions-width: 0px;
+    --agents-head-height: 0px;
     /* Metrics starts at its header plus two lanes so the Agent bands keep a useful share
        of a short workspace. */
     grid-template-rows: auto minmax(96px, var(--agents-pane-height, 1fr)) 7px minmax(110px, var(--metrics-pane-height, 174px));
     border-left: 1px solid var(--border);
   }
 
+  /* Metrics keeps its label column and the column under Actions beside its lanes. */
+  .feld-agents__metrics {
+    --agents-identity-width: 140px;
+    --agents-actions-width: 44px;
+    --agents-pinned-width: 140px;
+  }
+
   .feld-agents__actor-resizer {
     display: none;
   }
 
-  .feld-agents__agent-head-identity {
-    padding-left: 10px;
-    overflow: hidden;
-  }
-
-  .feld-agents__agent-head small {
-    display: block;
-    margin-left: 0;
-  }
-
-  .feld-agents__timeline-head {
-    padding-inline: 10px 12px;
-  }
-
-  .feld-agents__band-identity {
-    gap: 7px;
-    padding: 8px 6px 8px 10px;
-  }
-
-  .feld-agents__actor-name {
-    font-size: 12px;
-  }
-
-  /* The Actor table would leave no Timeline at phone width; the Actor card carries the
-     same columns for one Actor. */
-  .feld-agents__detail-head,
-  .feld-agents__band-details {
+  .feld-agents__band-details,
+  .feld-agents__bands-content .feld-agents__axis-lead,
+  .feld-agents__bands-content .feld-agents__axis-tail {
     display: none;
   }
 
-  .feld-agents__actions-head,
+  .feld-agents__band-labels,
   .feld-agents__actions {
+    position: absolute;
+    top: 0;
+    width: auto;
+    background: transparent;
+    border-left: 0;
     box-shadow: none;
+    pointer-events: none;
   }
 
-  .feld-agents__actions-head button,
-  .feld-agents__metric-spacer button {
+  .feld-agents__band-labels {
+    right: 0;
+    left: 0;
+  }
+
+  .feld-agents__band-label {
+    align-items: flex-start;
+  }
+
+  .feld-agents__band-label.is-focused {
+    background: transparent;
+  }
+
+  .feld-agents__band-label + .feld-agents__band-label,
+  .feld-agents__action-cell + .feld-agents__action-cell {
+    border-top: 0;
+  }
+
+  .feld-agents__bands .feld-agents__band-identity {
+    width: auto;
+    max-width: calc(100% - 44px);
+    height: 30px;
+    gap: 6px;
+    padding: 0 8px 0 10px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    border-radius: 0 8px 8px 0;
+    pointer-events: auto;
+  }
+
+  .feld-agents__band-identity > span:last-child {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .feld-agents__actor-name {
+    width: auto;
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 13px;
+  }
+
+  .feld-agents__marks {
+    flex: none;
+    margin-top: 0;
+  }
+
+  .feld-agents__action-cell {
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .feld-agents__bands .feld-agents__action-button {
     width: 40px;
-    height: 40px;
+    height: 30px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    pointer-events: auto;
   }
 
-  .feld-agents__action-button {
+  .feld-agents__metric-spacer button {
     width: 40px;
     height: 40px;
   }
@@ -3731,13 +3787,14 @@ feld-agents {
   }
 
   /* Inspector column contents (Session, Action, Message, Mailbox inspectors and the
-     Message composer) become a bottom sheet above the safe area, with a scrim that closes
-     it through the same action as the × button. The Console fills the screen instead. */
+     Message composer) become a bottom sheet down to the screen's edge, its content clear
+     of the safe area, with a scrim that closes it through the same action as the ×
+     button. The Console fills the screen instead. */
   .feld-agents__scrim {
     position: fixed;
     top: var(--shell-topbar-height, 0px);
     right: 0;
-    bottom: var(--shell-bottom-inset, 0px);
+    bottom: 0;
     left: 0;
     z-index: 34;
     display: block;
@@ -3748,13 +3805,13 @@ feld-agents {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: var(--shell-bottom-inset, 0px);
+    bottom: 0;
     left: 0;
     z-index: 35;
     width: auto;
     max-width: none;
     max-height: 72dvh;
-    padding: 0 16px 16px;
+    padding: 0 16px calc(16px + var(--shell-bottom-inset, 0px));
     border-bottom: 0;
     border-radius: 14px 14px 0 0;
     background: var(--panel-raised);
@@ -3800,10 +3857,11 @@ feld-agents {
     bottom: 0;
     display: flex;
     max-height: none;
+    box-sizing: border-box;
     border-radius: 0;
     flex-direction: column;
     overflow: hidden;
-    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+    padding: env(safe-area-inset-top, 0px) 0 var(--shell-bottom-inset, 0px);
   }
 
   .feld-agents__info {
@@ -3817,7 +3875,7 @@ feld-agents {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: var(--shell-bottom-inset, 0px);
+    bottom: 0;
     left: 0;
     z-index: 36;
     width: auto;
@@ -3831,7 +3889,7 @@ feld-agents {
   }
 
   .feld-agents__action-menu {
-    padding: 10px 8px 8px;
+    padding: 10px 8px calc(8px + var(--shell-bottom-inset, 0px));
   }
 
   /* The sheet is detached from its row, so it names the Agent from its accessible label. */
@@ -4710,5 +4768,23 @@ span.feld-agents__run-open {
   .feld-agents__section-head .feld-agents__timebar {
     min-width: 0;
     flex: 1;
+  }
+
+  /* Metrics keeps the Actors range, so its header holds the fold, the readings of the
+     folded lanes on the same line, and the lane settings. */
+  .feld-agents__metrics-head {
+    flex-wrap: nowrap;
+  }
+
+  .feld-agents__metrics-head .feld-agents__section-tools {
+    order: 1;
+    flex: none;
+  }
+
+  .feld-agents__section-head .feld-agents__metrics-summary {
+    order: 0;
+    min-width: 0;
+    min-height: 30px;
+    flex: 1 1 0;
   }
 }

@@ -640,7 +640,7 @@ feld-agents {
    duplicated. Components fill .app below the top bar and need no knowledge of it. A page
    that draws its own heading row (it marks the body .has-page-workspace-switcher) takes
    the whole viewport and leaves --shell-menu-width free at its left for the menu button.
-   Fixed bottom sheets keep clear of the safe area through --shell-bottom-inset. */
+   Fixed bottom sheets reach the screen edge and pad their content by --shell-bottom-inset. */
 @media (max-width: 760px) {
   :root {
     --shell-topbar-height: 48px;

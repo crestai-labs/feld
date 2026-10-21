@@ -33,6 +33,13 @@ export function focusIn(root: HTMLElement, selector: string, options?: FocusOpti
   root.querySelector<HTMLElement>(selector)?.focus(options);
 }
 
+// The control the focus returns to when the Timeline guide closes: the Guide button in the
+// Timeline column's header, or on the compact layout the Timeline display button, whose
+// menu holds the Guide there.
+export function timelineGuideOpener() {
+  return useActorsStore.getState().compactLayout ? '[data-action="toggle-agent-display-menu"]' : '[data-action="open-timeline-guide"]';
+}
+
 // An Actor's name in the table, where the focus returns when its Actor card closes.
 export function actorNameSelector(agentId: string) {
   return `.feld-agents__actor-name[data-agent-id="${CSS.escape(agentId)}"]`;
