@@ -11,6 +11,7 @@ const SIDEBAR_MAX_WIDTH = 360;
 const SIDEBAR_DEFAULT_WIDTH = 232;
 // Mirrors the compact-shell media query in styles/shell.css.
 const COMPACT_QUERY = "(max-width: 760px)";
+const DRAWER_FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function clampSidebarWidth(width: number) {
   const candidate = Number.isFinite(width) ? width : SIDEBAR_DEFAULT_WIDTH;
@@ -114,7 +115,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="viewport" data-sidebar-collapsed={applied ? "" : undefined} data-drawer-open={drawer.expanded ? "" : undefined} style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}>
-      <header className="topbar">
+      <header className="topbar" inert={drawer.expanded}>
         <button className="topbar__menu" type="button" data-action="toggle-drawer" aria-label={t("nav.menu")} aria-expanded={drawer.expanded} aria-controls={DRAWER_ID} onClick={drawer.expanded ? drawer.close : drawer.open}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14"></path></svg>
         </button>
@@ -217,11 +218,22 @@ function useShellDrawer(compact: boolean, sidebar: React.RefObject<HTMLElement |
     const drawn = sidebar.current;
     const current = drawn?.querySelector<HTMLElement>('[aria-checked="true"]') ?? drawn?.querySelector<HTMLElement>(".is-current");
     current?.focus({ preventScroll: true });
-    function closeOnEscape(event: globalThis.KeyboardEvent) {
+    // Escape closes the drawer, and Tab cycles within it.
+    function keepFocus(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") context?.close();
+      if (event.key !== "Tab" || !drawn) return;
+      const focusable = [...drawn.querySelectorAll<HTMLElement>(DRAWER_FOCUSABLE)].filter((item) => item.checkVisibility?.() ?? true);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!first || !last) return;
+      if (event.shiftKey ? active === first || !drawn.contains(active) : active === last || !drawn.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus({ preventScroll: true });
+      }
     }
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", keepFocus);
+    return () => document.removeEventListener("keydown", keepFocus);
   }, [expanded, sidebar, context]);
 
   // A link in the drawer that leads to the page already shown closes it too.

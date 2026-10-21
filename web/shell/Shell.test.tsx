@@ -81,6 +81,28 @@ test("the drawer holds the Workspace list and closes on Escape, the scrim, and a
   expect(document.activeElement).toBe(switcher);
 });
 
+test("Tab and Shift+Tab cycle within the open drawer, and the top bar behind it is inert", async () => {
+  const tab = (shiftKey = false) => act(async () => {
+    document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true }));
+  });
+  menu().focus();
+  await click(menu());
+  expect(element(".topbar").inert).toBe(true);
+  const focusable = [...element(".sidebar").querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+
+  first.focus();
+  await tab(true);
+  expect(document.activeElement).toBe(last);
+  await tab();
+  expect(document.activeElement).toBe(first);
+
+  await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  expect(element(".topbar").inert).toBe(false);
+  expect(document.activeElement).toBe(menu());
+});
+
 test("the search button opens the field, which stays open while it holds a query", async () => {
   const heading = element(".feld-agents__heading");
   const toggle = element('[data-action="toggle-search"]');
