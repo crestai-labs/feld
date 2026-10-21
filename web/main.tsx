@@ -24,11 +24,13 @@ import "./styles/pairing.css";
 // `?state=unauthorized` shows the pairing screen at once.
 const FIXTURE_EXPIRY_DELAY = 4000;
 
-// Each page names itself in the tab.
-function Page({ title, children }: { title: string; children: ReactNode }) {
+// Each page names itself in the tab; the Actors page draws its own heading row with the
+// Workspace switcher, which the compact shell takes as its top bar.
+function Page({ title, switcher = false, children }: { title: string; switcher?: boolean; children: ReactNode }) {
   useEffect(() => {
     document.title = title;
-  }, [title]);
+    document.body.classList.toggle("has-page-workspace-switcher", switcher);
+  }, [title, switcher]);
   return children;
 }
 
@@ -79,7 +81,7 @@ function Pages() {
       <Events />
       <Shell>
         <Routes>
-          <Route path="/ui/" element={<Page title="Feld Actor Activity"><ActorsPage /></Page>} />
+          <Route path="/ui/" element={<Page title="Feld Actor Activity" switcher><ActorsPage /></Page>} />
           <Route path="/ui/daemon" element={<DaemonRedirect />} />
           <Route path="/ui/settings" element={<Page title="Feld Settings"><Settings /></Page>} />
           <Route path="*" element={<Navigate to="/ui/" replace />} />

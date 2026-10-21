@@ -3371,35 +3371,71 @@ feld-agents {
   }
 }
 
-/* Compact (phone) layout. The shell turns the sidebar into a top bar and a bottom tab
-   bar at this breakpoint and .app fills the space between them, so the component still
-   takes height: 100%; only fixed overlays read the shell's bar heights. Everything in
-   this block must stay inside the media query so the wide layout is untouched. */
+/* The search button opens the search field on the compact layout only. */
+.feld-agents__button--search {
+  display: none;
+}
+
+/* Compact (phone) layout. The shell's .app takes the whole viewport, so the component
+   still takes height: 100%; only the heading (beside the shell's menu button) and fixed
+   overlays read the shell's measures. Everything in this block must stay inside the media
+   query so the wide layout is untouched. */
 @media (max-width: 760px) {
-  /* Heading: the title with Refresh and New actor on one row, search across the next. */
+  /* Heading: the shell's top bar row, with the Workspace switcher, the search button,
+     Refresh and Live / Paused, and New actor. An opened search field takes the next row. */
   .feld-agents__heading {
     display: grid;
     height: auto;
-    min-height: 0;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    min-height: var(--shell-topbar-height, 48px);
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     align-items: center;
-    gap: 8px 12px;
-    padding: 10px 12px 8px;
+    gap: 4px 6px;
+    padding: 4px 8px 4px var(--shell-menu-width, 12px);
+    border-bottom: 1px solid var(--border);
   }
 
-  /* The New actor button keeps the first row with the title and search, as an
-     icon; its label returns on wide layouts. */
+  .feld-agents__heading:not(.is-searching) .feld-agents__search {
+    display: none;
+  }
+
+  .feld-agents__button--search {
+    display: grid;
+    grid-row: 1;
+    grid-column: 2;
+    place-items: center;
+    width: 40px;
+    padding: 0;
+    color: var(--ink-soft);
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .feld-agents__heading.is-searching .feld-agents__button--search {
+    color: var(--accent-text);
+  }
+
+  .feld-agents__button--search svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 1.7;
+  }
+
+  /* The New actor button is an icon here; its label returns on wide layouts. */
   .feld-agents__button--new {
     grid-row: 1;
-    grid-column: 3;
-    padding-inline: 10px;
+    grid-column: 4;
+    width: 40px;
+    justify-content: center;
+    padding-inline: 0;
   }
 
-  /* Refresh keeps the first row with the title and New actor; search takes the second. */
   .feld-agents__heading .feld-agents__refresh {
     display: flex;
     grid-row: 1;
-    grid-column: 2;
+    grid-column: 3;
   }
 
   /* No room for the words: they stay for screen readers, and the Refresh icon turns (or,
@@ -3443,9 +3479,19 @@ feld-agents {
   }
 
   .feld-agents__heading h1 {
-    grid-row: 1;
-    grid-column: 1;
-    font-size: 19px;
+    min-width: 0;
+    font-size: 18px;
+  }
+
+  .feld-agents__workspace-button {
+    max-width: 100%;
+    margin-block: 0;
+  }
+
+  .feld-agents__workspace-button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .feld-agents__heading-controls {
@@ -3463,6 +3509,7 @@ feld-agents {
     grid-column: 1 / -1;
     width: auto;
     min-width: 0;
+    margin: 0 0 4px calc(8px - var(--shell-menu-width, 12px));
   }
 
   /* The time controls take a row of their own: the range stretches, Refresh and the
@@ -3684,13 +3731,13 @@ feld-agents {
   }
 
   /* Inspector column contents (Session, Action, Message, Mailbox inspectors and the
-     Message composer) become a bottom sheet above the tab bar, with a scrim that closes
+     Message composer) become a bottom sheet above the safe area, with a scrim that closes
      it through the same action as the × button. The Console fills the screen instead. */
   .feld-agents__scrim {
     position: fixed;
     top: var(--shell-topbar-height, 0px);
     right: 0;
-    bottom: var(--shell-tabbar-height, 0px);
+    bottom: var(--shell-bottom-inset, 0px);
     left: 0;
     z-index: 34;
     display: block;
@@ -3701,7 +3748,7 @@ feld-agents {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: var(--shell-tabbar-height, 0px);
+    bottom: var(--shell-bottom-inset, 0px);
     left: 0;
     z-index: 35;
     width: auto;
@@ -3770,7 +3817,7 @@ feld-agents {
     position: fixed;
     top: auto;
     right: 0;
-    bottom: var(--shell-tabbar-height, 0px);
+    bottom: var(--shell-bottom-inset, 0px);
     left: 0;
     z-index: 36;
     width: auto;
@@ -3914,11 +3961,11 @@ feld-agents {
 }
 
 /* The toasts at the page's corner: a request from an Actions menu in flight, accepted,
-   or refused. Above the tab bar of the compact layout. */
+   or refused. Above the safe area of the compact layout. */
 .feld-agents__toasts {
   position: fixed;
   right: 20px;
-  bottom: calc(20px + var(--shell-tabbar-height, 0px));
+  bottom: calc(20px + var(--shell-bottom-inset, 0px));
   z-index: 40;
   display: grid;
   width: min(360px, calc(100vw - 40px));

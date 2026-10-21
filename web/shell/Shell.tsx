@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { Link, NavLink, useSearchParams } from "react-router";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { Link, NavLink, useLocation, useSearchParams } from "react-router";
+import { DRAWER_ID, DrawerContext, type Drawer } from "./drawer.ts";
 import { storedValue, storeValue } from "./storage.ts";
 import { language, usePreferences } from "./preferences.ts";
 import { t } from "./i18n.ts";
@@ -38,7 +39,8 @@ function NavItem({ to, title, children }: { to: string; title: string; children:
 
 // The sidebar and the page beside it. The wide layout starts with the sidebar collapsed to
 // its icon rail so the Actors timeline and Console panes get the width; expanding it and
-// its width are remembered.
+// its width are remembered. The compact layout shows the sidebar as a drawer opened from
+// the top bar's menu button.
 export function Shell({ children }: { children: ReactNode }) {
   const compact = useCompactShell();
   const [collapsed, setCollapsed] = useState(() => storedValue("feld-mock-sidebar", "collapsed") === "collapsed");
@@ -61,9 +63,10 @@ export function Shell({ children }: { children: ReactNode }) {
     setWidth(clampSidebarWidth(Number(storedValue("feld-mock-sidebar-width", String(SIDEBAR_DEFAULT_WIDTH)))));
   }, [reset]);
   const resize = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
-  // The compact shell lays the sidebar out as top and bottom bars, which have no collapsed
-  // form; the stored preference is kept for the wide layout.
+  // The compact shell's drawer has no collapsed form; the stored preference is kept for the
+  // wide layout.
   const applied = collapsed && !compact;
+  const drawer = useShellDrawer(compact, sidebar);
 
   useEffect(() => {
     document.body.classList.toggle("is-resizing-sidebar", resizing);
@@ -110,14 +113,22 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="viewport" data-sidebar-collapsed={applied ? "" : undefined} style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}>
-      <aside className="sidebar" aria-label="Feld navigation" ref={sidebar}>
+    <div className="viewport" data-sidebar-collapsed={applied ? "" : undefined} data-drawer-open={drawer.expanded ? "" : undefined} style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}>
+      <header className="topbar">
+        <button className="topbar__menu" type="button" data-action="toggle-drawer" aria-label={t("nav.menu")} aria-expanded={drawer.expanded} aria-controls={DRAWER_ID} onClick={drawer.expanded ? drawer.close : drawer.open}>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14"></path></svg>
+        </button>
+      </header>
+
+      <aside className="sidebar" id={DRAWER_ID} aria-label="Feld navigation" ref={sidebar} onClick={drawer.closeOnLink}>
         <header className="sidebar__brand">
           <Link className="sidebar__brand-lockup" to={`/ui/${query}`} aria-label="Feld home">
             <span className="sidebar__feld-logo" aria-hidden="true"></span>
             <strong className="sidebar__brand-name">Feld</strong>
           </Link>
         </header>
+
+        <div className="sidebar__workspaces" ref={drawer.setSlot}></div>
 
         <nav className="sidebar__nav" aria-label="Primary navigation">
           <NavItem to={`/ui/${query}`} title={t("nav.actors")}>
@@ -156,7 +167,74 @@ export function Shell({ children }: { children: ReactNode }) {
         ></div>
       </aside>
 
-      <main className="app">{children}</main>
+      {drawer.expanded ? <div className="topbar__scrim" aria-hidden="true" onClick={drawer.close}></div> : null}
+
+      <main className="app" inert={drawer.expanded}>
+        <DrawerContext value={drawer.context}>{children}</DrawerContext>
+      </main>
     </div>
   );
+}
+
+// The compact layout's drawer. It opens with the focus on the current Workspace or page,
+// and closes on the scrim, on Escape, and after a navigation; closing returns the focus to
+// the control that opened it.
+function useShellDrawer(compact: boolean, sidebar: React.RefObject<HTMLElement | null>) {
+  const [open, setOpen] = useState(false);
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const restoring = useRef(false);
+  const { pathname, search } = useLocation();
+  const expanded = compact && open;
+
+  const context = useMemo<Drawer | null>(() => {
+    if (!compact) return null;
+    return {
+      slot,
+      expanded: open,
+      open() {
+        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        setOpen(true);
+      },
+      close() {
+        restoring.current = true;
+        setOpen(false);
+      },
+    };
+  }, [compact, slot, open]);
+
+  useEffect(() => setOpen(false), [pathname, search, compact]);
+
+  // The focus returns once the page is no longer inert.
+  useEffect(() => {
+    if (expanded || !restoring.current) return;
+    restoring.current = false;
+    opener.current?.focus({ preventScroll: true });
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const drawn = sidebar.current;
+    const current = drawn?.querySelector<HTMLElement>('[aria-checked="true"]') ?? drawn?.querySelector<HTMLElement>(".is-current");
+    current?.focus({ preventScroll: true });
+    function closeOnEscape(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") context?.close();
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [expanded, sidebar, context]);
+
+  // A link in the drawer that leads to the page already shown closes it too.
+  function closeOnLink(event: MouseEvent<HTMLElement>) {
+    if (expanded && (event.target as Element).closest("a")) context?.close();
+  }
+
+  return {
+    context,
+    expanded,
+    setSlot,
+    open: () => context?.open(),
+    close: () => context?.close(),
+    closeOnLink,
+  };
 }

@@ -625,79 +625,174 @@ feld-agents {
   overflow: hidden;
 }
 
-/* Compact shell (phones and narrow tablets). The sidebar's own elements are re-laid out
-   as a top brand bar and a bottom tab bar (Actors and Settings); no markup is
-   duplicated. Components fill .app between the two bars and need no knowledge of them;
-   only fixed-position overlays read --shell-tabbar-height to stay clear of the tab bar. */
+/* The compact layout's top bar and scrim; the wide layout has neither. */
+.topbar {
+  display: none;
+}
+
+/* The drawer's slot for a page's own list (the Actors page's Workspaces). */
+.sidebar__workspaces {
+  display: none;
+}
+
+/* Compact shell (phones and narrow tablets). The top bar is one row holding the menu
+   button, and the sidebar's own elements become the drawer it opens; no markup is
+   duplicated. Components fill .app below the top bar and need no knowledge of it. A page
+   that draws its own heading row (it marks the body .has-page-workspace-switcher) takes
+   the whole viewport and leaves --shell-menu-width free at its left for the menu button.
+   Fixed bottom sheets keep clear of the safe area through --shell-bottom-inset. */
 @media (max-width: 760px) {
   :root {
     --shell-topbar-height: 48px;
-    --shell-tabbar-height: calc(56px + env(safe-area-inset-bottom, 0px));
+    --shell-menu-width: 48px;
+    --shell-bottom-inset: env(safe-area-inset-bottom, 0px);
   }
 
   .viewport,
   .viewport[data-sidebar-collapsed] {
     grid-template-areas:
-      "brand"
-      "app"
-      "nav";
+      "bar"
+      "app";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr) var(--shell-tabbar-height);
+    grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr);
     transition: none;
   }
 
-  .sidebar,
-  .sidebar__bottom {
-    display: contents;
-  }
-
-  .sidebar__resize-handle,
-  .sidebar__collapse {
-    display: none;
+  .has-page-workspace-switcher .viewport,
+  .has-page-workspace-switcher .viewport[data-sidebar-collapsed] {
+    grid-template-areas: "app";
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .app {
     grid-area: app;
   }
 
-  .sidebar__brand {
-    grid-area: brand;
-    min-height: 0;
-    padding: 0 6px 0 14px;
-  }
-
-  .sidebar__nav {
+  .topbar {
+    z-index: 1;
     display: flex;
-    grid-area: nav;
-    gap: 0;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    grid-area: bar;
+    align-items: center;
+    padding-left: 4px;
     background: var(--panel);
-    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
 
-  .sidebar__nav a {
-    flex: 1;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 56px;
-    gap: 3px;
-    padding: 6px 4px;
+  .has-page-workspace-switcher .topbar {
+    grid-area: app;
+    align-self: start;
+    width: var(--shell-menu-width);
+    height: var(--shell-topbar-height);
+    background: transparent;
+    border-bottom: 0;
+  }
+
+  .topbar__menu {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    padding: 0;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .topbar__menu:hover {
+    background: var(--bg);
+  }
+
+  .topbar__menu:focus-visible {
+    outline: 2px solid var(--accent-strong);
+    outline-offset: -2px;
+  }
+
+  .topbar__menu svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 1.8;
+  }
+
+  .topbar__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    background: rgb(0 0 0 / 40%);
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: min(300px, 85vw);
+    overflow-y: auto;
+    padding-bottom: var(--shell-bottom-inset);
+    visibility: hidden;
+    overscroll-behavior: contain;
+    transform: translateX(-100%);
+    transition: transform 180ms ease, visibility 0s linear 180ms;
+  }
+
+  .viewport[data-drawer-open] .sidebar {
+    visibility: visible;
+    box-shadow: var(--shadow-float);
+    transform: none;
+    transition: transform 180ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .viewport[data-drawer-open] .sidebar {
+      transition: none;
+    }
+  }
+
+  .sidebar__bottom,
+  .sidebar__resize-handle {
+    display: none;
+  }
+
+  .sidebar__workspaces {
+    display: block;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar__workspaces:empty {
+    display: none;
+  }
+
+  /* The Workspace menu's items laid out as the drawer's list. */
+  .sidebar__workspaces .sidebar__popover {
+    position: static;
+    width: auto;
+    background: transparent;
+    border: 0;
     border-radius: 0;
-    font-size: 11px;
-    font-weight: 550;
+    box-shadow: none;
   }
 
-  .sidebar__nav a .sidebar__label {
-    flex: none;
+  .sidebar__workspaces .sidebar__popover button {
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
   }
 
-  .sidebar__nav .is-current {
-    color: var(--accent-strong);
-    background: transparent;
+  .sidebar__workspaces .sidebar__popover button + button {
+    border-top: 0;
   }
 
-  .sidebar__nav a:hover {
-    background: transparent;
+  .sidebar__workspaces .sidebar__popover [aria-checked="true"] {
+    color: var(--accent-text);
+    background: var(--accent-band);
   }
 }
