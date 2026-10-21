@@ -44,5 +44,9 @@ export default defineConfig({
   test: {
     include: ["**/*.test.{js,ts,tsx}"],
     exclude: ["node_modules/**", "dist/**"],
+    // A test that draws the whole ActorsPage takes seconds once `make check` loads the
+    // machine, longer than Vitest's default 5s.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 });
