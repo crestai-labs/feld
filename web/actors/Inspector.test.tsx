@@ -98,6 +98,21 @@ test("the composer closed with Escape, × or Cancel returns the focus to its Act
   }
 });
 
+test("Escape closes the composer while its Message is being sent", async () => {
+  const agentId = await openComposer();
+  await act(async () => store().setComposeDraft("hello"));
+  const send = element('[data-composer] [type="submit"]');
+  send.focus();
+  await click(send);
+  // The fixture page has no daemon, so the send is held in flight by hand.
+  await act(async () => useActorsStore.setState({ composeSending: { [agentId]: true } }));
+  expect(send.hasAttribute("disabled")).toBe(true);
+  expect(document.activeElement).toBe(element("[data-composer] textarea"));
+  await press(document.activeElement!, "Escape");
+  expect(page.querySelector("[data-composer]")).toBeNull();
+  expect(document.activeElement).toBe(element(actionsMenu(agentId)));
+});
+
 test("a card closed while a search hides its Actor leaves the focus on the search field", async () => {
   await openConsole();
   await act(async () => store().setQuery("no actor matches this"));
