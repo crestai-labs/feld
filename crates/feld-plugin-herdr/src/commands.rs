@@ -55,6 +55,17 @@ const LAUNCH_TIMEOUT: Duration = Duration::from_secs(10);
 const LINE_NOT_TAKEN: &str =
     "the created herdr pane never ran the launch script: its shell did not take the line";
 
+/// The global options herdr takes from anywhere in its argv, before the command reads
+/// its own arguments. A `pane run` input that is one of them, alone or with `=…`, is
+/// consumed by herdr and never reaches the pane.
+const GLOBAL_OPTIONS: [&str; 3] = ["--session", "--remote", "--remote-keybindings"];
+
+/// Whether herdr reads this whole input as one of its own global options.
+pub(super) fn is_global_option(input: &str) -> bool {
+    let name = input.split_once('=').map_or(input, |(name, _)| name);
+    GLOBAL_OPTIONS.contains(&name)
+}
+
 pub(super) const SIGTERM_ATTEMPT: &str = "herdr sent SIGTERM to the pane's program";
 
 pub(super) const SIGKILL_ATTEMPT: &str = "herdr killed the pane's program (SIGKILL)";
