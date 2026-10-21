@@ -5,7 +5,7 @@
 // Actions button lie in a name row over the top of its lane, so the Timeline spans the
 // full width (see agents.css).
 
-import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useActorsModel } from "./context.ts";
 import { actorColumns, actorColumnsWidth, COMPACT_LAYOUT_QUERY, isPinned, kindLabel, kindRules } from "./model.ts";
@@ -14,7 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { markPointerFocusedLane } from "./charts/interaction.ts";
 import { useActorsStore } from "./store.ts";
 import type { ActorRecord, AgentsState, Focus } from "./types.ts";
-import { ClockGlyph, GearGlyph, useActorsTools, usePageActions } from "./ui.tsx";
+import { ClockGlyph, GearGlyph, useActorsTools, usePageActions, useReturnFocus } from "./ui.tsx";
 import { deleteActorFromMenu, killActorSession, refuseMenuAction, setScheduleEnabled, startActorSession, stopActorSession } from "./mutations.ts";
 import { MetricsWindowControl, TimeControls } from "./Heading.tsx";
 import { TimelineSvg } from "./charts/Timeline.tsx";
@@ -537,18 +537,48 @@ function BandMarks({ agent, state }: { agent: ActorRecord; state: BandsView }) {
 
 // The open Actions menu is drawn at the component's top level, outside the scrolling table
 // and its sticky columns, so it draws over the page while ActionMenu anchors it to its row.
+// Opening it focuses its first enabled item; closing it returns the focus to ⋮.
 function ActionCell({ agent, state }: { agent: ActorRecord; state: BandsView }) {
   const model = useActorsModel();
+  const { focus } = usePageActions();
   const open = state.actionMenuAgent === agent.id;
   const cell = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const [host, setHost] = useState<Element | null>(null);
   useLayoutEffect(() => setHost(cell.current?.closest(".feld-agents") ?? null), []);
+  useReturnFocus(open, button);
+  function toggle() {
+    useActorsStore.getState().toggleAgentMenu(agent.id);
+    if (useActorsStore.getState().actionMenuAgent === agent.id) focus(`.feld-agents__action-menu ${ENABLED_MENU_ITEM}`, { preventScroll: true });
+  }
   return (
     <div className="feld-agents__action-cell" style={{ height: `${model.laneHeightFor(agent.id, state)}px` }} ref={cell}>
-      <button className="feld-agents__action-button" type="button" data-action="toggle-agent-menu" data-agent-id={agent.id} aria-label={`More actions for ${model.actorLabel(agent.id, state)}`} aria-expanded={open} title="More actions" onClick={() => useActorsStore.getState().toggleAgentMenu(agent.id)}>⋮</button>
+      <button className="feld-agents__action-button" type="button" data-action="toggle-agent-menu" data-agent-id={agent.id} aria-label={`More actions for ${model.actorLabel(agent.id, state)}`} aria-expanded={open} title="More actions" ref={button} onClick={toggle}>⋮</button>
       {open && host ? createPortal(<ActionMenu agent={agent} state={state} anchor={cell} />, host) : null}
     </div>
   );
+}
+
+const ENABLED_MENU_ITEM = '[role="menuitem"]:not(:disabled)';
+
+// The arrow keys, Home, and End move among the enabled items, round the ends; Tab closes
+// the menu, and the focus returns to ⋮.
+function moveInMenu(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    useActorsStore.getState().dismissAgentMenu();
+    return;
+  }
+  const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(ENABLED_MENU_ITEM));
+  const index = items.indexOf(document.activeElement as HTMLElement);
+  const next = event.key === "ArrowDown" ? (index + 1) % items.length
+    : event.key === "ArrowUp" ? (index <= 0 ? items.length : index) - 1
+    : event.key === "Home" ? 0
+    : event.key === "End" ? items.length - 1
+    : null;
+  if (next === null || !items.length) return;
+  event.preventDefault();
+  items[next].focus();
 }
 
 // Agent Actions expose only the primitives the product contract names:
@@ -661,7 +691,7 @@ function ActionMenu({ agent, state, anchor }: { agent: ActorRecord; state: Bands
   }
 
   return (
-    <div className="feld-agents__action-menu" role="menu" aria-label={`Actions for ${model.actorLabel(agent.id, state)}`} ref={element}>
+    <div className="feld-agents__action-menu" role="menu" aria-label={`Actions for ${model.actorLabel(agent.id, state)}`} ref={element} onKeyDown={moveInMenu}>
       {menu.items.map((item, index) => item.kind === "rule"
         ? <div key={`rule-${index}`} className="feld-agents__action-menu-rule" role="separator"></div>
         : (

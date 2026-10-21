@@ -2,7 +2,7 @@
 // through, the reads' connection, and the one DOM step an action takes once its result is
 // drawn), and the actions that pair a store transition with that step.
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useActorsModel } from "./context.ts";
 import { markPointerFocus } from "./inputModality.ts";
@@ -38,6 +38,26 @@ export function focusIn(root: HTMLElement, selector: string, options?: FocusOpti
 // menu holds the Guide there.
 export function timelineGuideOpener() {
   return useActorsStore.getState().compactLayout ? '[data-action="toggle-agent-display-menu"]' : '[data-action="open-timeline-guide"]';
+}
+
+// Returns the focus to the button that opened a menu or a picker once it closes, when the
+// focus closed with it (fell to the body). A focus the closing moved elsewhere stays.
+export function useReturnFocus(open: boolean, button: RefObject<HTMLElement | null>) {
+  const wasOpen = useRef(open);
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    const target = button.current;
+    if (wasOpen.current && !open && target && (!active || active === document.body)) {
+      markPointerFocus(target);
+      target.focus({ preventScroll: true });
+    }
+    wasOpen.current = open;
+  }, [open, button]);
+}
+
+// An Actor's ⋮, which opens its Actions menu.
+export function actionButtonSelector(agentId: string) {
+  return `[data-action="toggle-agent-menu"][data-agent-id="${CSS.escape(agentId)}"]`;
 }
 
 // An Actor's name in the table, where the focus returns when its Actor card closes.
@@ -110,7 +130,7 @@ export function usePageActions() {
       const agentId = card.kind === "console" ? model.sessionById(card.sessionId)?.actor : card.agentId;
       const selectors = [
         card.kind === "console" ? `.feld-agents__session-hit[data-session="${CSS.escape(card.sessionId)}"]` : null,
-        card.kind === "composer" ? `[data-action="toggle-agent-menu"][data-agent-id="${CSS.escape(card.agentId)}"]` : null,
+        card.kind === "composer" ? actionButtonSelector(card.agentId) : null,
         agentId ? actorNameSelector(agentId) : null,
         '[data-action="search"]',
       ].filter((selector) => selector !== null);

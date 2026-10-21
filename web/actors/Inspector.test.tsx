@@ -177,6 +177,52 @@ test("the Session opened again closes its Console, and the Actor's name pressed 
   expect(store().focusedActorId).toBeNull();
 });
 
+test("the Actions menu takes the focus, moves it with the arrow keys, and gives it back to ⋮ when it closes", async () => {
+  const button = element('[data-action="toggle-agent-menu"]');
+  const agentId = button.getAttribute("data-agent-id")!;
+  const items = () => Array.from(page.querySelectorAll<HTMLElement>('.feld-agents__action-menu [role="menuitem"]:not(:disabled)'));
+  await click(button);
+  expect(document.activeElement).toBe(items()[0]);
+  await press(document.activeElement!, "ArrowUp");
+  expect(document.activeElement).toBe(items().at(-1));
+  await press(document.activeElement!, "ArrowDown");
+  expect(document.activeElement).toBe(items()[0]);
+  await press(document.activeElement!, "End");
+  await press(document.activeElement!, "Home");
+  await press(document.activeElement!, "ArrowDown");
+  expect(document.activeElement).toBe(items()[1]);
+
+  for (const key of ["Escape", "Tab"]) {
+    await press(document.activeElement!, key);
+    expect(page.querySelector(".feld-agents__action-menu")).toBeNull();
+    expect(document.activeElement).toBe(element(actionsMenu(agentId)));
+    await click(element(actionsMenu(agentId)));
+  }
+  // An item that closes the menu without moving the focus elsewhere gives it back to ⋮.
+  await click(element('.feld-agents__action-menu [data-action="stop-session"]'));
+  expect(page.querySelector(".feld-agents__action-menu")).toBeNull();
+  expect(document.activeElement).toBe(element(actionsMenu(agentId)));
+});
+
+test("a picker takes the focus once open, and gives it back to its button once closed", async () => {
+  for (const [toggle, picker, close] of [
+    ["toggle-picker", ".feld-agents__picker", '[data-action="close-picker"]'],
+    ["toggle-metrics-picker", ".feld-agents__metrics-picker", '[data-action="metrics-quick"]:not(:disabled)'],
+  ]) {
+    const button = element(`[data-action="${toggle}"]`);
+    await click(button);
+    expect(element(picker).contains(document.activeElement)).toBe(true);
+    await press(document.activeElement!, "Escape");
+    expect(page.querySelector(picker)).toBeNull();
+    expect(document.activeElement).toBe(button);
+    await click(button);
+    element(close).focus();
+    await click(element(close));
+    expect(page.querySelector(picker)).toBeNull();
+    expect(document.activeElement).toBe(button);
+  }
+});
+
 test("a range picker closes when the pointer goes down outside it, and stays while it goes down inside", async () => {
   async function pressAt(target: Element) {
     await act(async () => { target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true })); });
@@ -210,6 +256,21 @@ test("on the compact layout the range picker shows the Quick ranges and opens th
   await click(custom);
   expect(custom.getAttribute("aria-expanded")).toBe("true");
   expect(page.querySelector('[data-action="apply-picker"]')).not.toBeNull();
+});
+
+test("on the compact layout the Actions menu and the range picker take the focus and give it back on Escape", async () => {
+  await act(async () => store().setCompactLayout(true));
+  for (const [toggle, opened] of [
+    ['[data-action="toggle-agent-menu"]', ".feld-agents__action-menu"],
+    ['[data-action="toggle-picker"]', ".feld-agents__picker"],
+  ]) {
+    const button = element(toggle);
+    await click(button);
+    expect(element(opened).contains(document.activeElement)).toBe(true);
+    await press(document.activeElement!, "Escape");
+    expect(page.querySelector(opened)).toBeNull();
+    expect(document.activeElement).toBe(button);
+  }
 });
 
 test("a Job's Schedule line opens its Actor card at the Job section, whose edit form Escape closes first", async () => {

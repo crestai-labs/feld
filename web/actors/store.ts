@@ -333,9 +333,10 @@ export interface ActorsActions {
   // Escape closes the page-level modals before anything behind them. Returns what closed.
   // DOM: "new-workspace" and "new-actor" focus their close actions.
   escapeModal(): EscapedModal | null;
-  // Everything else Escape closes at once. Returns which display dialog and card were open,
-  // so the component returns focus to what opened them, or null when nothing was open.
-  escapeAll(): { display: boolean; metrics: boolean; guide: boolean; card: OpenCard | null } | null;
+  // Everything else Escape closes at once. Returns which display dialog, picker, Actions
+  // menu (by its Actor) and card were open, so the component returns focus to what opened
+  // them, or null when nothing was open.
+  escapeAll(): { display: boolean; metrics: boolean; guide: boolean; picker: boolean; metricsPicker: boolean; menu: string | null; card: OpenCard | null } | null;
 }
 
 export type ActorsStore = AgentsState & ActorsActions;
@@ -726,7 +727,15 @@ export const useActorsStore = create<ActorsStore>()((set, get) => ({
       if (state.focusedActorId) set({ focusedActorId: null });
       return null;
     }
-    const restore = { display: state.agentDisplayMenuOpen, metrics: state.metricsMenuOpen, guide: state.timelineGuideOpen, card: openCard(state) };
+    const restore = {
+      display: state.agentDisplayMenuOpen,
+      metrics: state.metricsMenuOpen,
+      guide: state.timelineGuideOpen,
+      picker: state.pickerOpen,
+      metricsPicker: state.metricsPickerOpen,
+      menu: state.actionMenuAgent,
+      card: openCard(state),
+    };
     set({
       pickerOpen: false,
       metricsPickerOpen: false,

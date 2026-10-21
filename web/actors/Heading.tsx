@@ -11,7 +11,7 @@ import { DRAWER_ID, useDrawer } from "../shell/drawer.ts";
 import { useActorsModel } from "./context.ts";
 import { COMPACT_LAYOUT_QUERY, METRICS_WINDOWS, MODE_TITLES, WINDOW_NAMES, WINDOW_OPTIONS, metricsDurationFor } from "./model.ts";
 import { useActorsStore } from "./store.ts";
-import { focusIn, useActorsTools, usePageActions } from "./ui.tsx";
+import { focusIn, useActorsTools, usePageActions, useReturnFocus } from "./ui.tsx";
 
 const CHECK = <svg className="sidebar__check" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9"></path></svg>;
 
@@ -112,14 +112,30 @@ function RefreshControls({ shown }: { shown: FeldLiveConnection | null }) {
 
 const RANGE_CLOCK_GLYPH = <svg className="feld-agents__range-clock" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2"></circle><path d="M8 4.6V8l2.4 1.6"></path></svg>;
 
+// A picker is drawn before the button that opens it, so it takes the focus once open and
+// gives it back to the button once closed.
+const PICKER_CONTROL = "button:not(:disabled), input, select:not(:disabled)";
+
+function usePickerButton(open: boolean, toggle: () => void, picker: string) {
+  const { focus } = usePageActions();
+  const button = useRef<HTMLButtonElement>(null);
+  useReturnFocus(open, button);
+  function onClick() {
+    toggle();
+    if (!open) focus(`${picker} :is(${PICKER_CONTROL})`);
+  }
+  return { button, onClick };
+}
+
 // The range of the Timeline (and, through it, of Metrics): opens the picker.
 export function TimeControls() {
   const model = useActorsModel();
   const range = useActorsStore(useShallow((state) => ({ mode: state.mode, anchor: state.anchor, duration: state.duration })));
   const pickerOpen = useActorsStore((state) => state.pickerOpen);
+  const { button, onClick } = usePickerButton(pickerOpen, () => useActorsStore.getState().togglePicker(), ".feld-agents__picker:not(.feld-agents__metrics-picker)");
   return (
     <div className="feld-agents__timebar" role="group" aria-label="Time range">
-      <button className="feld-agents__button feld-agents__button--range" type="button" data-action="toggle-picker" aria-expanded={pickerOpen} aria-haspopup="dialog" data-range-button="" title={MODE_TITLES[range.mode]} onClick={() => useActorsStore.getState().togglePicker()}>
+      <button className="feld-agents__button feld-agents__button--range" type="button" data-action="toggle-picker" aria-expanded={pickerOpen} aria-haspopup="dialog" data-range-button="" title={MODE_TITLES[range.mode]} ref={button} onClick={onClick}>
         {RANGE_CLOCK_GLYPH}
         <span data-range-label="">{model.rangeButtonLabel(range)}</span>
         <span className="feld-agents__range-caret" aria-hidden="true">▾</span>
@@ -221,9 +237,10 @@ export function MetricsWindowControl() {
   const model = useActorsModel();
   const state = useActorsStore(useShallow((current) => ({ mode: current.mode, anchor: current.anchor, duration: current.duration, metricsDuration: current.metricsDuration })));
   const open = useActorsStore((current) => current.metricsPickerOpen);
+  const { button, onClick } = usePickerButton(open, () => useActorsStore.getState().toggleMetricsPicker(), ".feld-agents__metrics-picker");
   return (
     <div className="feld-agents__timebar" role="group" aria-label="Metrics window">
-      <button className="feld-agents__button feld-agents__button--range" type="button" data-action="toggle-metrics-picker" aria-expanded={open} aria-haspopup="dialog" data-metrics-button="" title="The Metrics window: never narrower than the Timeline's, and centred on it" onClick={() => useActorsStore.getState().toggleMetricsPicker()}>
+      <button className="feld-agents__button feld-agents__button--range" type="button" data-action="toggle-metrics-picker" aria-expanded={open} aria-haspopup="dialog" data-metrics-button="" title="The Metrics window: never narrower than the Timeline's, and centred on it" ref={button} onClick={onClick}>
         {RANGE_CLOCK_GLYPH}
         <span data-metrics-range="">{model.metricsButtonLabel(state)}</span>
         <span className="feld-agents__range-caret" aria-hidden="true">▾</span>
