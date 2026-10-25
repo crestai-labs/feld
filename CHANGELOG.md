@@ -6,7 +6,7 @@
 
 - The compact layout of the Web UI (phones and narrow windows) is rebuilt around a one-row top bar and a navigation drawer. The bottom tab bar is gone, each Actor band shows its name row over a full-width Timeline, and the Console opens full screen.
 - The Actions menu and the range and Metrics pickers can now be reached from the keyboard.
-- Dependencies are updated for RUSTSEC-2026-0381, RUSTSEC-2026-0382 and the vite launch-editor advisories.
+- Dependencies are updated for RUSTSEC-2026-0381, RUSTSEC-2026-0382, RUSTSEC-2026-0386 and the vite launch-editor advisories.
 
 ### Added
 
@@ -17,7 +17,7 @@
 
 ### Changed
 
-- **deps**: webpki-roots 1.0.10 (RUSTSEC-2026-0381), rustls-webpki 0.103.16 (RUSTSEC-2026-0382) and vite 8.3.4 (launch-editor advisories) (#7)
+- **deps**: webpki-roots 1.0.10 (RUSTSEC-2026-0381), rustls-webpki 0.103.16 (RUSTSEC-2026-0382), vite 8.3.4 (launch-editor advisories) and tokio 1.54.1 (RUSTSEC-2026-0386) (#7, #26)
 - **cli, docs**: a read-only Codex thread is resumed with `--sandbox workspace-write`; the hint no longer suggests `--yolo` (#18)
 - **core**: the cron computation moves from model to `feld_core::cron` (#11)
 - **docs**: the How it works diagram is rendered as images (#3)
