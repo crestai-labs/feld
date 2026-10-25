@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Feld daemon API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The HTTP API that `feld daemon` serves on loopback. The routes correspond to `routes` in `crates/feld-daemon/src/api/mod.rs` (the API and the Web UI of module `web`), and the test `openapi_describes_every_route` checks that paths and methods match.
     The API consists of two surfaces: the Control API and the Runtime API (under `/v1/self`).

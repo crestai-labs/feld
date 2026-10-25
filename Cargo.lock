@@ -432,7 +432,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "feld"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "feld-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -478,7 +478,7 @@ dependencies = [
 
 [[package]]
 name = "feld-daemon"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -508,7 +508,7 @@ dependencies = [
 
 [[package]]
 name = "feld-plugin-claude-code"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "feld-core",
@@ -519,7 +519,7 @@ dependencies = [
 
 [[package]]
 name = "feld-plugin-codex"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "feld-plugin-herdr"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "feld-core",
  "serde",
@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "feld-plugin-tmux"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "feld-core",
  "serde",
