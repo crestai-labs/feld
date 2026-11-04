@@ -84,6 +84,7 @@ impl ActorService {
         &self,
         workspace: &str,
         kind: Option<&str>,
+        include_archived: bool,
         include_deleted: bool,
     ) -> Result<Vec<Actor>, ActorError> {
         if !self
@@ -97,7 +98,9 @@ impl ActorService {
             .map(str::parse::<ActorKind>)
             .transpose()
             .map_err(ActorError::Invalid)?;
-        let mut actors = self.store.list_actors(workspace, kind, include_deleted)?;
+        let mut actors =
+            self.store
+                .list_actors(workspace, kind, include_archived, include_deleted)?;
         for actor in &mut actors {
             self.mark_overdue(actor)?;
         }
@@ -136,7 +139,7 @@ impl ActorService {
         let Some(schedule) = actor.schedule.as_mut() else {
             return Ok(());
         };
-        if !schedule.enabled || actor.deleted_at.is_some() {
+        if !schedule.enabled || actor.archived_at.is_some() || actor.deleted_at.is_some() {
             return Ok(());
         }
         let Ok(Some(planned)) = last_run_at_or_before(
@@ -303,6 +306,23 @@ impl ActorService {
         writer: Writer,
     ) -> Result<Actor, ActorWriteError> {
         let actor = self.store.delete_actor_as(workspace, actor, writer)?;
+        self.schedule_notify.notify_one();
+        Ok(actor)
+    }
+
+    pub fn archive(
+        &self,
+        workspace: &str,
+        actor: &str,
+        writer: Writer,
+    ) -> Result<Actor, ActorWriteError> {
+        let actor = self.store.archive_actor_as(workspace, actor, writer)?;
+        self.schedule_notify.notify_one();
+        Ok(actor)
+    }
+
+    pub fn unarchive(&self, id: &str, writer: Writer) -> Result<Actor, ActorWriteError> {
+        let actor = self.store.unarchive_actor_as(id, writer)?;
         self.schedule_notify.notify_one();
         Ok(actor)
     }

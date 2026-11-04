@@ -150,7 +150,7 @@ fn a_tick_past_its_time_that_left_nothing_is_overdue() {
     .unwrap();
     let running = service(Utc::now() - chrono::Duration::minutes(10));
     assert_eq!(overdue(&running), Some(expected.clone()));
-    let listed = running.list("default", None, false).unwrap();
+    let listed = running.list("default", None, false, false).unwrap();
     assert_eq!(
         listed[0].schedule.as_ref().unwrap().overdue_tick,
         Some(expected.clone())

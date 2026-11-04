@@ -140,7 +140,7 @@ export function useActorsData({ consoleReads, fixture = null }: { consoleReads: 
   const listedActor = listedActorOf(cardActor, selected, selectedActor, keptActor);
   if (listedActor !== keptActor) setKeptActor(listedActor);
   const actorRead = rangeInput.actors.find((actor) => actor.id === listedActor);
-  const actorSessions = useActorSessions(actorRead ? { workspace: actorRead.workspace, name: actorRead.name, deletedId: actorRead.deletedAt ? actorRead.actorId : undefined } : null, selected, !fixture);
+  const actorSessions = useActorSessions(actorRead ? { workspace: actorRead.workspace, name: actorRead.name, deletedId: actorRead.deletedAt || actorRead.archivedAt ? actorRead.actorId : undefined } : null, selected, !fixture);
   const input = useMemo(() => (actorSessions && actorRead
     ? { ...rangeInput, actorSessions: toActorSessions(actorSessions, actorRead.id), measuredSession: actorSessions.metrics[0]?.session ?? null }
     : rangeInput), [rangeInput, actorSessions, actorRead]);

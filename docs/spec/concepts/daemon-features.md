@@ -25,6 +25,8 @@ Features split into those for a Controller, which operates Actors and Sessions f
 |---|---|---|---|
 | Create | `actor create` | Creates a new Agent in Feld. Whether to have a Session is selectable | Creates a new Job in Feld. Immediate start is selectable |
 | Update | `actor update` | Changes the Agent's name, (next) launch location, and model | Changes the Job's name, launch schedule, command, and so on. Includes enabling and disabling the Schedule (`pause` / `resume`) |
+| Archive | `actor archive` | Archives an Agent, keeping its history in view | Archives a Job, keeping its history in view. Its Schedule does not fire |
+| Unarchive | `actor unarchive` | Makes an archived Agent live again | Makes an archived Job live again |
 | Delete | `actor delete` | Soft deletes an existing Agent | Soft deletes an existing Job |
 | Get details | `actor get` | Shows the Agent's details | Shows the Job's details |
 | List (search) | `actor list` | Searches Agents | Searches Jobs |

@@ -724,6 +724,20 @@ pub enum ActorCommand {
     /// `feld actor list --include-deleted`.
     #[command(after_help = help_footer("Examples:\n  feld actor delete reviewer"))]
     Delete(ActorTarget),
+    /// Archive an Actor, keeping its history in view.
+    ///
+    /// An Actor whose current Session runs is rejected; stop it with `feld session stop` first.
+    /// The name is free for a new Actor at once, and the Schedule of an archived Job does not
+    /// fire. The archived one stays readable by its ID with `feld actor get <ID>` and in
+    /// `feld actor list -a --include-archived`, and the Web UI draws it over a range where it
+    /// has a Session.
+    #[command(after_help = help_footer("Examples:\n  feld actor archive issue-61-dev"))]
+    Archive(ActorTarget),
+    /// Make an archived Actor live again under its name.
+    ///
+    /// Rejected while a live Actor holds the name. The Schedule of a Job fires again as declared.
+    #[command(after_help = help_footer("Examples:\n  feld actor unarchive actor_0c93f4..."))]
+    Unarchive(ActorIdArgs),
     Get(ActorGetArgs),
     #[command(visible_alias = "ls")]
     List(ActorListArgs),
@@ -854,9 +868,16 @@ pub struct ActorUpdateArgs {
     pub launch: LaunchArgs,
 }
 
+#[derive(Debug, Args)]
+pub struct ActorIdArgs {
+    /// Actor ID (actor_...), which `feld actor list -a --include-archived --json` shows
+    #[arg(value_name = "ID", value_parser = parse_actor_id)]
+    pub id: String,
+}
+
 /// Show one Actor: its ID, launchSpec, Schedule, and Sessions.
 ///
-/// A name reads the live Actor. An ID (actor_...) reads the Actor even after its delete. The
+/// A name reads the live Actor. An ID (actor_...) reads the Actor even after its archive or delete. The
 /// Sessions are listed newest first, the current one marked `*`; `feld session get <SESSION>`
 /// shows one of them in full.
 #[derive(Debug, Args)]
@@ -884,6 +905,8 @@ pub struct ActorGetArgs {
   feld actor list -a                  every Actor, the stopped ones too
   feld actor list --kind job
   feld actor list --refresh           observe every current Session on its Provider first
+  feld actor list -a --include-archived
+                                       the archived Actors too, with an ARCHIVED column
   feld actor list -a --include-deleted
                                        the deleted Actors too, with a DELETED column"
 ))]
@@ -897,6 +920,9 @@ pub struct ActorListArgs {
     /// Observe every current Session on its Execution Provider before printing
     #[arg(long)]
     pub refresh: bool,
+    /// Include the archived Actors, together with -a
+    #[arg(long)]
+    pub include_archived: bool,
     /// Include the deleted Actors, together with -a
     #[arg(long)]
     pub include_deleted: bool,
@@ -1181,6 +1207,15 @@ pub fn parse_actor_name(value: &str) -> std::result::Result<String, String> {
 /// An Actor name, or an Actor ID (`actor_...`).
 pub fn parse_actor_target(value: &str) -> std::result::Result<String, String> {
     parse_name_or_id(value, "actor_")
+}
+
+/// An Actor ID (`actor_...`).
+pub fn parse_actor_id(value: &str) -> std::result::Result<String, String> {
+    value
+        .strip_prefix("actor_")
+        .is_some_and(|id| !id.is_empty())
+        .then(|| value.to_owned())
+        .ok_or_else(|| "the target must be an Actor ID, actor_...".to_owned())
 }
 
 /// An Actor name, or a Session ID (`session_...`).

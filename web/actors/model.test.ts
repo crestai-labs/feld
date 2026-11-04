@@ -1086,3 +1086,27 @@ test("a deleted Job's Schedule keeps no band in Live mode", () => {
   const model = modelOf({ actors: [nightly], schedules: [schedule] });
   expect(model.visibleAgents(state({ mode: "live", actorPins: { [nightly.id]: false } }))).toEqual([]);
 });
+
+test("an archived Actor is drawn over a range where it has a Session, and otherwise only when shown", () => {
+  const recent = { ...actor("recent"), archivedAt: NOW - HOUR };
+  const old = { ...actor("old"), archivedAt: NOW - 2 * DAY };
+  const model = modelOf({
+    actors: [actor("idle"), recent, old],
+    sessions: [session({ id: "s1", actor: recent.id, start: NOW - 2 * HOUR, end: NOW - HOUR / 2 }), session({ id: "s2", actor: old.id, start: NOW - 3 * DAY, end: NOW - 2 * DAY })],
+  });
+  const ids = (fields: Partial<AgentsState>) => model.visibleAgents(state(fields)).map((agent) => agent.id);
+  expect(ids({})).toEqual([recent.id]);
+  const hidden = state();
+  expect(model.hiddenBandsFor(hidden, model.bandAgents(hidden))?.label).toBe("Show 1 Actor with no Sessions in range");
+  expect(ids({ showAgentsOutsideRange: true }).sort()).toEqual(["default/idle", recent.id].sort());
+  expect(ids({ showArchivedActors: true }).sort()).toEqual([old.id, recent.id].sort());
+  expect(ids({ showAgentsOutsideRange: true, showArchivedActors: true }).sort()).toEqual(["default/idle", old.id, recent.id].sort());
+  expect(model.agentMenuFor(recent, state()).items).toContainEqual(expect.objectContaining({ action: "archived", disabled: true }));
+});
+
+test("an archived Job leaves the range though Jobs start pinned", () => {
+  const nightly = { ...actor("nightly", "job"), archivedAt: NOW - DAY };
+  const model = modelOf({ actors: [nightly], sessions: [session({ id: "s1", actor: nightly.id, start: NOW - 3 * DAY, end: NOW - 2 * DAY })] });
+  expect(model.visibleAgents(state())).toEqual([]);
+  expect(model.visibleAgents(state({ showArchivedActors: true })).map((agent) => agent.id)).toEqual([nightly.id]);
+});

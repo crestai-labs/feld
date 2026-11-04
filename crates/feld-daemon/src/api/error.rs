@@ -55,7 +55,9 @@ pub(super) fn workspace_not_found(workspace: &str) -> ApiError {
 pub(super) fn actor_write_error(error_value: ActorWriteError) -> ApiError {
     let status = match error_value {
         ActorWriteError::WorkspaceNotFound(workspace) => return workspace_not_found(&workspace),
-        ActorWriteError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
+        ActorWriteError::ActorNotFound { .. } | ActorWriteError::ArchivedNotFound(_) => {
+            StatusCode::NOT_FOUND
+        }
         ActorWriteError::Granted(_)
         | ActorWriteError::Trusted(_)
         | ActorWriteError::Unmanaged { .. } => StatusCode::FORBIDDEN,

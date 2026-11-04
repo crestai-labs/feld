@@ -304,7 +304,7 @@ export function useRangeData(query: FeldLiveQuery, enabled = true, paused = fals
   return { data, connection };
 }
 
-// A deleted Actor's Sessions, read by its `id` since a name names the live Actor only. Its
+// An archived or deleted Actor's Sessions, read by its `id` since a name names the live Actor only. Its
 // read lists the Sessions themselves, and each Session's own read its Sub Agent Sessions.
 export async function readDeletedActorSessions(actorId: string, signal: AbortSignal) {
   const { actor } = await api<{ actor: FeldApi.Actor }>(`/v1/actors/${encodeURIComponent(actorId)}`, { signal });
@@ -313,7 +313,7 @@ export async function readDeletedActorSessions(actorId: string, signal: AbortSig
 }
 
 // The Sessions of one Actor whatever the range, with their Sub Agent Sessions, which the
-// Actor card lists; a deleted Actor's are read by its `id` (`deletedId`). The selected one
+// Actor card lists; an archived or deleted Actor's are read by its `id` (`deletedId`). The selected one
 // is measured over its lifetime. The reads follow notifications as the range's do.
 export function useActorSessions(actor: { workspace: string; name: string; deletedId?: string } | null, selected: string | null, enabled = true): FeldActorSessions | null {
   const on = enabled && actor !== null;

@@ -119,7 +119,7 @@ fn list_records(connection: &Connection, filter: &RecordFilter<'_>) -> Result<Ve
                     r.data
              FROM records r JOIN actors a ON a.id = r.actor_id
              WHERE (?1 IS NULL OR a.workspace_id = (SELECT id FROM workspaces WHERE key = ?1 AND deleted_at IS NULL))
-               AND (?2 IS NULL OR (a.name = ?2 AND a.deleted_at IS NULL))
+               AND (?2 IS NULL OR (a.name = ?2 AND a.archived_at IS NULL AND a.deleted_at IS NULL))
                AND (?3 IS NULL OR r.session_id = ?3
                     OR (r.kind = 'spawned' AND json_extract(r.data, '$.spawnerSessionId') = ?3))
                AND (?4 IS NULL OR r.kind = ?4)

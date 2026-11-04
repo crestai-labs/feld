@@ -28,7 +28,7 @@ function apiSession(fields: Partial<FeldApi.Session> & { id: string; actor: stri
 function apiActor(name: string, fields: Partial<FeldApi.Actor> = {}): FeldApi.Actor {
   return {
     id: `actor_${name}`, name, workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", workdir: "/work", provider: "tmux", node: "local" }, schedule: null, grants: [], acceptFrom: null,
-    createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-01T00:00:00Z", deletedAt: null, currentSession: null, latestSession: null, sessions: [],
+    createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-01T00:00:00Z", archivedAt: null, deletedAt: null, currentSession: null, latestSession: null, sessions: [],
     attention: false, waitingCount: 0, unreadMail: false, skipMark: false, unlinkedMark: false, ...fields,
   };
 }

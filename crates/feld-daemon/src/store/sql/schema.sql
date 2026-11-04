@@ -23,9 +23,11 @@ CREATE TABLE actors (
   schedule_revision INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  archived_at TEXT,
   deleted_at TEXT
 );
-CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name)
+  WHERE archived_at IS NULL AND deleted_at IS NULL;
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY NOT NULL,
   actor_id TEXT NOT NULL REFERENCES actors(id),

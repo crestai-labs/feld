@@ -608,7 +608,7 @@ export const ACTOR_ORDER_STORAGE_KEY = "feld-mock-actor-order";
 export const METRIC_LANES_STORAGE_KEY = "feld-mock-metric-lanes";
 
 // What choosing and ordering the bands reads from the page state.
-type BandsState = Pick<AgentsState, "workspace" | "query" | "mode" | "anchor" | "duration" | "actorOrder" | "actorPins" | "showAgentsOutsideRange" | "frozenBandIds">;
+type BandsState = Pick<AgentsState, "workspace" | "query" | "mode" | "anchor" | "duration" | "actorOrder" | "actorPins" | "showAgentsOutsideRange" | "showArchivedActors" | "frozenBandIds">;
 
 // A pinned Actor keeps its row whatever the range and sits above the unpinned ones. A
 // Job is pinned until the reader unpins it, wherever it was created, since its Sessions
@@ -2184,7 +2184,17 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
   // pausing is how one retires from Live; a Job without a Schedule and History keep the
   // range rule alone.
   function keptBySchedule(agentId: string, state: Pick<AgentsState, "mode">) {
-    return state.mode === "live" && !actorFor(agentId).deletedAt && Boolean(scheduleFor(agentId)?.enabled);
+    const actor = actorFor(agentId);
+    return state.mode === "live" && !actor.archivedAt && !actor.deletedAt && Boolean(scheduleFor(agentId)?.enabled);
+  }
+
+  // The Actors the range rule decides on: an archived Actor takes part only over a range
+  // where it has a Session, or when the display settings show archived Actors. A pin keeps
+  // no archived Actor, since a Job starts pinned.
+  function rangeCandidates(state: BandsState) {
+    const range = rangeFor(state);
+    return matchingAgents(state)
+      .filter((agent) => !agent.archivedAt || state.showArchivedActors || hasSessionInRange(agent.id, range));
   }
 
   // Band order: pinned Actors above the rest; within each group the order the reader
@@ -2198,8 +2208,8 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
       const index = state.actorOrder.indexOf(agent.id);
       return index < 0 ? Infinity : index;
     };
-    return matchingAgents(state)
-      .filter((agent) => state.showAgentsOutsideRange || isPinned(state, agent) || hasSessionInRange(agent.id, range) || keptBySchedule(agent.id, state))
+    return rangeCandidates(state)
+      .filter((agent) => state.showAgentsOutsideRange || (state.showArchivedActors && Boolean(agent.archivedAt)) || isPinned(state, agent) || hasSessionInRange(agent.id, range) || keptBySchedule(agent.id, state))
       .sort((left, right) => Number(isPinned(state, right)) - Number(isPinned(state, left))
         || (orderOf(left) === orderOf(right) ? 0 : orderOf(left) - orderOf(right))
         || bandRank(left.id) - bandRank(right.id)
@@ -2223,11 +2233,11 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     const range = rangeFor(state);
     const plural = (count: number) => `${count} Actor${count === 1 ? "" : "s"}`;
     if (state.showAgentsOutsideRange) {
-      const outside = agents.filter((agent) => !isPinned(state, agent) && !hasSessionInRange(agent.id, range) && !keptBySchedule(agent.id, state)).length;
+      const outside = agents.filter((agent) => !isPinned(state, agent) && !(state.showArchivedActors && agent.archivedAt) && !hasSessionInRange(agent.id, range) && !keptBySchedule(agent.id, state)).length;
       if (!outside) return null;
       return { shown: true, label: `Hide ${plural(outside)} with no Sessions in range`, title: `Hide the ${plural(outside)} with no Session in ${formatRange(range)}` };
     }
-    const hidden = matchingAgents(state).length - agents.length;
+    const hidden = rangeCandidates(state).length - agents.length;
     if (hidden <= 0) return null;
     return { shown: false, label: `Show ${plural(hidden)} with no Sessions in range`, title: `Show the ${plural(hidden)} whose Sessions all fall outside ${formatRange(range)}; pin one to keep it shown` };
   }
@@ -2531,6 +2541,11 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     // A deleted Actor keeps its history only: nothing starts it or addresses it.
     if (agent.deletedAt) {
       items.push(item("deleted", "Deleted", `${dateTime.format(agent.deletedAt)} ${ZONE} · its Sessions and Messages stay; feld actor list -a --include-deleted lists it`, true));
+      return { sessionId: session?.id || null, items, note: null };
+    }
+    // An archived Actor keeps its history until feld actor unarchive makes it live again.
+    if (agent.archivedAt) {
+      items.push(item("archived", "Archived", `${dateTime.format(agent.archivedAt)} ${ZONE} · its Sessions and Messages stay; feld actor unarchive ${agent.actorId || ""} makes it live again`, true));
       return { sessionId: session?.id || null, items, note: null };
     }
     if (agent.kind === "agent") items.push(item("open-agent", "Agent…", "the launch spec, grants, and name in the Actor card, with Edit"));

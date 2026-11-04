@@ -411,11 +411,14 @@ function spawnAction(session: string, spawner: FeldApi.Requester | null | undefi
 }
 
 // The page keys an Actor by `workspace/name`, the name its pins and order are kept under.
-// A name belongs to its live Actor, or, with none, to the Actor listed as deleted last;
+// A name belongs to its live Actor, or, with none, to the Actor listed as archived or deleted last;
 // any other Actor that held the name is keyed apart by its `id` (actorKeyOf), so each
 // Actor keeps its own Sessions, Messages, and Spawns.
 function actorKeysOf(actors: FeldApi.Actor[]): ActorKeyOf {
-  const rank = (actor: FeldApi.Actor) => actor.deletedAt ? Date.parse(actor.deletedAt) : Infinity;
+  const rank = (actor: FeldApi.Actor) => {
+    const retired = actor.deletedAt || actor.archivedAt;
+    return retired ? Date.parse(retired) : Infinity;
+  };
   const holders = new Map<string, FeldApi.Actor>();
   for (const actor of actors) {
     const key = actorKeyOf(actor.workspace, actor.name);
@@ -445,6 +448,7 @@ export function toActorsInput(snapshot: FeldLiveData | null | undefined): Actors
     launchSpec: mapLaunchSpec(actor.launchSpec),
     grants: actor.grants || [],
     actorId: actor.id,
+    archivedAt: instantOf(actor.archivedAt),
     deletedAt: instantOf(actor.deletedAt),
     currentSession: actor.currentSession ? { id: actor.currentSession.id, ownership: actor.currentSession.ownership || null } : null,
   }));

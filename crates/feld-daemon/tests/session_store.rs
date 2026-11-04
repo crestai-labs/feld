@@ -1514,6 +1514,107 @@ fn records_of_a_deleted_actor_keep_its_id_when_the_name_is_reused() {
 }
 
 #[test]
+fn an_archived_actor_frees_its_name_and_comes_back_while_the_name_is_free() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store = Store::open(&temporary.path().join("feld.db")).unwrap();
+    let launch = launch("/tmp/archive");
+    let schedule = feld_daemon::store::ScheduleDeclaration {
+        cron: "* * * * *".to_owned(),
+        timezone: "UTC".to_owned(),
+    };
+    let old = store
+        .create_actor(
+            "default",
+            "worker",
+            ActorKind::Job,
+            &launch,
+            Some(&schedule),
+            None,
+        )
+        .unwrap();
+    let agents = Writer::Session {
+        agents: true,
+        jobs: false,
+    };
+    assert!(matches!(
+        store.archive_actor_as("default", "worker", agents),
+        Err(ActorWriteError::Unmanaged { .. })
+    ));
+    let archived = store
+        .archive_actor_as("default", "worker", Writer::Admin)
+        .unwrap();
+    assert!(archived.archived_at.is_some());
+    assert!(archived.deleted_at.is_none());
+    assert!(archived.schedule.as_ref().unwrap().next_run.is_none());
+    assert!(store.get_actor("default", "worker").unwrap().is_none());
+    assert!(store.list_enabled_schedules().unwrap().is_empty());
+    assert!(
+        store
+            .list_actors("default", None, false, false)
+            .unwrap()
+            .is_empty()
+    );
+    let listed = store.list_actors("default", None, true, false).unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].id, old.id);
+
+    let new = store
+        .create_actor("default", "worker", ActorKind::Job, &launch, None, None)
+        .unwrap();
+    assert_ne!(new.id, old.id);
+    assert!(matches!(
+        store.unarchive_actor_as(&old.id, Writer::Admin),
+        Err(ActorWriteError::NameTaken { .. })
+    ));
+    assert!(matches!(
+        store.unarchive_actor_as(&new.id, Writer::Admin),
+        Err(ActorWriteError::ArchivedNotFound(_))
+    ));
+    store.delete_actor("default", "worker").unwrap();
+    let back = store.unarchive_actor_as(&old.id, Writer::Admin).unwrap();
+    assert!(back.archived_at.is_none());
+    assert_eq!(
+        store.get_actor("default", "worker").unwrap().unwrap().id,
+        old.id
+    );
+    assert_eq!(store.list_enabled_schedules().unwrap().len(), 1);
+}
+
+#[test]
+fn an_archived_actor_of_a_deleted_workspace_stays_archived_when_the_key_is_reused() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store = Store::open(&temporary.path().join("feld.db")).unwrap();
+    let launch = launch("/tmp/archive");
+    store.create_workspace("research").unwrap();
+    let old = store
+        .create_actor("research", "worker", ActorKind::Job, &launch, None, None)
+        .unwrap();
+    store
+        .archive_actor_as("research", "worker", Writer::Admin)
+        .unwrap();
+    store.delete_workspace("research").unwrap();
+    store.create_workspace("research").unwrap();
+
+    assert!(matches!(
+        store.unarchive_actor_as(&old.id, Writer::Admin),
+        Err(ActorWriteError::WorkspaceNotFound(_))
+    ));
+    assert!(store.get_actor("research", "worker").unwrap().is_none());
+    let new = store
+        .create_actor("research", "worker", ActorKind::Job, &launch, None, None)
+        .unwrap();
+    assert_ne!(new.id, old.id);
+    assert!(
+        store
+            .get_actor_by_id(&old.id)
+            .unwrap()
+            .unwrap()
+            .archived_at
+            .is_some()
+    );
+}
+
+#[test]
 fn a_store_of_schema_5_keeps_its_session_tokens() {
     let temporary = tempfile::tempdir().unwrap();
     let path = temporary.path().join("feld.db");
@@ -1552,6 +1653,9 @@ fn a_store_of_schema_5_keeps_its_session_tokens() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP INDEX actor_live_name;
+             ALTER TABLE actors DROP COLUMN archived_at;
+             CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
              PRAGMA user_version = 5;",
         )
         .unwrap();
@@ -1614,6 +1718,9 @@ fn a_store_of_schema_6_keeps_its_telemetry() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP INDEX actor_live_name;
+             ALTER TABLE actors DROP COLUMN archived_at;
+             CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
              PRAGMA user_version = 6;",
         )
         .unwrap();
@@ -1694,6 +1801,9 @@ fn a_store_of_schema_7_keeps_its_records_and_takes_missed_ticks() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP INDEX actor_live_name;
+             ALTER TABLE actors DROP COLUMN archived_at;
+             CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
              PRAGMA user_version = 7;",
         )
         .unwrap();
@@ -1791,6 +1901,9 @@ fn a_store_of_schema_9_takes_since_from_the_observation_records() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP INDEX actor_live_name;
+             ALTER TABLE actors DROP COLUMN archived_at;
+             CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
              PRAGMA user_version = 9;",
         )
         .unwrap();
@@ -2065,6 +2178,9 @@ fn telemetry_retention_brings_a_migrated_session_within_the_limit() {
     connection
         .execute_batch(
             "ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP INDEX actor_live_name;
+             ALTER TABLE actors DROP COLUMN archived_at;
+             CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
              PRAGMA user_version = 14;",
         )
         .unwrap();

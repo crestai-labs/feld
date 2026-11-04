@@ -27,7 +27,7 @@ import { actorStateTooltip, useChartTooltip } from "./charts/hover.tsx";
 // widths dragged outside the pane stay out, so typing or resizing there leaves it as drawn.
 type BandsView = Pick<AgentsState,
   | "workspace" | "query" | "mode" | "anchor" | "duration" | "metricsDuration" | "actorOrder" | "actorPins"
-  | "showAgentsOutsideRange" | "showSubAgents" | "frozenBandIds" | "actorsCollapsed" | "metricsCollapsed"
+  | "showAgentsOutsideRange" | "showArchivedActors" | "showSubAgents" | "frozenBandIds" | "actorsCollapsed" | "metricsCollapsed"
   | "actorWidth" | "visibleActorDetails" | "actorColumnWidths" | "agentsPaneHeight" | "visibleMetricIds"
   | "timelineGuideOpen" | "agentDisplayMenuOpen" | "metricsMenuOpen" | "actionMenuAgent"
   | "inspectedSessionId" | "actorCard" | "focusedActorId" | "compactLayout">;
@@ -43,6 +43,7 @@ function selectBandsView(state: AgentsState): BandsView {
     actorOrder: state.actorOrder,
     actorPins: state.actorPins,
     showAgentsOutsideRange: state.showAgentsOutsideRange,
+    showArchivedActors: state.showArchivedActors,
     showSubAgents: state.showSubAgents,
     frozenBandIds: state.frozenBandIds,
     actorsCollapsed: state.actorsCollapsed,
@@ -506,10 +507,12 @@ function BandMarks({ agent, state }: { agent: ActorRecord; state: BandsView }) {
   const unread = model.unreadMarkFor(agent, state);
   const unlinked = model.unlinkedMarkFor(agent);
   const deleted = agent.deletedAt ? `Deleted ${model.dateTime.format(agent.deletedAt)} ${model.ZONE} (Control Plane fact) · its Sessions and Messages stay` : null;
-  if (!skip && !unread && !unlinked && !deleted) return null;
+  const archived = agent.archivedAt && !agent.deletedAt ? `Archived ${model.dateTime.format(agent.archivedAt)} ${model.ZONE} (Control Plane fact) · its Sessions and Messages stay` : null;
+  if (!skip && !unread && !unlinked && !deleted && !archived) return null;
   return (
     <span className="feld-agents__marks">
       {deleted ? <span className="feld-agents__unread is-idle" title={deleted} aria-label={deleted}><span>deleted</span></span> : null}
+      {archived ? <span className="feld-agents__unread is-idle" title={archived} aria-label={archived}><span>archived</span></span> : null}
       {skip ? (
         <button type="button" className="feld-agents__unread is-skip" data-action="open-job" data-agent-id={agent.id} data-skip-id={skip.skipId} title={skip.title} aria-label={skip.title} onClick={() => openJob(agent.id, skip.skipId)}>
           <svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.4"></circle><path d="M3.8 8.2 8.2 3.8"></path></svg>

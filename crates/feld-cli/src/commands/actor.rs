@@ -36,6 +36,8 @@ pub async fn run(
         ActorCommand::Create(args) => create(ctx, args, options).await,
         ActorCommand::Update(args) => update(ctx, args, options).await,
         ActorCommand::Delete(target) => delete(ctx, &target.actor).await,
+        ActorCommand::Archive(target) => archive(ctx, &target.actor).await,
+        ActorCommand::Unarchive(args) => unarchive(ctx, &args.id).await,
         ActorCommand::Get(args) => get(ctx, &args.target).await,
         ActorCommand::List(args) => list(ctx, args).await,
         ActorCommand::Start(target) => start(ctx, &target.actor).await,
@@ -231,6 +233,39 @@ async fn delete(ctx: &Context, actor: &str) -> CliResult<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+async fn archive(ctx: &Context, actor: &str) -> CliResult<ExitCode> {
+    let daemon = Daemon::connect(ctx).await?;
+    let response: ActorResponse = daemon
+        .post(&format!("{}/archive", actor_path(&ctx.workspace, actor)))
+        .await?;
+    ctx.print(&response, |response| {
+        let actor = &response.actor;
+        println!("Actor archived.");
+        change_line("actor:", &kinded(&actor.name, actor.kind));
+        change_line("id:", &actor.id);
+        change_line(
+            "archived_at:",
+            &ctx.local_time_or_dash(actor.archived_at.as_deref()),
+        );
+    })?;
+    Ok(ExitCode::SUCCESS)
+}
+
+async fn unarchive(ctx: &Context, id: &str) -> CliResult<ExitCode> {
+    let daemon = Daemon::connect(ctx).await?;
+    let response: ActorResponse = daemon
+        .post(&format!("/v1/actors/{}/unarchive", percent_encode(id)))
+        .await?;
+    ctx.print(&response, |response| {
+        let actor = &response.actor;
+        println!("Actor unarchived.");
+        change_line("actor:", &kinded(&actor.name, actor.kind));
+        change_line("id:", &actor.id);
+        change_line("workspace:", &actor.workspace);
+    })?;
+    Ok(ExitCode::SUCCESS)
+}
+
 /// An Actor ID never matches the name grammar, so the target alone says which it is.
 async fn get(ctx: &Context, target: &str) -> CliResult<ExitCode> {
     let daemon = Daemon::connect(ctx).await?;
@@ -252,6 +287,9 @@ async fn list(ctx: &Context, args: ActorListArgs) -> CliResult<ExitCode> {
     let mut query = Vec::new();
     if let Some(kind) = args.kind {
         query.push(("kind", kind.as_str()));
+    }
+    if args.include_archived {
+        query.push(("includeArchived", "true"));
     }
     if args.include_deleted {
         query.push(("includeDeleted", "true"));
@@ -339,6 +377,9 @@ async fn list(ctx: &Context, args: ActorListArgs) -> CliResult<ExitCode> {
                         grants_summary(&actor.grants),
                         accept_from_summary(actor.accept_from.as_ref()),
                     ];
+                    if args.include_archived {
+                        row.push(ctx.local_time_or_dash(actor.archived_at.as_deref()));
+                    }
                     if args.include_deleted {
                         row.push(ctx.local_time_or_dash(actor.deleted_at.as_deref()));
                     }
@@ -359,6 +400,9 @@ async fn list(ctx: &Context, args: ActorListArgs) -> CliResult<ExitCode> {
                 "GRANTS",
                 "ACCEPT_FROM",
             ];
+            if args.include_archived {
+                headers.push("ARCHIVED");
+            }
             if args.include_deleted {
                 headers.push("DELETED");
             }
@@ -393,7 +437,9 @@ fn is_active(actor: &Actor) -> bool {
             .schedule
             .as_ref()
             .is_some_and(|schedule| schedule.enabled);
-    actor.deleted_at.is_none() && (actor.current_session.is_some() || scheduled)
+    actor.archived_at.is_none()
+        && actor.deleted_at.is_none()
+        && (actor.current_session.is_some() || scheduled)
 }
 
 async fn start(ctx: &Context, actor: &str) -> CliResult<ExitCode> {

@@ -114,6 +114,7 @@ export function createInitialState(workspace: string | null | undefined, now: In
     showSubAgents: true,
     showScheduleSkips: true,
     showAgentsOutsideRange: false,
+    showArchivedActors: false,
     showDeletedActors: false,
     actorPins: storedActorPins(),
     actorOrder: storedActorOrder(),

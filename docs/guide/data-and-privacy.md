@@ -67,6 +67,6 @@ The Runtime config root refers to `CLAUDE_CONFIG_DIR` (or `~/.claude` if unset) 
 | `feld uninstall` | What was written to the Runtime config root (restored to the original values; values the user changed after `feld init` are kept) and the Feld home settings (Plugins, tokens, daemon records and logs, spool) | `sessions/` and the store |
 | `feld uninstall --purge` | In addition to the above, `sessions/` and the store | — |
 
-- The daemon deletes Telemetry by its limit and retention period ([What Feld reads](#what-feld-reads)). The way to actually delete other records is `feld uninstall --purge` (deletes the whole history). `feld actor delete`, `feld workspace delete`, and `feld message delete` only hide items from lists, and the records remain in the store.
+- The daemon deletes Telemetry by its limit and retention period ([What Feld reads](#what-feld-reads)). The way to actually delete other records is `feld uninstall --purge` (deletes the whole history). `feld actor archive`, `feld actor delete`, `feld workspace delete`, and `feld message delete` only hide items from lists, and the records remain in the store.
 - Claude Code transcripts and Codex rollouts are managed by the Runtime and remain in each Runtime's config root.
 - Remove the line in the shell config file by hand. The `next:` output of `feld uninstall` shows the file containing that line.

@@ -167,9 +167,9 @@ impl Store {
                 connection,
                 "WHERE m.deleted_at IS NULL
                    AND (?1 IS NULL OR ta.workspace_id = (SELECT id FROM workspaces WHERE key = ?1 AND deleted_at IS NULL))
-                   AND (?2 IS NULL OR (fa.name = ?2 AND fa.deleted_at IS NULL
+                   AND (?2 IS NULL OR (fa.name = ?2 AND fa.archived_at IS NULL AND fa.deleted_at IS NULL
                                        AND (?1 IS NULL OR fa.workspace_key = ?1)))
-                   AND (?3 IS NULL OR (ta.name = ?3 AND ta.deleted_at IS NULL))
+                   AND (?3 IS NULL OR (ta.name = ?3 AND ta.archived_at IS NULL AND ta.deleted_at IS NULL))
                    AND (?4 = 0 OR m.read_id IS NULL)
                    AND (?5 IS NULL OR m.accepted >= ?5)
                    AND (?6 IS NULL OR m.accepted < ?6)

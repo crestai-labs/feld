@@ -76,7 +76,7 @@ impl Store {
                 connection,
                 &format!(
                     "WHERE {IN_WORKSPACE}
-                       AND (?2 IS NULL OR (a.name = ?2 AND a.deleted_at IS NULL))
+                       AND (?2 IS NULL OR (a.name = ?2 AND a.archived_at IS NULL AND a.deleted_at IS NULL))
                        AND (?3 IS NULL OR a.kind = ?3)
                        AND (?4 = 0 OR s.end IS NULL)
                      ORDER BY s.start DESC, s.id DESC"

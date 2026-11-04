@@ -817,6 +817,80 @@ fn deleted_actor_keeps_its_id_and_frees_its_name() {
     assert_eq!(recreated["actor"]["deletedAt"], Value::Null);
 }
 
+#[test]
+fn archived_actor_frees_its_name_and_unarchives_while_the_name_is_free() {
+    let fixture = Fixture::new();
+    fixture.start();
+    let created = fixture.json(&[
+        "actor",
+        "create",
+        "shelved",
+        "--kind",
+        "job",
+        "--cron",
+        "0 0 1 1 *",
+        "--json",
+        "--",
+        "true",
+    ]);
+    let id = created["actor"]["id"].as_str().unwrap().to_owned();
+
+    let archived = fixture.json(&["actor", "archive", "shelved", "--json"]);
+    assert_eq!(archived["actor"]["id"], id);
+    assert!(archived["actor"]["archivedAt"].is_string());
+    assert_eq!(archived["actor"]["deletedAt"], Value::Null);
+    assert_eq!(archived["actor"]["schedule"]["nextRun"], Value::Null);
+    assert_eq!(
+        fixture.feld(&["actor", "get", "shelved"]).status.code(),
+        Some(1)
+    );
+    let listed_ids = |arguments: &[&str]| -> Vec<Value> {
+        fixture.json(arguments)["actors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|actor| actor["id"].clone())
+            .collect()
+    };
+    assert!(!listed_ids(&["actor", "list", "-a", "--json"]).contains(&json!(id)));
+    assert!(
+        listed_ids(&["actor", "list", "-a", "--include-archived", "--json"]).contains(&json!(id))
+    );
+    let table = fixture.feld(&["actor", "list", "-a", "--include-archived"]);
+    let table = String::from_utf8(table.stdout).unwrap();
+    assert!(
+        table.lines().nth(1).unwrap().ends_with("ARCHIVED"),
+        "{table}"
+    );
+
+    let recreated = fixture.json(&[
+        "actor", "create", "shelved", "--kind", "job", "--json", "--", "true",
+    ]);
+    assert_ne!(recreated["actor"]["id"], id);
+    assert_eq!(
+        fixture.feld(&["actor", "unarchive", &id]).status.code(),
+        Some(1)
+    );
+    fixture.json(&["actor", "delete", "shelved", "--json"]);
+    let unarchived = fixture.feld(&["actor", "unarchive", &id]);
+    assert!(
+        String::from_utf8_lossy(&unarchived.stdout).starts_with("Actor unarchived.\n"),
+        "{}",
+        String::from_utf8_lossy(&unarchived.stderr)
+    );
+    let back = fixture.json(&["actor", "get", "shelved", "--json"]);
+    assert_eq!(back["actor"]["id"], id);
+    assert_eq!(back["actor"]["archivedAt"], Value::Null);
+    assert!(back["actor"]["schedule"]["nextRun"].is_string());
+    assert_eq!(
+        fixture
+            .feld(&["actor", "unarchive", "shelved"])
+            .status
+            .code(),
+        Some(2)
+    );
+}
+
 /// A hyphenated option no command defines is an argument error (exit 2), also where it reads
 /// like `--<provider>-<key>`, and the Actor stays.
 #[test]
@@ -957,7 +1031,7 @@ fn provider_option_without_a_value_is_refused_and_declares_nothing() {
 }
 
 #[test]
-fn actor_with_a_running_session_is_not_deleted() {
+fn actor_with_a_running_session_is_not_deleted_or_archived() {
     let fixture = Fixture::new();
     fixture.start();
     let started = fixture.json(&[
@@ -983,6 +1057,12 @@ fn actor_with_a_running_session_is_not_deleted() {
     let kept = fixture.json(&["actor", "get", "busy", "--json"]);
     assert_eq!(kept["actor"]["id"], started["actor"]["id"]);
     assert_eq!(kept["actor"]["deletedAt"], Value::Null);
+    assert_eq!(
+        fixture.feld(&["actor", "archive", "busy"]).status.code(),
+        Some(1)
+    );
+    let kept = fixture.json(&["actor", "get", "busy", "--json"]);
+    assert_eq!(kept["actor"]["archivedAt"], Value::Null);
 }
 
 /// `glossary.md`: a rename keeps the `id`, the Sessions and the mailbox, and waits for the

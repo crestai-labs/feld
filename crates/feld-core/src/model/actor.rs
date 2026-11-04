@@ -109,6 +109,8 @@ pub struct Actor {
     pub accept_from: Option<BTreeSet<String>>,
     pub created_at: String,
     pub updated_at: String,
+    /// When the Actor was archived; None while it is live or after an unarchive.
+    pub archived_at: Option<String>,
     pub deleted_at: Option<String>,
     pub current_session: Option<Session>,
     pub latest_session: Option<Session>,
@@ -126,8 +128,8 @@ impl Actor {
     pub fn derive(&mut self, last_skipped_at: Option<&str>) {
         if let Some(schedule) = &mut self.schedule {
             schedule.derive_next_run();
-            // A deleted Actor is no longer a start target, so its Schedule never fires again.
-            if self.deleted_at.is_some() {
+            // An archived or deleted Actor is no start target, so its Schedule does not fire.
+            if self.archived_at.is_some() || self.deleted_at.is_some() {
                 schedule.next_run = None;
             }
         }

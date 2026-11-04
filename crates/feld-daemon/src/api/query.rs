@@ -99,6 +99,8 @@ pub(super) struct WorkspaceQuery {
 pub(super) struct ActorQuery {
     pub(super) kind: Option<String>,
     #[serde(default, deserialize_with = "flag")]
+    pub(super) include_archived: bool,
+    #[serde(default, deserialize_with = "flag")]
     pub(super) include_deleted: bool,
 }
 
