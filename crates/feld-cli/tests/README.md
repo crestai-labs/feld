@@ -31,7 +31,7 @@ The tests write nothing to the environment of the person running them, and read 
 
 Read only: one test each in `claude_code_session.rs`, `codex_session.rs`, and `herdr_provider.rs` takes the modification times of the real `~/.claude/settings.json` and `~/.codex`, and checks after the test that they have not changed.
 
-The tmux servers under `target/` (or `/tmp/feld-tmux-<checksum>`) remain after the tests. `tmux -L <name> kill-server` or `cargo clean` removes them.
+The tmux servers under `target/` (or `/tmp/feld-tmux-<checksum>`) remain after the tests. `TMUX_TMPDIR=<that directory> tmux -L <name> kill-server` stops one, and removing the directory (`cargo clean` for `target/`) removes them.
 
 ## Running the real Claude Code and Codex
 
