@@ -104,6 +104,7 @@ const WRITER: &str = r#"  - name: writer
 const REVIEWER: &str = r#"  - name: reviewer
     kind: agent
     runtime: claude-code
+    providerOptions: {}
     acceptFrom: [writer]
 "#;
 

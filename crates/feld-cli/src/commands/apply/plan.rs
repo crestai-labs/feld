@@ -146,6 +146,13 @@ fn differences(
 fn declared_fields(declared: &DeclaredActor, file: &str) -> BTreeMap<String, Value> {
     let mut fields = BTreeMap::new();
     flatten("", &json!(declared.launch), &mut fields);
+    // Empty `providerOptions` leave every option to the Execution Provider, as omitted ones do.
+    if fields
+        .get("providerOptions")
+        .is_some_and(|options| options.as_object().is_some_and(serde_json::Map::is_empty))
+    {
+        fields.remove("providerOptions");
+    }
     if let Some(schedule) = &declared.schedule {
         fields.insert("schedule.cron".to_owned(), json!(schedule.cron));
         if let Some(timezone) = &schedule.timezone {
@@ -283,6 +290,18 @@ mod tests {
     fn an_applied_actor_matches_without_the_fields_the_daemon_fills() {
         let changes = plan(
             &declaration(vec![declared("dispatcher")]),
+            &[actor("dispatcher", Some("harness"))],
+        )
+        .expect("plan");
+        assert!(changes.is_empty(), "{changes:?}");
+    }
+
+    #[test]
+    fn empty_provider_options_leave_the_options_to_the_provider() {
+        let mut empty = declared("dispatcher");
+        empty.launch.provider_options = Some(json!({}));
+        let changes = plan(
+            &declaration(vec![empty]),
             &[actor("dispatcher", Some("harness"))],
         )
         .expect("plan");
