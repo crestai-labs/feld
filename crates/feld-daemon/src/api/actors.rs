@@ -167,7 +167,7 @@ fn toggles_only(request: &UpdateActorRequest) -> bool {
 
 pub(super) async fn update_actor(
     State(state): State<AppState>,
-    Caller(auth): Caller,
+    RequesterCaller(auth): RequesterCaller,
     Path((workspace, actor)): Path<(String, String)>,
     ApiJson(request): ApiJson<UpdateActorRequest>,
 ) -> Result<Json<ActorResponse>, ApiError> {
@@ -181,6 +181,7 @@ pub(super) async fn update_actor(
     {
         auth.require_admin("`trustWorkdir`")?;
     }
+    let requester_session_id = auth.session_id.clone();
     let writer = if !toggles_only(&request) || auth.is_admin() {
         authorize_manage(&state, &auth, &workspace, &actor, None)?;
         auth.writer()
@@ -211,6 +212,7 @@ pub(super) async fn update_actor(
             request.accept_from.as_ref().map(Option::as_ref),
             request.caller.as_ref(),
             writer,
+            requester_session_id.as_deref(),
         )
     })
     .await

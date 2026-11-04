@@ -1570,7 +1570,7 @@ export interface components {
             model: unknown;
         };
         /** @enum {string} */
-        RecordKind: "session.started" | "session.ended" | "spawned" | "message.accepted" | "message.sent" | "message.read" | "stop.requested" | "kill.requested" | "observation" | "schedule.skipped" | "schedule.missed";
+        RecordKind: "session.started" | "session.ended" | "spawned" | "message.accepted" | "message.sent" | "message.read" | "stop.requested" | "kill.requested" | "observation" | "schedule.skipped" | "schedule.missed" | "schedule.paused" | "schedule.resumed";
         /** @description record */
         Record: {
             /** @description Global order */
@@ -1592,6 +1592,7 @@ export interface components {
              *     `message.read`: `messageId`, `readId`, `fifo`.
              *     `schedule.skipped`: `planned`, `currentSessionId`.
              *     `schedule.missed`: `planned`, `reason`.
+             *     `schedule.paused` / `schedule.resumed`: `requesterSessionId`.
              */
             data: Record<string, unknown>;
         };

@@ -428,7 +428,7 @@ fn control_pauses_and_resumes_a_job_with_grants() {
         "sleep",
         "60",
     ]);
-    let (_, token) = fixture.current_token("lead");
+    let (lead_session, token) = fixture.current_token("lead");
     let as_session = |arguments: &[&str]| {
         fixture
             .command()
@@ -459,6 +459,39 @@ fn control_pauses_and_resumes_a_job_with_grants() {
     assert_eq!(enabled(), false);
     let resumed = successful_json(&resume, as_session(&resume));
     assert_eq!(resumed["actor"]["schedule"]["enabled"], true);
+    fixture.json(&pause);
+
+    // Each pause and resume is a record naming the Session that asked for it, null for the Admin.
+    let (api, admin) = fixture.api();
+    let toggles: Vec<(Value, Value)> = Client::new()
+        .get(format!(
+            "{api}/v1/records?actor=dispatcher&workspace=default"
+        ))
+        .bearer_auth(admin.trim())
+        .send()
+        .unwrap()
+        .json::<Value>()
+        .unwrap()["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|record| record["kind"].as_str().unwrap().starts_with("schedule."))
+        .map(|record| {
+            (
+                record["kind"].clone(),
+                record["data"]["requesterSessionId"].clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        toggles,
+        [
+            (json!("schedule.paused"), json!(lead_session)),
+            (json!("schedule.resumed"), json!(lead_session)),
+            (json!("schedule.paused"), Value::Null),
+        ]
+    );
+    fixture.json(&resume);
 
     // The cron, the timezone and the launchSpec stay the Admin's, alone or with `enabled`.
     refused(

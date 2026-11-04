@@ -181,6 +181,7 @@ impl Store {
                 schedule,
                 grants,
                 accept_from: None,
+                requester_session_id: None,
             },
             default_timezone,
             Writer::Admin,
@@ -204,6 +205,7 @@ impl Store {
             schedule,
             grants,
             accept_from,
+            requester_session_id,
         } = patch;
         self.write("Actor update", |transaction, notices| {
             let current = get_actor(transaction, workspace, name)?.ok_or_else(|| {
@@ -250,6 +252,7 @@ impl Store {
                 if current.kind != ActorKind::Job {
                     return Err(ActorWriteError::NotJob(name.to_owned()));
                 }
+                let was_enabled = current.schedule.as_ref().map(|schedule| schedule.enabled);
                 let schedule = match current.schedule {
                     Some(existing) => existing.apply_patch(patch, &at),
                     None => Schedule::from_patch(patch, &at, default_timezone)
@@ -259,6 +262,14 @@ impl Store {
                     .validate()
                     .map_err(ActorWriteError::InvalidSchedule)?;
                 write_schedule(transaction, &current.id, Some(&schedule))?;
+                if was_enabled.is_some_and(|was| was != schedule.enabled) {
+                    let kind = if schedule.enabled {
+                        RecordKind::ScheduleResumed
+                    } else {
+                        RecordKind::SchedulePaused
+                    };
+                    append_toggle(transaction, &current.id, kind, &at, requester_session_id)?;
+                }
             }
             if let Some(grants) = grants {
                 transaction
@@ -329,6 +340,29 @@ impl Store {
             Ok(actor)
         })
     }
+}
+
+/// Records a pause or a resume of the Schedule of the Actor `id`, with the Session that asked
+/// for it.
+fn append_toggle(
+    transaction: &Connection,
+    id: &str,
+    kind: RecordKind,
+    at: &str,
+    requester_session_id: Option<&str>,
+) -> Result<()> {
+    transaction
+        .execute(
+            "INSERT INTO records (at, kind, actor_id, session_id, data) VALUES (?1, ?2, ?3, NULL, ?4)",
+            params![
+                at,
+                Text(kind),
+                id,
+                serde_json::json!({ "requesterSessionId": requester_session_id }).to_string()
+            ],
+        )
+        .context("append Schedule toggle")?;
+    Ok(())
 }
 
 /// Who writes an Actor. A Session writes only an Actor without grants or `trustWorkdir` of a
@@ -410,6 +444,9 @@ pub struct ActorPatch<'a> {
     pub schedule: Option<&'a SchedulePatch>,
     pub grants: Option<&'a BTreeSet<Grant>>,
     pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+    /// The Session that asks for the update, which a pause or a resume records as its
+    /// requester; `None` for the Admin.
+    pub requester_session_id: Option<&'a str>,
 }
 
 impl ActorPatch<'_> {

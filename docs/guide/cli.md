@@ -1122,7 +1122,7 @@ feld record <COMMAND>
 
 ### feld record list
 
-Lists Feld [records](../spec/concepts/glossary.md#record) in commit order. Shows Session starts and ends, spawns, observations, Messages, lifecycle requests, and skipped or missed ticks oldest first with their `SEQ`; the trailing `next cursor:` is the value for the next `--after`.
+Lists Feld [records](../spec/concepts/glossary.md#record) in commit order. Shows Session starts and ends, spawns, observations, Messages, lifecycle requests, skipped or missed ticks, and Schedule pauses and resumes oldest first with their `SEQ`; the trailing `next cursor:` is the value for the next `--after`.
 
 ```text
 feld record list [OPTIONS]

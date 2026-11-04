@@ -64,7 +64,7 @@ Used by the CLI and scripts. The daemon issues a new one at each startup and sav
 
 A token that uniquely points to one Session, issued by the daemon when the Session starts or is attached. Every operation called from inside a Session uses it, and the hooks and helpers of the [Runtime Adapter](../concepts/glossary.md#runtime-adapter) use the same token.
 
-The token is the basis of identity. The daemon determines a Message's `from` / `fromSessionId`, a spawned record's `spawner` / `spawnerSessionId`, stop / kill's `requesterSessionId`, and a mailbox read's `sessionId` from the Session token attached to the request. The request body and environment variables play no part in identity, and the caller has no room to declare these.
+The token is the basis of identity. The daemon determines a Message's `from` / `fromSessionId`, a spawned record's `spawner` / `spawnerSessionId`, the `requesterSessionId` of stop / kill and pause / resume, and a mailbox read's `sessionId` from the Session token attached to the request. The request body and environment variables play no part in identity, and the caller has no room to declare these.
 
 It is valid only while the Session has no `end` and it is the last token issued to that Session. Requests with the token of a closed Session are rejected, and the Runtime API and requests that determine `spawner` / `from` / the requester return session closed ([Token revocation](#token-revocation)).
 
@@ -184,6 +184,7 @@ What the token determines, and operations determined by token kind:
 
 - `spawner` of start and restart: the Session's Actor for a Session token, `Admin` for the Admin token
 - stop / kill: among authorized requests, only `owned` Sessions accept them. `attached` Sessions have no stop API. `requesterSessionId` is that Session for a Session token, null for the Admin token
+- pause / resume: `requesterSessionId` of `schedule.paused` / `schedule.resumed` is determined the same way as stop / kill
 - A Message's `from`: the Session's Actor for a Session token, `Admin` for the Admin token
 - telemetry (`POST /v1/self/telemetry`) and telemetry token verification (`POST /v1/self/telemetry/token`): internal token only. Telemetry is attributed to a Session by the telemetry token that the Runtime Adapter attached to the telemetry header, and telemetry without a token is discarded. Attribution details are in [`otel.md`](otel.md), and aggregation is in [`metrics.md`](metrics.md)
 - pairing (`POST /v1/ui/pair`): requires no token and decides by the pairing code

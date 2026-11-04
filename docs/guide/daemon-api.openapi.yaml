@@ -2225,7 +2225,7 @@ components:
 
     RecordKind:
       type: string
-      enum: [session.started, session.ended, spawned, message.accepted, message.sent, message.read, stop.requested, kill.requested, observation, schedule.skipped, schedule.missed]
+      enum: [session.started, session.ended, spawned, message.accepted, message.sent, message.read, stop.requested, kill.requested, observation, schedule.skipped, schedule.missed, schedule.paused, schedule.resumed]
 
     Record:
       type: object
@@ -2251,6 +2251,7 @@ components:
             `message.read`: `messageId`, `readId`, `fifo`.
             `schedule.skipped`: `planned`, `currentSessionId`.
             `schedule.missed`: `planned`, `reason`.
+            `schedule.paused` / `schedule.resumed`: `requesterSessionId`.
 
     TranscriptEntry:
       type: object
