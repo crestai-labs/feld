@@ -484,6 +484,11 @@ pub async fn run(
     };
     home.write_owner_file(&home.token_path(), token.as_bytes())?;
     home.write_owner_file(&home.record_path(), &serde_json::to_vec(&record)?)?;
+    eprintln!(
+        "Feld daemon {version} started at {} (pid {})",
+        status.started_at, status.pid
+    );
+    crate::usage::watch(tokio::runtime::Handle::current())?;
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let schedule_notify = Arc::new(Notify::new());
