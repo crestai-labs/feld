@@ -39,7 +39,8 @@ const FILE_LIMIT: u64 = BODY_LIMIT + 64 * 1024;
 /// How many requests of one directory the daemon handles at once. The rest wait in the
 /// directory, so a sandbox that writes many requests delays only its own.
 const HANDLING_LIMIT: usize = 16;
-/// How many requests the daemon checks off the async workers at once.
+/// How many requests the daemon checks off the async workers at once. A directory checks one
+/// at a time, so a slow check delays only its own directory.
 const ADMIT_LIMIT: usize = 8;
 
 /// Serves the spool of the Feld home until `shutdown`. The daemon creates the spool when it
@@ -75,7 +76,7 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
     }
 
     let mut handling = JoinSet::new();
-    let mut limits: HashMap<PathBuf, Arc<Semaphore>> = HashMap::new();
+    let mut limits: HashMap<PathBuf, (Arc<Semaphore>, Admission)> = HashMap::new();
     let admitting = Arc::new(Semaphore::new(ADMIT_LIMIT));
     let mut scan = tokio::time::interval(SCAN_INTERVAL);
     loop {
@@ -97,14 +98,20 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
         let present = directories(&spool);
         limits.retain(|path, _| present.iter().any(|(_, directory)| directory == path));
         for (owner, directory) in present {
-            let limit = limits
-                .entry(directory.clone())
-                .or_insert_with(|| Arc::new(Semaphore::new(HANDLING_LIMIT)));
+            let (limit, admission) = limits.entry(directory.clone()).or_insert_with(|| {
+                (
+                    Arc::new(Semaphore::new(HANDLING_LIMIT)),
+                    Admission {
+                        directory: Arc::new(Semaphore::new(1)),
+                        daemon: Arc::clone(&admitting),
+                    },
+                )
+            });
             for (id, taken, permit) in take_waiting(&directory, limit) {
                 let handled = handle(
                     state.clone(),
                     router.clone(),
-                    admitting.clone(),
+                    admission.clone(),
                     Place {
                         owner: owner.clone(),
                         path: directory.clone(),
@@ -133,6 +140,39 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
 /// wake the next pass without end.
 fn wakes(event: &notify::Result<notify::Event>) -> bool {
     !matches!(event, Ok(event) if event.kind.is_access())
+}
+
+/// The permits a request holds while its caller is checked: one of its directory's and one
+/// of the daemon's.
+#[derive(Clone)]
+struct Admission {
+    directory: Arc<Semaphore>,
+    daemon: Arc<Semaphore>,
+}
+
+impl Admission {
+    /// Waits for both permits, and gives up with `None` once the CLI of `file` ends.
+    async fn enter(&self, file: &File) -> Option<[OwnedSemaphorePermit; 2]> {
+        // The semaphores are never closed.
+        let acquire = async {
+            let directory = Arc::clone(&self.directory).acquire_owned().await.ok()?;
+            let daemon = Arc::clone(&self.daemon).acquire_owned().await.ok()?;
+            Some([directory, daemon])
+        };
+        tokio::pin!(acquire);
+        let mut check = tokio::time::interval(SCAN_INTERVAL);
+        check.tick().await;
+        loop {
+            tokio::select! {
+                permits = &mut acquire => return permits,
+                _ = check.tick() => {
+                    if abandoned(file) {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// One directory of the spool: whose requests it takes, and where it is.
@@ -293,13 +333,13 @@ fn abandoned(file: &File) -> bool {
 async fn handle(
     state: AppState,
     router: Router,
-    admitting: Arc<Semaphore>,
+    admission: Admission,
     place: Place,
     id: String,
     file: File,
     shutdown: watch::Receiver<bool>,
 ) {
-    let Some(response) = answer(state, router, admitting, &place, &id, &file).await else {
+    let Some(response) = answer(state, router, admission, &place, &id, &file).await else {
         return;
     };
     // A response that comes while the daemon stops may answer for the stop itself; the request
@@ -314,7 +354,7 @@ async fn handle(
 async fn answer(
     state: AppState,
     router: Router,
-    admitting: Arc<Semaphore>,
+    admission: Admission,
     place: &Place,
     id: &str,
     file: &File,
@@ -325,14 +365,17 @@ async fn answer(
         return None;
     }
     // The check of the caller reads the process table, so it runs off the async workers.
+    let Some(permits) = admission.enter(file).await else {
+        remove(&taken);
+        return None;
+    };
     let admitted = {
         let id = id.to_owned();
         let file = file.try_clone();
         let owner = place.owner.clone();
-        // The semaphore is never closed.
-        let _permit = admitting.acquire_owned().await;
         tokio::task::spawn_blocking(move || admit(&state, &owner, file, &id)).await
     };
+    drop(permits);
     let request = match admitted {
         Ok(Ok(request)) => request,
         Ok(Err(refused)) => return Some(refused),
@@ -859,6 +902,56 @@ mod tests {
         taken.truncate(HANDLING_LIMIT - 1);
         assert_eq!(take_waiting(dir.path(), &limit).len(), 1);
         assert_eq!(waiting_requests(dir.path()).len(), 3);
+    }
+
+    /// A directory checks one request at a time, so a slow check of one directory leaves the
+    /// daemon's permits to the others.
+    #[tokio::test]
+    async fn a_directory_checks_one_request_at_a_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("request");
+        let file = File::create(&path).unwrap();
+        let lock = File::open(&path).unwrap();
+        lock.lock_exclusive().unwrap();
+        let daemon = Arc::new(Semaphore::new(ADMIT_LIMIT));
+        let admission = || Admission {
+            directory: Arc::new(Semaphore::new(1)),
+            daemon: Arc::clone(&daemon),
+        };
+        let (slow, other) = (admission(), admission());
+
+        let held = slow.enter(&file).await.unwrap();
+        let waiting = tokio::time::timeout(Duration::from_millis(100), slow.enter(&file)).await;
+        assert!(waiting.is_err(), "the directory waits for its own check");
+        assert_eq!(daemon.available_permits(), ADMIT_LIMIT - 1);
+        let checked = other.enter(&file).await;
+        assert!(checked.is_some(), "another directory is checked meanwhile");
+        drop(held);
+    }
+
+    /// A request waiting for its check is cancelled once its CLI ends.
+    #[tokio::test]
+    async fn a_request_waiting_for_its_check_is_cancelled_with_its_cli() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("request");
+        let file = File::create(&path).unwrap();
+        let lock = File::open(&path).unwrap();
+        lock.lock_exclusive().unwrap();
+        let admission = Admission {
+            directory: Arc::new(Semaphore::new(1)),
+            daemon: Arc::new(Semaphore::new(ADMIT_LIMIT)),
+        };
+        let _held = admission.enter(&file).await.unwrap();
+
+        let waiting = admission.enter(&file);
+        tokio::pin!(waiting);
+        assert!(
+            tokio::time::timeout(SCAN_INTERVAL * 2, &mut waiting)
+                .await
+                .is_err()
+        );
+        drop(lock);
+        assert!(waiting.await.is_none());
     }
 
     #[test]
