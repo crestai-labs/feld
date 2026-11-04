@@ -2,8 +2,8 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
-use crate::store::{CreateWorkspace, WorkspaceDeleteError};
-use feld_core::id::valid_key;
+use crate::store::{AcceptFrom, CreateWorkspace, WorkspaceDeleteError};
+use feld_core::id::{valid_actor_pattern, valid_key};
 
 use super::AppState;
 use super::auth::{AdminCaller, Caller};
@@ -74,4 +74,62 @@ pub(super) async fn delete_workspace(
         error(status, &error_value.to_string())
     })?;
     Ok(Json(WorkspaceResponse { workspace }))
+}
+
+pub(super) async fn allow_from(
+    State(state): State<AppState>,
+    _caller: AdminCaller,
+    Path((workspace, from_workspace, actor)): Path<(String, String, String)>,
+) -> Result<Json<WorkspaceResponse>, ApiError> {
+    let from = accept_from(&workspace, from_workspace, actor)?;
+    let workspace = state
+        .workspaces
+        .allow_from(&workspace, &from)
+        .map_err(internal)?
+        .ok_or_else(|| workspace_not_found(&workspace))?;
+    Ok(Json(WorkspaceResponse { workspace }))
+}
+
+pub(super) async fn deny_from(
+    State(state): State<AppState>,
+    _caller: AdminCaller,
+    Path((workspace, from_workspace, actor)): Path<(String, String, String)>,
+) -> Result<Json<WorkspaceResponse>, ApiError> {
+    let from = accept_from(&workspace, from_workspace, actor)?;
+    let workspace = state
+        .workspaces
+        .deny_from(&workspace, &from)
+        .map_err(internal)?
+        .ok_or_else(|| workspace_not_found(&workspace))?;
+    Ok(Json(WorkspaceResponse { workspace }))
+}
+
+/// The Actors of another Workspace that `workspace` accepts Messages from.
+fn accept_from(
+    workspace: &str,
+    from_workspace: String,
+    actor: String,
+) -> Result<AcceptFrom, ApiError> {
+    if !valid_key(&from_workspace) {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "Workspace keys must match ^[a-z0-9][a-z0-9-]*$",
+        ));
+    }
+    if from_workspace == workspace {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "a Workspace accepts Messages from its own Actors; acceptFrom names another Workspace",
+        ));
+    }
+    if !valid_actor_pattern(&actor) {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "Actor patterns are Actor names, ^[a-z0-9][a-z0-9-]*$, in which `*` stands for any run of characters",
+        ));
+    }
+    Ok(AcceptFrom {
+        workspace: from_workspace,
+        actor,
+    })
 }

@@ -1552,6 +1552,7 @@ fn a_store_of_schema_5_keeps_its_session_tokens() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP TABLE workspace_accept_from;
              PRAGMA user_version = 5;",
         )
         .unwrap();
@@ -1614,6 +1615,7 @@ fn a_store_of_schema_6_keeps_its_telemetry() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP TABLE workspace_accept_from;
              PRAGMA user_version = 6;",
         )
         .unwrap();
@@ -1694,6 +1696,7 @@ fn a_store_of_schema_7_keeps_its_records_and_takes_missed_ticks() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP TABLE workspace_accept_from;
              PRAGMA user_version = 7;",
         )
         .unwrap();
@@ -1791,6 +1794,7 @@ fn a_store_of_schema_9_takes_since_from_the_observation_records() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP TABLE workspace_accept_from;
              PRAGMA user_version = 9;",
         )
         .unwrap();
@@ -2065,6 +2069,7 @@ fn telemetry_retention_brings_a_migrated_session_within_the_limit() {
     connection
         .execute_batch(
             "ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             DROP TABLE workspace_accept_from;
              PRAGMA user_version = 14;",
         )
         .unwrap();

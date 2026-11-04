@@ -275,7 +275,7 @@ that Actor, and follow them as far as the job description you were given says.";
 /// longer one carries an excerpt and the command that prints the whole body, so that the
 /// line reaches the model uncut.
 pub fn message_line(message: &Message, limit: Option<usize>) -> String {
-    let from = message.from.name();
+    let from = message.from.name_in(&message.to.workspace);
     let line = |fields: &[(&str, &str)]| {
         let mut entry = Map::new();
         entry.insert("id".into(), json!(message.id));
@@ -467,12 +467,20 @@ mod tests {
         let mut from_actor = message("x");
         from_actor.from = Requester::Actor {
             id: "actor_7e21b0".into(),
-            workspace: "default".into(),
+            workspace: from_actor.to.workspace.clone(),
             name: "admin".into(),
+        };
+        // An Actor of another Workspace goes by its qualified name.
+        let mut from_other = message("x");
+        from_other.from = Requester::Actor {
+            id: "actor_7e21b1".into(),
+            workspace: "team-b".into(),
+            name: "lead".into(),
         };
         for (message, from, kind) in [
             (from_admin, "Admin", "admin"),
             (from_actor, "admin", "actor"),
+            (from_other, "team-b/lead", "actor"),
         ] {
             let line: Value = serde_json::from_str(&message_line(&message, None)).unwrap();
             assert_eq!(line["message"]["from"], from);

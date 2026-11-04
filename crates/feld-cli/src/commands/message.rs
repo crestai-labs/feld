@@ -92,8 +92,11 @@ pub async fn run(ctx: &Context, command: MessageCommand) -> CliResult<ExitCode> 
                     .map(|message| {
                         vec![
                             message.id.clone(),
-                            message.from.name().to_owned(),
-                            message.to.name.clone(),
+                            message.from.name_in(&message.to.workspace),
+                            match message.from.workspace() {
+                                Some(workspace) => message.to.name_in(workspace),
+                                None => message.to.name.clone(),
+                            },
                             message.label.clone().unwrap_or_else(|| "-".to_owned()),
                             ctx.local_time(&message.accepted),
                             message_state(message.waiting, message.queued.as_ref()).to_owned(),

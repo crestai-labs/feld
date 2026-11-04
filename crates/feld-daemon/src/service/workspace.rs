@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::store::{CreateWorkspace, Store, Workspace, WorkspaceDeleteError};
+use crate::store::{AcceptFrom, CreateWorkspace, Store, Workspace, WorkspaceDeleteError};
 
 pub struct WorkspaceService {
     store: Arc<Store>,
@@ -23,6 +23,14 @@ impl WorkspaceService {
 
     pub fn get(&self, key: &str) -> Result<Option<Workspace>> {
         self.store.get_workspace(key)
+    }
+
+    pub fn allow_from(&self, key: &str, from: &AcceptFrom) -> Result<Option<Workspace>> {
+        self.store.allow_from(key, from)
+    }
+
+    pub fn deny_from(&self, key: &str, from: &AcceptFrom) -> Result<Option<Workspace>> {
+        self.store.deny_from(key, from)
     }
 
     pub fn delete(&self, key: &str) -> std::result::Result<Workspace, WorkspaceDeleteError> {

@@ -59,7 +59,7 @@ async fn message_recv(ctx: &Context, wait: bool) -> CliResult<()> {
                 &mut output,
                 "--- {} from {} at {}",
                 message.id,
-                message.from.name(),
+                message.from.name_in(&message.to.workspace),
                 ctx.local_time(&message.accepted)
             )
             .context("format mailbox Message header")?;

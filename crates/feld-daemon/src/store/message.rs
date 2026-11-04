@@ -13,11 +13,13 @@ use super::admission::RequestIdentity;
 use super::error::MessageWriteError;
 use super::record::{append_actor_record, append_record};
 use super::session::requester;
+use super::workspace::workspace_accepts;
 
 #[derive(Default)]
 pub struct MessageFilter<'a> {
     pub workspace: Option<&'a str>,
-    /// The name of a live Actor that sent the Message.
+    /// The name of a live Actor that sent the Message, in `workspace` when given, and
+    /// `workspace/actor` for one of another Workspace.
     pub from: Option<&'a str>,
     /// The name of a live Actor the Message is addressed to.
     pub to: Option<&'a str>,
@@ -40,27 +42,39 @@ impl Store {
     ) -> std::result::Result<Message, MessageWriteError> {
         self.write("Message send", |transaction, notices| {
             revalidate_message_identity(transaction, identity, token)?;
-            // An Actor sends within its Workspace, before it learns whether the Actor exists.
-            if let Requester::Actor {
-                workspace: own_workspace,
-                ..
-            } = identity.requester
-                && own_workspace != workspace
-            {
-                return Err(MessageWriteError::OtherWorkspace(workspace.to_owned()));
-            }
+            // An Actor sends to another Workspace that accepts it, before it learns whether
+            // the Actor exists. The recipient names a sender of another Workspace by its
+            // qualified name.
+            let from = match identity.requester {
+                Requester::Actor {
+                    workspace: own_workspace,
+                    name,
+                    ..
+                } if own_workspace != workspace => {
+                    let qualified = format!("{own_workspace}/{name}");
+                    if !workspace_accepts(transaction, workspace, own_workspace, name)? {
+                        return Err(MessageWriteError::OtherWorkspace {
+                            workspace: workspace.to_owned(),
+                            from: qualified,
+                        });
+                    }
+                    Some(qualified)
+                }
+                Requester::Actor { name, .. } => Some(name.clone()),
+                Requester::Admin => None,
+            };
             let (to_actor_id, _) = live_actor(transaction, workspace, actor)?.ok_or_else(|| {
                 MessageWriteError::ActorNotFound {
                     workspace: workspace.to_owned(),
                     actor: actor.to_owned(),
                 }
             })?;
-            if let Requester::Actor { name: from, .. } = identity.requester
-                && !accepts(transaction, &to_actor_id, from)?
+            if let Some(from) = from
+                && !accepts(transaction, &to_actor_id, &from)?
             {
                 return Err(MessageWriteError::NotAccepted {
                     actor: actor.to_owned(),
-                    from: from.to_owned(),
+                    from,
                 });
             }
             let to_session_id = transaction
@@ -141,6 +155,11 @@ impl Store {
             }
             let message = get_message(transaction, &id)?.context("sent Message disappeared")?;
             notices.push("message", &message.id, Some(&message.to.workspace));
+            if let Requester::Actor { workspace, .. } = &message.from
+                && *workspace != message.to.workspace
+            {
+                notices.push("message", &message.id, Some(workspace));
+            }
             notices.push(
                 "record",
                 message.to_session_id.as_deref().unwrap_or(&message.to.name),
@@ -162,13 +181,17 @@ impl Store {
 
     /// The Messages that are not deleted, oldest first.
     pub fn list_messages(&self, filter: &MessageFilter<'_>) -> Result<Vec<Message>> {
+        let (from_workspace, from_name) = match filter.from.map(|from| from.split_once('/')) {
+            Some(Some((workspace, name))) => (Some(workspace), Some(name)),
+            _ => (None, filter.from),
+        };
         self.read(|connection| {
             list_message_rows(
                 connection,
                 "WHERE m.deleted_at IS NULL
                    AND (?1 IS NULL OR ta.workspace_id = (SELECT id FROM workspaces WHERE key = ?1 AND deleted_at IS NULL))
                    AND (?2 IS NULL OR (fa.name = ?2 AND fa.deleted_at IS NULL
-                                       AND (?1 IS NULL OR fa.workspace_key = ?1)))
+                                       AND fa.workspace_key = COALESCE(?8, ?1, fa.workspace_key)))
                    AND (?3 IS NULL OR (ta.name = ?3 AND ta.deleted_at IS NULL))
                    AND (?4 = 0 OR m.read_id IS NULL)
                    AND (?5 IS NULL OR m.accepted >= ?5)
@@ -177,12 +200,13 @@ impl Store {
                  ORDER BY m.accepted, m.id",
                 params![
                     filter.workspace,
-                    filter.from,
+                    from_name,
                     filter.to,
                     filter.waiting,
                     filter.start,
                     filter.end,
-                    filter.label
+                    filter.label,
+                    from_workspace
                 ],
             )
         })
@@ -208,6 +232,11 @@ impl Store {
                 .context("delete Message")?;
             let message = get_message(transaction, id)?.context("deleted Message disappeared")?;
             notices.push("message", &message.id, Some(&message.to.workspace));
+            if let Requester::Actor { workspace, .. } = &message.from
+                && *workspace != message.to.workspace
+            {
+                notices.push("message", &message.id, Some(workspace));
+            }
             Ok(message)
         })
     }

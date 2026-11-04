@@ -14,7 +14,7 @@ Output examples show the human-readable output in its non-TTY form. `--json` out
 - [feld uninstall](#feld-uninstall)
 - [feld doctor](#feld-doctor)
 - [daemon](#daemon): [start](#feld-daemon-start) / [status](#feld-daemon-status) / [stop](#feld-daemon-stop) / [restart](#feld-daemon-restart)
-- [workspace](#workspace): [list](#feld-workspace-list) / [create](#feld-workspace-create) / [delete](#feld-workspace-delete) / [get](#feld-workspace-get)
+- [workspace](#workspace): [list](#feld-workspace-list) / [create](#feld-workspace-create) / [delete](#feld-workspace-delete) / [get](#feld-workspace-get) / [allow-from](#feld-workspace-allow-from) / [deny-from](#feld-workspace-deny-from)
 - [actor](#actor): [create](#feld-actor-create) / [update](#feld-actor-update) / [delete](#feld-actor-delete) / [get](#feld-actor-get) / [list](#feld-actor-list) / [start](#feld-actor-start) / [attach](#feld-actor-attach) / [restart](#feld-actor-restart) / [pause](#feld-actor-pause) / [resume](#feld-actor-resume)
 - [session](#session): [get](#feld-session-get) / [list](#feld-session-list) / [stop](#feld-session-stop) / [kill](#feld-session-kill) / [observe](#feld-session-observe) / [log](#feld-session-log) / [metrics](#feld-session-metrics)
 - [record](#record): [list](#feld-record-list)
@@ -568,10 +568,39 @@ feld workspace get <KEY>
 ```console
 $ feld workspace get research
 Workspace
-  key:        research
-  actors:     3
-  created_at: 2026-09-08T14:03:11+09:00
-  deleted_at: -
+  key:         research
+  actors:      3
+  accept_from: harness/*-leader
+  created_at:  2026-09-08T14:03:11+09:00
+  deleted_at:  -
+```
+
+### feld workspace allow-from
+
+Accept Messages to the Actors of the Workspace given by `--workspace` from Actors of another Workspace ([acceptFrom](../spec/concepts/glossary.md#workspace)). Only Admin can run it.
+
+```text
+feld workspace allow-from <FROM_WORKSPACE> [ACTOR_PATTERN]
+```
+
+**Arguments**
+
+- `<FROM_WORKSPACE>`: The key of the Workspace the senders belong to
+- `[ACTOR_PATTERN]`: An Actor name, or a glob in which `*` matches any run of characters. Defaults to `*`
+
+```console
+$ feld --workspace research workspace allow-from harness '*-leader'
+Workspace accepts Messages from harness/*-leader.
+  key:         research
+  accept_from: harness/*-leader
+```
+
+### feld workspace deny-from
+
+Remove an entry that `allow-from` added. It takes the same arguments as `allow-from`.
+
+```text
+feld workspace deny-from <FROM_WORKSPACE> [ACTOR_PATTERN]
 ```
 
 ## actor
@@ -624,7 +653,7 @@ feld actor create [OPTIONS] --kind <KIND> <NAME> [-- <COMMAND>...]
 - `--start`: Start a Session after the creation is committed. Default for agent
 - `--no-start`: Do not start a Session. Default for job. Cannot be combined with `--start`
 - `--grant <GRANT>`: [grant](../spec/concepts/glossary.md#grants) that allows the Actor's Sessions to operate on other Actors in the Workspace: `read`, `control`, `manage-agent`, `manage-job`. Can be given multiple times
-- `--accept-from <ACTOR>`: Workspace Actor from which, besides Admin, the Actor accepts Messages. Can be given multiple times. Defaults to every Actor in the Workspace
+- `--accept-from <ACTOR>`: Actor from which, besides Admin, the Actor accepts Messages; `workspace/actor` for an Actor of another Workspace. Can be given multiple times. Defaults to every Actor in the Workspace and every Actor the Workspace accepts
 - [launchSpec options](#launchspec-options)
 
 An agent takes `--runtime` and a job takes `-- <COMMAND>...`; any other combination is rejected without writing the declaration. Only a Job accepts `--cron`, which declares a Schedule. Feld starts a Job with a Schedule from the next tick. Without `--timezone`, the daemon's local timezone is resolved at creation and stored.
@@ -668,7 +697,7 @@ feld actor update [OPTIONS] <ACTOR> [-- <COMMAND>...]
 - `--grant <GRANT>`: grant that replaces all of the Actor's grants: `read`, `control`, `manage-agent`, `manage-job`. Can be given multiple times
 - `--no-grants`: Remove all of the Actor's grants. Cannot be combined with `--grant`
 - `--accept-from <ACTOR>`: Replace all Actors from which Messages are accepted. Can be given multiple times
-- `--no-accept-from`: Return to accepting Messages from every Actor in the Workspace
+- `--no-accept-from`: Return to accepting Messages from every Actor in the Workspace and every Actor the Workspace accepts
 - [launchSpec options](#launchspec-options)
 
 An agent keeps its Runtime and a job keeps its program; an update that gives the other is rejected. Giving any Provider option replaces `providerOptions` entirely, and `--env` replaces `env` entirely. The Schedule keeps `enabled`, and keeps its timezone when `--timezone` is omitted. As with `create`, `--grant` and `--no-grants` are rejected from inside a Session. `--accept-from` replaces acceptFrom entirely with the given Actors, and `--no-accept-from` returns it to omitted.
@@ -1166,7 +1195,7 @@ A Message is addressed to an Actor, not to a Session.
 
 ### feld message send
 
-Sends a Message to an Actor's mailbox. Feld accepts and stores it, and the Message stays `waiting` until a Session of that Actor reads it. The sender is the Actor of the resolved Session token, or Admin if there is none. From inside a Session, a Message can be sent only to Actors in the same Workspace whose [acceptFrom](../spec/concepts/glossary.md#acceptfrom) accepts the sender's Actor.
+Sends a Message to an Actor's mailbox. Feld accepts and stores it, and the Message stays `waiting` until a Session of that Actor reads it. The sender is the Actor of the resolved Session token, or Admin if there is none. From inside a Session, a Message can be sent only to Actors whose [acceptFrom](../spec/concepts/glossary.md#acceptfrom) accepts the sender's Actor, in the same Workspace or in a Workspace that accepts the sender (`feld workspace allow-from`). The sender and recipient of another Workspace are shown by their qualified names `workspace/actor`.
 
 ```text
 feld message send [OPTIONS] <ACTOR> [BODY]
@@ -1250,7 +1279,7 @@ feld message list [OPTIONS]
 
 **Options**
 
-- `--from <ACTOR>`: Limit to Messages sent by this Actor
+- `--from <ACTOR>`: Limit to Messages sent by this Actor; `workspace/actor` for an Actor of another Workspace
 - `--to <ACTOR>`: Limit to Messages addressed to this Actor
 - `--label <LABEL>`: Limit to Messages with this label
 - `--waiting`: Limit to Messages without a read

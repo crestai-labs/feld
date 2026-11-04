@@ -156,7 +156,7 @@ A Session token can call operations on itself, and operations on other Actors ar
 Operations a Session token can call without grants:
 
 - The Runtime API (`/v1/self/*`, except the telemetry endpoints called with the internal token). The target is the Session the token points to. Mailbox retrieval and read recording are limited to the mailbox of that Session's Actor, and the `sessionId` of a read record is determined from the token. Both `feld self message recv` and the Runtime Adapter's helper go through the same path
-- Sending a Message (`POST …/messages`). `from` becomes that Session's Actor. Recipients are limited to Actors in the same Workspace whose [acceptFrom](../concepts/glossary.md#acceptfrom) accepts that Session's Actor. This is checked in the same transaction that places the Message
+- Sending a Message (`POST …/messages`). `from` becomes that Session's Actor. Recipients are limited to Actors whose [acceptFrom](../concepts/glossary.md#acceptfrom) accepts that Session's Actor, in the same Workspace or in a Workspace whose [acceptFrom](../concepts/glossary.md#workspace) accepts that Actor. This is checked in the same transaction that places the Message
 - Its own Actor, and all information of its Session (including transcript, output, metrics, and records)
 - stop / kill of its own Session
 - Reading Messages its own Actor sent and Messages addressed to its own Actor. The Message list is also narrowed to these Messages
@@ -173,7 +173,7 @@ Operations on other Actors in the same Workspace opened by grants:
 
 Operations only the Admin token can call (403 for a Session token):
 
-- Creating and deleting Workspaces, deleting Messages, operations on other Workspaces (including sending Messages), Runtime metrics (`GET /v1/runtimes/{runtime}/metrics`, which aggregates Sessions of all Workspaces)
+- Creating and deleting Workspaces, changing a Workspace's acceptFrom, deleting Messages, operations on other Workspaces (except sending Messages to a Workspace that accepts them), Runtime metrics (`GET /v1/runtimes/{runtime}/metrics`, which aggregates Sessions of all Workspaces)
 - Adding and removing an Actor's `grants` (creation and update that include `grants`)
 - Granting `trustWorkdir` in a launchSpec (creation and update that include `trustWorkdir: true`)
 - attach (`POST …/attach`). The response includes the issued Session token

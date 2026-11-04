@@ -425,7 +425,8 @@ fn encode_accept_from(accept_from: &BTreeSet<String>) -> Result<String> {
     serde_json::to_string(accept_from).context("encode acceptFrom")
 }
 
-/// Whether the Actor `id` accepts a Message from the Actor named `from`.
+/// Whether the Actor `id` accepts a Message from the Actor named `from`: its name in the same
+/// Workspace, or its qualified name `workspace/actor` in another.
 pub(super) fn accepts(connection: &Connection, id: &str, from: &str) -> Result<bool> {
     let accept_from: Option<String> = connection
         .query_row(

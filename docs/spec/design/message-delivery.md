@@ -23,7 +23,7 @@ Sending starts with `feld message send <actor> <body>`, or with `POST /v1/worksp
 
 1. Determine `from` and `fromSessionId` from the request's token. For a Session token, they are that Session's Actor and Session ID. Token verification follows [auth.md](auth.md)
 2. Take the Actor in the path as `to`, and copy that Actor's current Session at the time of acceptance into `toSessionId`
-3. A send with a Session token is accepted only when `to` is in the same Workspace as `from` and the [acceptFrom](../concepts/glossary.md#acceptfrom) of `to` accepts `from`; otherwise it returns 403
+3. A send with a Session token is accepted only when the [acceptFrom](../concepts/glossary.md#acceptfrom) of `to` accepts `from`, and, when `to` is in another Workspace than `from`, the [acceptFrom](../concepts/glossary.md#workspace) of that Workspace accepts `from` too; otherwise it returns 403
 4. Put the Message at the end of the destination Actor's mailbox, record `accepted`, and then respond to the sender
 
 The response contains the Message ID and an `anchor` that is the Message ID prefixed with `feld:`. `feld message send` prints this `anchor`, and the sender's transcript file quotes it, which serves as the key for the insertion described below.
@@ -67,7 +67,7 @@ The line has the following form.
 {"type":"feld_message","message":{"id":"message_f2a9d0","fifo":12,"from":"Admin","fromKind":"admin","fromSessionId":null,"accepted":"2026-09-13T11:45:03+09:00","body":"Please address the review comments"}}
 ```
 
-`fromKind` is the kind of sender: `admin` for the Admin and `actor` for an Actor. `from` is `Admin` for the Admin and the Actor's name for an Actor; an Actor named `admin` and the Admin are distinguished by `fromKind`.
+`fromKind` is the kind of sender: `admin` for the Admin and `actor` for an Actor. `from` is `Admin` for the Admin and the Actor's name for an Actor, the qualified name `workspace/actor` for an Actor of another Workspace; an Actor named `admin` and the Admin are distinguished by `fromKind`.
 
 At the start of a Session, the Adapter passes the meaning of the line to the model as context. Feld conveys the facts about the sender, and how far to trust them is left to the job description the Harness gives. The context conveys the following.
 

@@ -159,6 +159,8 @@ What Feld holds persistently.
 
 A namespace for Actor names. Every Actor belongs to exactly one Workspace, and `name` is unique within the Workspace. A Workspace key follows the same grammar as an Actor's `name`. An Actor in another Workspace is referred to by the qualified name `workspace/actor`. A new Actor is created in the default Workspace unless otherwise specified.
 
+A Workspace has an `acceptFrom`: the Actors of other Workspaces whose Messages its Actors receive, each a pair of a Workspace key and an Actor pattern (an Actor `name`, or a glob in which `*` stands for any run of characters). Empty by default, so only Actors in the same Workspace send to its Actors. Only [Admin](#admin) adds and removes entries.
+
 The default Workspace always exists. `delete` of a Workspace is accepted only for a non-default Workspace that has no live Actors. A deleted Workspace's key leaves the uniqueness constraint, and `create` with the same key makes a different Workspace. A deleted Workspace and its history remain.
 
 ### Actor
@@ -200,7 +202,7 @@ The set of operations on other Actors in the same Workspace that [Admin](#admin)
 
 #### acceptFrom
 
-The list of `name`s of Actors in the same Workspace from which an Actor accepts Messages. Messages from [Admin](#admin) are always accepted. An Actor that omits it accepts from all Actors in the same Workspace. It belongs to the Actor's declaration alongside launchSpec; Admin and Sessions that can manage the Actor ([grants](#grants) `manage-agent` / `manage-job`) set it with `create` and `update`, and `update` replaces it wholesale or returns it to omitted.
+The list of Actors from which an Actor accepts Messages: the `name` of an Actor in the same Workspace, or the qualified name of an Actor in another Workspace. Messages from [Admin](#admin) are always accepted. An Actor that omits it accepts from all Actors in the same Workspace and all Actors its [Workspace](#workspace) accepts. A Message from another Workspace needs both the Workspace's acceptFrom and the Actor's. It belongs to the Actor's declaration alongside launchSpec; Admin and Sessions that can manage the Actor ([grants](#grants) `manage-agent` / `manage-job`) set it with `create` and `update`, and `update` replaces it wholesale or returns it to omitted.
 
 ### Session
 
@@ -318,7 +320,7 @@ Telemetry emitted by the Runtime and attributed to a Session by the [telemetry t
 
 A message sent between Actors, or from Admin to an Actor. It has the following fields.
 
-- `from`: The sender. An Actor's `id`, or `Admin`
+- `from`: The sender. An Actor's `id`, or `Admin`. Display resolves an Actor of another Workspace than the recipient's to its qualified name
 - `fromSessionId`: The sender's Session at acceptance time. Null for `Admin`
 - `to`: The recipient Actor's `id`
 - `toSessionId`: The recipient's current Session at acceptance time. Null if none

@@ -3,8 +3,11 @@
 use std::process::ExitCode;
 
 use feld_daemon::api::{CreateWorkspaceRequest, WorkspaceList, WorkspaceResponse};
+use feld_daemon::store::Workspace;
 
-use crate::args::WorkspaceCommand;
+use reqwest::Method;
+
+use crate::args::{AcceptFromArgs, WorkspaceCommand};
 use crate::client::{Daemon, percent_encode};
 use crate::output::print_table;
 use crate::{CliResult, Context};
@@ -59,11 +62,12 @@ pub async fn run(ctx: &Context, command: WorkspaceCommand) -> CliResult<ExitCode
             ctx.print(&response, |response| {
                 let workspace = &response.workspace;
                 println!("Workspace");
-                println!("  key:        {}", workspace.key);
-                println!("  actors:     {}", workspace.actor_count);
-                println!("  created_at: {}", ctx.local_time(&workspace.created_at));
+                println!("  key:         {}", workspace.key);
+                println!("  actors:      {}", workspace.actor_count);
+                print_accept_from(workspace);
+                println!("  created_at:  {}", ctx.local_time(&workspace.created_at));
                 println!(
-                    "  deleted_at: {}",
+                    "  deleted_at:  {}",
                     ctx.local_time_or_dash(workspace.deleted_at.as_deref())
                 );
             })?;
@@ -81,6 +85,60 @@ pub async fn run(ctx: &Context, command: WorkspaceCommand) -> CliResult<ExitCode
                 );
             })?;
         }
+        WorkspaceCommand::AllowFrom(args) => {
+            let response = accept_from(&daemon, Method::PUT, &ctx.workspace, &args).await?;
+            ctx.print(&response, |response| {
+                println!(
+                    "Workspace accepts Messages from {}/{}.",
+                    args.from_workspace, args.actor
+                );
+                println!("  key:         {}", response.workspace.key);
+                print_accept_from(&response.workspace);
+            })?;
+        }
+        WorkspaceCommand::DenyFrom(args) => {
+            let response = accept_from(&daemon, Method::DELETE, &ctx.workspace, &args).await?;
+            ctx.print(&response, |response| {
+                println!(
+                    "Workspace no longer accepts Messages from {}/{}.",
+                    args.from_workspace, args.actor
+                );
+                println!("  key:         {}", response.workspace.key);
+                print_accept_from(&response.workspace);
+            })?;
+        }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+async fn accept_from(
+    daemon: &Daemon,
+    method: Method,
+    workspace: &str,
+    args: &AcceptFromArgs,
+) -> CliResult<WorkspaceResponse> {
+    let path = format!(
+        "/v1/workspaces/{}/accept-from/{}/{}",
+        percent_encode(workspace),
+        percent_encode(&args.from_workspace),
+        percent_encode(&args.actor)
+    );
+    daemon.send(daemon.call(method, &path)).await
+}
+
+/// The Actors of other Workspaces the Workspace accepts Messages from, as `workspace/actor`.
+fn print_accept_from(workspace: &Workspace) {
+    let accepted: Vec<String> = workspace
+        .accept_from
+        .iter()
+        .map(|from| format!("{}/{}", from.workspace, from.actor))
+        .collect();
+    println!(
+        "  accept_from: {}",
+        if accepted.is_empty() {
+            "-".to_owned()
+        } else {
+            accepted.join(", ")
+        }
+    );
 }

@@ -40,7 +40,7 @@ pub use telemetry::{
     TelemetryAdmission,
 };
 pub use token::AuthenticatedSession;
-pub use workspace::{CreateWorkspace, Workspace};
+pub use workspace::{AcceptFrom, CreateWorkspace, Workspace};
 
 /// The inputs of the Store's writes that the model defines.
 pub use feld_core::model::{LifecycleActionKind, ScheduleDeclaration, SchedulePatch};

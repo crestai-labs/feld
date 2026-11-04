@@ -133,7 +133,7 @@ pub(super) fn message_write_error(error_value: MessageWriteError) -> ApiError {
             StatusCode::NOT_FOUND
         }
         MessageWriteError::WrongMailbox(_)
-        | MessageWriteError::OtherWorkspace(_)
+        | MessageWriteError::OtherWorkspace { .. }
         | MessageWriteError::NotAccepted { .. } => StatusCode::FORBIDDEN,
         MessageWriteError::Read(_) | MessageWriteError::Queued(_) => StatusCode::CONFLICT,
         MessageWriteError::InvalidToken => StatusCode::UNAUTHORIZED,

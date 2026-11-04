@@ -167,6 +167,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{workspace}/accept-from/{fromWorkspace}/{actorPattern}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The key of another Workspace */
+                fromWorkspace: components["schemas"]["Key"];
+                /** @description The Actors of `fromWorkspace`, as a name or a glob */
+                actorPattern: components["schemas"]["ActorPattern"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Accepts Messages from Actors of another Workspace
+         * @description Adds the entry to the Workspace's `acceptFrom`; an entry already present is kept as is.
+         *     A `fromWorkspace` equal to the Workspace, and a parameter that does not match its grammar, get `400`.
+         */
+        put: operations["allowWorkspaceFrom"];
+        post?: never;
+        /**
+         * Stops accepting Messages from Actors of another Workspace
+         * @description Removes the entry from the Workspace's `acceptFrom`; an absent entry leaves it as is.
+         */
+        delete: operations["denyWorkspaceFrom"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{workspace}/actors": {
         parameters: {
             query?: never;
@@ -228,7 +260,7 @@ export interface paths {
          *     `schedule` replaces only those of `cron`, `timezone`, and `enabled` that are present, and only a Job accepts it. For a Job without a Schedule, `cron` is required and a Schedule is created. A `schedule` for an Agent, and a `schedule` without `cron` for a Job without a Schedule, get `400`.
          *     Toggling `schedule.enabled` is pause / resume.
          *     `grants` replaces the Actor's grants entirely. Only an Admin token can give it; a Session token request that includes `grants` gets `403`.
-         *     `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting from all Actors in the same Workspace).
+         *     `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting from all Actors the Workspace accepts).
          *     A request with no `name`, no fields in `launchSpec` or `schedule`, and neither `grants` nor `acceptFrom` gets `400`.
          *     Changes to launchSpec and Schedule leave the current Session untouched and take effect from the next launch.
          */
@@ -360,7 +392,7 @@ export interface paths {
          * @description `from` and `fromSessionId` are determined by the token: Admin for a `localToken`, and the Actor of that Session for a `sessionToken`.
          *     `toSessionId` is the recipient's current Session at the time of acceptance.
          *     A `body` that is empty after trimming, and a `label` that does not match the `Key` grammar, get `400`.
-         *     With a `sessionToken`, sending to an Actor in another Workspace, or to an Actor whose `acceptFrom` does not accept that Session's Actor, gets `403`.
+         *     With a `sessionToken`, sending to an Actor in another Workspace whose `acceptFrom` does not accept that Session's Actor, or to an Actor whose `acceptFrom` does not accept it, gets `403`.
          *     The `sessionToken` of a closed Session gets `409` as session closed.
          */
         post: operations["sendMessage"];
@@ -1084,11 +1116,22 @@ export interface components {
             id: string;
             key: components["schemas"]["Key"];
             actorCount: number;
+            /** @description Actors of other Workspaces from which the Workspace's Actors receive Messages. Empty, only Actors in the same Workspace send to them */
+            acceptFrom: components["schemas"]["WorkspaceAcceptFrom"][];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             deletedAt: string | null;
         };
+        WorkspaceAcceptFrom: {
+            workspace: components["schemas"]["Key"];
+            actor: components["schemas"]["ActorPattern"];
+        };
+        /**
+         * @description An Actor `name`, or a glob in which `*` matches any run of characters
+         * @example *-leader
+         */
+        ActorPattern: string;
         WorkspaceResponse: {
             workspace: components["schemas"]["Workspace"];
         };
@@ -1096,8 +1139,8 @@ export interface components {
         ActorKind: "agent" | "job";
         /** @description Operations on other Actors in the same Workspace that Admin allows the Actor's Session */
         Grants: ("read" | "control" | "manage-agent" | "manage-job")[];
-        /** @description Names of Actors in the same Workspace from which the Actor receives Messages in addition to Admin */
-        AcceptFrom: components["schemas"]["Key"][];
+        /** @description Actors from which the Actor receives Messages in addition to Admin. The `name` of an Actor in the same Workspace, and `workspace/actor` for an Actor in another Workspace */
+        AcceptFrom: string[];
         /**
          * @description The caller's own location, obtained by the creating or updating CLI from the Provider's `self`. The Provider's `resolve` fills omitted `providerOptions` from it.
          * @example {
@@ -2174,6 +2217,70 @@ export interface operations {
             500: components["responses"]["Error"];
         };
     };
+    allowWorkspaceFrom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The key of another Workspace */
+                fromWorkspace: components["schemas"]["Key"];
+                /** @description The Actors of `fromWorkspace`, as a name or a glob */
+                actorPattern: components["schemas"]["ActorPattern"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Workspace */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            500: components["responses"]["Error"];
+        };
+    };
+    denyWorkspaceFrom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The key of another Workspace */
+                fromWorkspace: components["schemas"]["Key"];
+                /** @description The Actors of `fromWorkspace`, as a name or a glob */
+                actorPattern: components["schemas"]["ActorPattern"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Workspace */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            500: components["responses"]["Error"];
+        };
+    };
     listActors: {
         parameters: {
             query?: {
@@ -2860,7 +2967,7 @@ export interface operations {
             query?: {
                 /** @description Filters the target by Workspace key. Omitted, targets all Workspaces. */
                 workspace?: components["parameters"]["WorkspaceFilter"];
-                /** @description The `name` of the sender Actor */
+                /** @description The `name` of the sender Actor, in the `workspace` when it is given; `workspace/actor` for a sender in another Workspace */
                 from?: string;
                 /** @description The `name` of the recipient Actor */
                 to?: string;
