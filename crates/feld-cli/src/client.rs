@@ -195,6 +195,14 @@ impl Daemon {
         self.send(self.call(Method::PATCH, path).json(body)).await
     }
 
+    pub async fn put_json<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &(impl Serialize + ?Sized),
+    ) -> CliResult<T> {
+        self.send(self.call(Method::PUT, path).json(body)).await
+    }
+
     pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> CliResult<T> {
         self.send(self.call(Method::DELETE, path)).await
     }

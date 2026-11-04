@@ -58,7 +58,8 @@ pub(super) fn actor_write_error(error_value: ActorWriteError) -> ApiError {
         ActorWriteError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
         ActorWriteError::Granted(_)
         | ActorWriteError::Trusted(_)
-        | ActorWriteError::Unmanaged { .. } => StatusCode::FORBIDDEN,
+        | ActorWriteError::Unmanaged { .. }
+        | ActorWriteError::OthersLabel(_) => StatusCode::FORBIDDEN,
         ActorWriteError::KindMismatch { .. }
         | ActorWriteError::Running { .. }
         | ActorWriteError::NameTaken { .. }
@@ -66,7 +67,8 @@ pub(super) fn actor_write_error(error_value: ActorWriteError) -> ApiError {
         ActorWriteError::NotJob(_)
         | ActorWriteError::NoSchedule(_)
         | ActorWriteError::InvalidLaunch(_)
-        | ActorWriteError::InvalidSchedule(_) => StatusCode::BAD_REQUEST,
+        | ActorWriteError::InvalidSchedule(_)
+        | ActorWriteError::InvalidLabel(_) => StatusCode::BAD_REQUEST,
         ActorWriteError::Database(cause) => return internal(cause),
     };
     error(status, &error_value.to_string())

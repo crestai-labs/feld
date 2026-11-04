@@ -159,6 +159,7 @@ Operations a Session token can call without grants:
 - Sending a Message (`POST …/messages`). `from` becomes that Session's Actor. Recipients are limited to Actors in the same Workspace whose [acceptFrom](../concepts/glossary.md#acceptfrom) accepts that Session's Actor. This is checked in the same transaction that places the Message
 - Its own Actor, and all information of its Session (including transcript, output, metrics, and records)
 - stop / kill of its own Session
+- Setting and clearing the [labels](../concepts/glossary.md#labels) of its own Actor. The labels of other Actors return 403 whatever the grants
 - Reading Messages its own Actor sent and Messages addressed to its own Actor. The Message list is also narrowed to these Messages
 - Lists and states of Actors and Sessions in the same Workspace (reading and listing Workspaces, Actors, and Sessions, re-observing Sessions, SSE). These exclude transcript, output, metrics, records, and Message bodies. Another Actor's `launchSpec` and its Session's `execution.command` may hold secrets in `env` or arguments, so they are null in responses
 - `GET /v1/runtimes`, `GET /v1/providers`, daemon status (`GET /v1/daemon/status`)

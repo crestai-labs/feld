@@ -13,8 +13,9 @@ use super::error::{ApiError, actor_error, actor_write_error, control_error, erro
 use super::query::{ActorQuery, ApiJson, ApiQuery};
 use super::types::{
     ActorList, ActorResponse, AttachActorRequest, AttachResponse, CreateActorRequest,
-    RestartResponse, StartResponse, UpdateActorRequest,
+    RestartResponse, SetLabelRequest, StartResponse, UpdateActorRequest,
 };
+use crate::store::LabelWriter;
 
 pub(super) async fn list_actors(
     State(state): State<AppState>,
@@ -209,6 +210,51 @@ pub(super) async fn delete_actor(
         .map_err(actor_write_error)?;
     auth.conceal_actor(&mut actor);
     Ok(Json(ActorResponse { actor }))
+}
+
+pub(super) async fn set_label(
+    State(state): State<AppState>,
+    RequesterCaller(auth): RequesterCaller,
+    Path((workspace, actor, key)): Path<(String, String, String)>,
+    ApiJson(request): ApiJson<SetLabelRequest>,
+) -> Result<Json<ActorResponse>, ApiError> {
+    auth.require_workspace(&workspace)?;
+    let mut actor = state
+        .actors
+        .set_label(
+            &workspace,
+            &actor,
+            &key,
+            request.until.as_deref(),
+            request.reason.as_deref(),
+            label_writer(&auth),
+        )
+        .map_err(actor_write_error)?;
+    auth.conceal_actor(&mut actor);
+    Ok(Json(ActorResponse { actor }))
+}
+
+pub(super) async fn clear_label(
+    State(state): State<AppState>,
+    RequesterCaller(auth): RequesterCaller,
+    Path((workspace, actor, key)): Path<(String, String, String)>,
+) -> Result<Json<ActorResponse>, ApiError> {
+    auth.require_workspace(&workspace)?;
+    let mut actor = state
+        .actors
+        .clear_label(&workspace, &actor, &key, label_writer(&auth))
+        .map_err(actor_write_error)?;
+    auth.conceal_actor(&mut actor);
+    Ok(Json(ActorResponse { actor }))
+}
+
+/// Who a label write is by: the Admin, or the Session of the token, which writes only the
+/// labels of its own Actor.
+fn label_writer(auth: &AuthContext) -> LabelWriter<'_> {
+    match auth.session_id.as_deref() {
+        Some(session) if !auth.is_admin() => LabelWriter::Session(session),
+        _ => LabelWriter::Admin,
+    }
 }
 
 pub(super) async fn start_actor(

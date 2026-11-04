@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use feld_core::model::{Actor, Grant, LaunchSpec, Schedule};
+use feld_core::model::{Actor, ActorLabel, Grant, LaunchSpec, Schedule};
 use feld_core::process::command_line;
 
 use crate::Context;
@@ -23,11 +23,25 @@ pub fn actor_marks(actor: &Actor) -> String {
     ]
     .into_iter()
     .filter_map(|(shown, mark)| shown.then_some(mark))
+    .chain(actor.labels.iter().map(|label| label.key.as_str()))
     .collect();
     if marks.is_empty() {
         "-".to_owned()
     } else {
         marks.join(",")
+    }
+}
+
+/// The keys of an Actor's labels, or `-` without any.
+pub fn label_summary(labels: &[ActorLabel]) -> String {
+    if labels.is_empty() {
+        "-".to_owned()
+    } else {
+        labels
+            .iter()
+            .map(|label| label.key.as_str())
+            .collect::<Vec<_>>()
+            .join(",")
     }
 }
 
@@ -241,6 +255,23 @@ pub fn print_actor_detail(ctx: &Context, actor: &Actor) {
         "deleted_at:",
         &ctx.local_time_or_dash(actor.deleted_at.as_deref()),
     );
+    if !actor.labels.is_empty() {
+        println!("Labels ({})", actor.labels.len());
+        let rows: Vec<Vec<String>> = actor
+            .labels
+            .iter()
+            .map(|label| {
+                vec![
+                    label.key.clone(),
+                    ctx.local_time_or_dash(label.until.as_deref()),
+                    label.by.as_str().to_owned(),
+                    ctx.local_time(&label.set_at),
+                    label.reason.clone().unwrap_or_else(|| "-".to_owned()),
+                ]
+            })
+            .collect();
+        print_table(&["KEY", "UNTIL", "BY", "SET_AT", "REASON"], &rows);
+    }
     println!("Sessions ({})", actor.sessions.len());
     let rows: Vec<Vec<String>> = actor
         .sessions

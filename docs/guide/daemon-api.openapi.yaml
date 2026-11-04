@@ -587,6 +587,66 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
         "500": { $ref: "#/components/responses/Error" }
 
+  /v1/workspaces/{workspace}/actors/{actor}/labels/{key}:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+      - name: key
+        in: path
+        required: true
+        description: The key of the label. Follows the same grammar as `Key`
+        schema: { type: string, examples: [waiting-upstream] }
+    put:
+      tags: [Actor]
+      operationId: setActorLabel
+      summary: Sets a label on an Actor
+      description: |
+        Replaces the label of the same key, and records `label.set`. `by` is `admin` for a `localToken` or browser token, and `actor` for a `sessionToken`.
+        A `sessionToken` sets labels only on the Actor of its Session; another Actor gets `403`.
+        A `key` that does not match the `Key` grammar, and an `until` that is not RFC 3339 or is not after now, get `400`.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                until: { type: string, format: date-time, description: When the label lapses. Omitted, it stays until cleared }
+                reason: { type: string }
+      responses:
+        "200":
+          description: The labelled Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Actor]
+      operationId: clearActorLabel
+      summary: Clears a label of an Actor
+      description: |
+        Records `label.cleared`. An Actor without the label stays as it is, and nothing is recorded.
+        A `sessionToken` clears labels only of the Actor of its Session; another Actor gets `403`.
+        The `sessionToken` of a closed Session gets `409` as session closed.
+      responses:
+        "200":
+          description: The Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/SessionClosed" }
+        "500": { $ref: "#/components/responses/Error" }
+
   /v1/workspaces/{workspace}/actors/{actor}/messages:
     parameters:
       - $ref: "#/components/parameters/Workspace"
@@ -1840,7 +1900,7 @@ components:
 
     Actor:
       type: object
-      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, createdAt, updatedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
+      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, labels, createdAt, updatedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
       properties:
         id: { type: string, description: "ID assigned by Feld. Remains on the Actor after deletion", examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
         name: { $ref: "#/components/schemas/Key" }
@@ -1861,6 +1921,10 @@ components:
           oneOf:
             - $ref: "#/components/schemas/AcceptFrom"
             - type: "null"
+        labels:
+          description: By key. A label whose `until` has passed is removed on the read and recorded as `label.expired`
+          type: array
+          items: { $ref: "#/components/schemas/ActorLabel" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         deletedAt: { type: [string, "null"], format: date-time }
@@ -1885,6 +1949,16 @@ components:
         unreadMail: { type: boolean }
         skipMark: { type: boolean }
         unlinkedMark: { type: boolean, description: "True when the current Session is an `owned` `agent-runtime` Session whose Runtime identity has not arrived yet" }
+
+    ActorLabel:
+      type: object
+      required: [key, until, reason, by, setAt]
+      properties:
+        key: { $ref: "#/components/schemas/Key" }
+        until: { type: [string, "null"], format: date-time, description: When the label lapses. null stays until cleared }
+        reason: { type: [string, "null"] }
+        by: { type: string, enum: [admin, actor], description: "`admin`, or `actor` for a Session of the Actor" }
+        setAt: { type: string, format: date-time }
 
     ActorResponse:
       type: object
@@ -2225,7 +2299,7 @@ components:
 
     RecordKind:
       type: string
-      enum: [session.started, session.ended, spawned, message.accepted, message.sent, message.read, stop.requested, kill.requested, observation, schedule.skipped, schedule.missed]
+      enum: [session.started, session.ended, spawned, message.accepted, message.sent, message.read, stop.requested, kill.requested, observation, schedule.skipped, schedule.missed, label.set, label.cleared, label.expired]
 
     Record:
       type: object
@@ -2251,6 +2325,9 @@ components:
             `message.read`: `messageId`, `readId`, `fifo`.
             `schedule.skipped`: `planned`, `currentSessionId`.
             `schedule.missed`: `planned`, `reason`.
+            `label.set`: `key`, `until`, `reason`, `by`; `sessionId` is the setting Session for `by: actor`.
+            `label.cleared`: `key`, `by`.
+            `label.expired`: `key`, `until`, `by` of the label.
 
     TranscriptEntry:
       type: object

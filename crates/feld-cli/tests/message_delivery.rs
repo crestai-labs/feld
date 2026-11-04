@@ -2441,3 +2441,102 @@ fn a_session_sends_within_its_workspace_to_an_actor_that_accepts_it() {
     assert!(cleared["actor"]["acceptFrom"].is_null(), "{cleared}");
     fixture.session_json(&lead, &send);
 }
+
+/// A Session labels its own Actor with `feld self label`, and only its own; the Admin labels
+/// any Actor. The labels show in `actor list`, `actor get` and the records.
+#[test]
+fn a_session_labels_its_own_actor_and_the_admin_any() {
+    let fixture = Fixture::new();
+    fixture.start();
+    fixture.create_job("developer", true);
+    fixture.create_job("reviewer", true);
+    let (session, developer) = fixture.current_token("developer");
+
+    let labelled = fixture.session_json(
+        &developer,
+        &[
+            "self",
+            "label",
+            "set",
+            "waiting-upstream",
+            "--until",
+            "50m",
+            "--reason",
+            "the monthly job holds the API",
+            "--json",
+        ],
+    );
+    let label = &labelled["actor"]["labels"][0];
+    assert_eq!(labelled["actor"]["name"], "developer");
+    assert_eq!(label["key"], "waiting-upstream");
+    assert_eq!(label["by"], "actor");
+    assert_eq!(label["reason"], "the monthly job holds the API");
+    let until = feld_core::time::parse(label["until"].as_str().unwrap()).unwrap();
+    let ahead = until - chrono::Utc::now();
+    assert!(ahead > chrono::TimeDelta::minutes(49) && ahead <= chrono::TimeDelta::minutes(50));
+
+    let output = fixture
+        .command()
+        .env("FELD_SESSION_TOKEN", &developer)
+        .args([
+            "actor",
+            "label",
+            "set",
+            "reviewer",
+            "phase-review",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+    let message = error["error"]["message"].as_str().unwrap();
+    assert!(
+        message.contains("403") && message.contains("own Actor"),
+        "{message}"
+    );
+
+    let labelled = fixture.json(&[
+        "actor",
+        "label",
+        "set",
+        "reviewer",
+        "phase-review",
+        "--json",
+    ]);
+    assert_eq!(labelled["actor"]["labels"][0]["by"], "admin");
+    assert_eq!(labelled["actor"]["labels"][0]["until"], Value::Null);
+
+    let listed = String::from_utf8(fixture.feld(&["actor", "list"]).stdout).unwrap();
+    for (actor, mark) in [
+        ("developer", "waiting-upstream"),
+        ("reviewer", "phase-review"),
+    ] {
+        let row = listed
+            .lines()
+            .find(|line| line.starts_with(actor))
+            .unwrap_or_else(|| panic!("{listed}"));
+        assert!(row.split_whitespace().any(|cell| cell == mark), "{row}");
+    }
+    let shown = String::from_utf8(fixture.feld(&["actor", "get", "developer"]).stdout).unwrap();
+    assert!(shown.contains("Labels (1)"), "{shown}");
+    assert!(shown.contains("the monthly job holds the API"), "{shown}");
+
+    let cleared = fixture.session_json(
+        &developer,
+        &["self", "label", "clear", "waiting-upstream", "--json"],
+    );
+    assert_eq!(cleared["actor"]["labels"], json!([]));
+
+    let records = fixture.json(&["record", "list", "--actor", "developer", "--json"]);
+    let labels: Vec<_> = records["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|record| record["kind"].as_str().unwrap().starts_with("label."))
+        .collect();
+    assert_eq!(labels.len(), 2, "{records}");
+    assert_eq!(labels[0]["kind"], "label.set");
+    assert_eq!(labels[0]["sessionId"], session.as_str());
+    assert_eq!(labels[1]["kind"], "label.cleared");
+}

@@ -27,7 +27,7 @@ function apiSession(fields: Partial<FeldApi.Session> & { id: string; actor: stri
 
 function apiActor(name: string, fields: Partial<FeldApi.Actor> = {}): FeldApi.Actor {
   return {
-    id: `actor_${name}`, name, workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", workdir: "/work", provider: "tmux", node: "local" }, schedule: null, grants: [], acceptFrom: null,
+    id: `actor_${name}`, name, workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", workdir: "/work", provider: "tmux", node: "local" }, schedule: null, grants: [], labels: [], acceptFrom: null,
     createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-01T00:00:00Z", deletedAt: null, currentSession: null, latestSession: null, sessions: [],
     attention: false, waitingCount: 0, unreadMail: false, skipMark: false, unlinkedMark: false, ...fields,
   };
@@ -55,6 +55,20 @@ test("a Session keeps its lifecycle facts as the daemon answered them", () => {
   expect(running.end).toBeNull();
   expect(running.placement).toEqual({ provider: "tmux", node: "local", workdir: "/work", summary: "feld:1", attachCommand: "tmux attach -t feld:1" });
   expect(running.execution).toEqual({ type: "agent-runtime", runtime: "claude-code", label: "Claude Code", command: "claude", ai: true });
+});
+
+test("an Actor's labels keep their key, reason, and setter with their instants as epoch milliseconds", () => {
+  const input = toActorsInput(data({
+    actors: [apiActor("dev", { labels: [
+      { key: "needs-admin", until: null, reason: "decide on the column", by: "actor", setAt: "2026-09-25T00:01:00Z" },
+      { key: "waiting-upstream", until: "2026-09-25T02:00:00Z", reason: null, by: "admin", setAt: "2026-09-25T00:02:00Z" },
+    ] }), apiActor("job", { kind: "job" })],
+  }));
+  expect(input.actors[0].labels).toEqual([
+    { key: "needs-admin", until: null, reason: "decide on the column", by: "actor", setAt: Date.parse("2026-09-25T00:01:00Z") },
+    { key: "waiting-upstream", until: Date.parse("2026-09-25T02:00:00Z"), reason: null, by: "admin", setAt: Date.parse("2026-09-25T00:02:00Z") },
+  ]);
+  expect(input.actors[1].labels).toEqual([]);
 });
 
 test("a Session's model is its Runtime until the Runtime Adapter names the model; a program has none", () => {
