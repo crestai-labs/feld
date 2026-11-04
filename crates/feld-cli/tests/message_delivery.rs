@@ -2306,7 +2306,7 @@ fn a_session_token_reads_no_other_launch_spec_and_its_stream_closes_with_its_ses
     assert!(events.contains("resource"), "{events}");
 }
 
-/// A Session token sends to the Actors of its Workspace alone, and an Actor with `acceptFrom`
+/// A Session token sends to the Actors of its Workspace, and an Actor with `acceptFrom`
 /// takes Messages from the Actors it names and from the Admin. A Session that manages the
 /// Actor sets `acceptFrom` too.
 #[test]
@@ -2358,7 +2358,11 @@ fn a_session_sends_within_its_workspace_to_an_actor_that_accepts_it() {
         "hello",
         "--json",
     ];
-    refused(&lead, &remote, "within its Workspace");
+    refused(
+        &lead,
+        &remote,
+        "Workspace 'other' does not accept Messages from Actor 'default/lead'",
+    );
     refused(
         &lead,
         &[
@@ -2370,7 +2374,7 @@ fn a_session_sends_within_its_workspace_to_an_actor_that_accepts_it() {
             "hello",
             "--json",
         ],
-        "within its Workspace",
+        "Workspace 'other' does not accept Messages from Actor 'default/lead'",
     );
     assert_eq!(fixture.json(&remote)["message"]["to"]["workspace"], "other");
 
@@ -2440,4 +2444,165 @@ fn a_session_sends_within_its_workspace_to_an_actor_that_accepts_it() {
     let cleared = fixture.json(&["actor", "update", "worker", "--no-accept-from", "--json"]);
     assert!(cleared["actor"]["acceptFrom"].is_null(), "{cleared}");
     fixture.session_json(&lead, &send);
+}
+
+/// A Session token sends to another Workspace whose `acceptFrom` matches its Actor, and the
+/// recipient reads the sender by its qualified name. An Actor with `acceptFrom` takes it only
+/// when it names the sender as `workspace/actor` too.
+#[test]
+fn a_session_sends_to_another_workspace_that_accepts_it() {
+    let fixture = Fixture::new();
+    fixture.start();
+    fixture.create_job("team-lead", true);
+    fixture.create_job("dev", true);
+    let (_, lead) = fixture.current_token("team-lead");
+    let (_, dev) = fixture.current_token("dev");
+    let socket = fixture.socket.to_str().unwrap();
+    fixture.json(&["workspace", "create", "other", "--json"]);
+    for name in ["other-lead", "inbox"] {
+        fixture.json(&[
+            "--workspace",
+            "other",
+            "actor",
+            "create",
+            name,
+            "--kind",
+            "job",
+            "--tmux-socket",
+            socket,
+            "--json",
+            "--",
+            "sleep",
+            "60",
+        ]);
+    }
+    let refused = |token: &str, arguments: &[&str], expected: &str| {
+        let output = fixture
+            .command()
+            .env("FELD_SESSION_TOKEN", token)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1), "{arguments:?}");
+        let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+        let message = error["error"]["message"].as_str().unwrap();
+        assert!(message.contains(expected), "{message}");
+    };
+    let send = |to: &'static str| {
+        [
+            "--workspace",
+            "other",
+            "message",
+            "send",
+            to,
+            "hello",
+            "--json",
+        ]
+    };
+
+    // Only the Admin changes what a Workspace accepts.
+    let allow = [
+        "--workspace",
+        "other",
+        "workspace",
+        "allow-from",
+        "default",
+        "*-lead",
+        "--json",
+    ];
+    refused(&lead, &allow, "requires the local token or a browser token");
+    let allowed = fixture.json(&allow);
+    assert_eq!(
+        allowed["workspace"]["acceptFrom"],
+        json!([{"workspace": "default", "actor": "*-lead"}])
+    );
+    assert_eq!(
+        fixture.json(&allow)["workspace"]["acceptFrom"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let shown = String::from_utf8(fixture.feld(&["workspace", "get", "other"]).stdout).unwrap();
+    assert!(
+        shown.lines().any(|line| line
+            .split_whitespace()
+            .eq(["accept_from:", "default/*-lead"])),
+        "{shown}"
+    );
+    let own = fixture
+        .command()
+        .args([
+            "--workspace",
+            "other",
+            "workspace",
+            "allow-from",
+            "other",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(own.status.code(), Some(1));
+
+    let sent = fixture.session_json(&lead, &send("other-lead"));
+    assert_eq!(sent["message"]["from"]["type"], "actor");
+    assert_eq!(sent["message"]["from"]["workspace"], "default");
+    assert_eq!(sent["message"]["from"]["name"], "team-lead");
+    assert_eq!(sent["message"]["to"]["workspace"], "other");
+    let id = sent["message"]["id"].as_str().unwrap();
+    // The sender reads what it sent, and a person reads both ends by their qualified names.
+    fixture.session_json(&lead, &["message", "get", id, "--json"]);
+    let shown = String::from_utf8(fixture.feld(&["message", "get", id]).stdout).unwrap();
+    assert!(shown.contains("from:         default/team-lead"), "{shown}");
+    assert!(shown.contains("to:           other/other-lead"), "{shown}");
+    refused(
+        &dev,
+        &send("other-lead"),
+        "Workspace 'other' does not accept Messages from Actor 'default/dev'",
+    );
+
+    // The recipient's `acceptFrom` holds as well, with a qualified name for another Workspace.
+    fixture.json(&[
+        "--workspace",
+        "other",
+        "actor",
+        "update",
+        "inbox",
+        "--accept-from",
+        "other-lead",
+        "--json",
+    ]);
+    refused(
+        &lead,
+        &send("inbox"),
+        "Actor 'inbox' does not accept Messages from Actor 'default/team-lead'",
+    );
+    let updated = fixture.json(&[
+        "--workspace",
+        "other",
+        "actor",
+        "update",
+        "inbox",
+        "--accept-from",
+        "default/team-lead",
+        "--json",
+    ]);
+    assert_eq!(updated["actor"]["acceptFrom"], json!(["default/team-lead"]));
+    fixture.session_json(&lead, &send("inbox"));
+
+    let denied = fixture.json(&[
+        "--workspace",
+        "other",
+        "workspace",
+        "deny-from",
+        "default",
+        "*-lead",
+        "--json",
+    ]);
+    assert_eq!(denied["workspace"]["acceptFrom"], json!([]));
+    refused(
+        &lead,
+        &send("other-lead"),
+        "Workspace 'other' does not accept Messages from Actor 'default/team-lead'",
+    );
 }

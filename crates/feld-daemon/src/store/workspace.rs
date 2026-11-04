@@ -17,8 +17,19 @@ pub struct Workspace {
     pub id: String,
     pub key: String,
     pub actor_count: u64,
+    /// The Actors of other Workspaces whose Messages the Workspace accepts.
+    #[serde(default)]
+    pub accept_from: Vec<AcceptFrom>,
     pub created_at: String,
     pub deleted_at: Option<String>,
+}
+
+/// Actors of another Workspace: those of `workspace` whose name matches `actor`, a name or a
+/// glob in which `*` matches any run of characters.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct AcceptFrom {
+    pub workspace: String,
+    pub actor: String,
 }
 
 #[derive(Debug)]
@@ -39,8 +50,13 @@ impl Store {
             let rows = statement
                 .query_map([include_deleted], workspace_row)
                 .context("query Workspaces")?;
-            rows.collect::<rusqlite::Result<Vec<_>>>()
-                .context("read Workspaces")
+            let mut workspaces = rows
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .context("read Workspaces")?;
+            for workspace in &mut workspaces {
+                workspace.accept_from = accept_from(connection, &workspace.id)?;
+            }
+            Ok(workspaces)
         })
     }
 
@@ -65,6 +81,44 @@ impl Store {
             } else {
                 CreateWorkspace::Exists(workspace)
             })
+        })
+    }
+
+    /// Adds `from` to what the live Workspace `key` accepts Messages from; None when there is
+    /// no such Workspace.
+    pub fn allow_from(&self, key: &str, from: &AcceptFrom) -> Result<Option<Workspace>> {
+        self.write("Workspace acceptFrom", |transaction, notices| {
+            let Some(id) = live_workspace_id(transaction, key)? else {
+                return Ok(None);
+            };
+            transaction
+                .execute(
+                    "INSERT OR IGNORE INTO workspace_accept_from (workspace_id, from_workspace, actor)
+                     VALUES (?1, ?2, ?3)",
+                    params![id, from.workspace, from.actor],
+                )
+                .context("add Workspace acceptFrom")?;
+            notices.push("workspace", key, None);
+            get_workspace(transaction, key)
+        })
+    }
+
+    /// Removes `from` from what the live Workspace `key` accepts Messages from; None when
+    /// there is no such Workspace.
+    pub fn deny_from(&self, key: &str, from: &AcceptFrom) -> Result<Option<Workspace>> {
+        self.write("Workspace acceptFrom", |transaction, notices| {
+            let Some(id) = live_workspace_id(transaction, key)? else {
+                return Ok(None);
+            };
+            transaction
+                .execute(
+                    "DELETE FROM workspace_accept_from
+                     WHERE workspace_id = ?1 AND from_workspace = ?2 AND actor = ?3",
+                    params![id, from.workspace, from.actor],
+                )
+                .context("remove Workspace acceptFrom")?;
+            notices.push("workspace", key, None);
+            get_workspace(transaction, key)
         })
     }
 
@@ -110,13 +164,14 @@ fn workspace_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Workspace> {
         id: row.get(0)?,
         key: row.get(1)?,
         actor_count: row.get(2)?,
+        accept_from: Vec::new(),
         created_at: row.get(3)?,
         deleted_at: row.get(4)?,
     })
 }
 
 fn get_workspace(connection: &Connection, key: &str) -> Result<Option<Workspace>> {
-    connection
+    let workspace = connection
         .query_row(
             &format!(
                 "{WORKSPACE_SELECT} WHERE w.key = ?1 GROUP BY w.id
@@ -126,7 +181,53 @@ fn get_workspace(connection: &Connection, key: &str) -> Result<Option<Workspace>
             workspace_row,
         )
         .optional()
-        .context("read Workspace")
+        .context("read Workspace")?;
+    workspace
+        .map(|mut workspace| {
+            workspace.accept_from = accept_from(connection, &workspace.id)?;
+            Ok(workspace)
+        })
+        .transpose()
+}
+
+fn accept_from(connection: &Connection, workspace_id: &str) -> Result<Vec<AcceptFrom>> {
+    let mut statement = connection
+        .prepare(
+            "SELECT from_workspace, actor FROM workspace_accept_from
+             WHERE workspace_id = ?1 ORDER BY from_workspace, actor",
+        )
+        .context("prepare Workspace acceptFrom")?;
+    let rows = statement
+        .query_map([workspace_id], |row| {
+            Ok(AcceptFrom {
+                workspace: row.get(0)?,
+                actor: row.get(1)?,
+            })
+        })
+        .context("query Workspace acceptFrom")?;
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .context("read Workspace acceptFrom")
+}
+
+/// Whether the live Workspace `workspace` accepts Messages from the Actor `name` of the
+/// Workspace `from_workspace`. Actor names hold no character a glob reads besides `*`, so
+/// SQLite's GLOB matches the patterns.
+pub(super) fn workspace_accepts(
+    connection: &Connection,
+    workspace: &str,
+    from_workspace: &str,
+    name: &str,
+) -> Result<bool> {
+    connection
+        .query_row(
+            "SELECT EXISTS (SELECT 1 FROM workspace_accept_from f
+                            JOIN workspaces w ON w.id = f.workspace_id
+                            WHERE w.key = ?1 AND w.deleted_at IS NULL
+                              AND f.from_workspace = ?2 AND ?3 GLOB f.actor)",
+            params![workspace, from_workspace, name],
+            |row| row.get(0),
+        )
+        .context("read Workspace acceptFrom")
 }
 
 pub(super) fn live_workspace_id(connection: &Connection, key: &str) -> Result<Option<String>> {

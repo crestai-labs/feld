@@ -172,6 +172,22 @@ pub struct ActorReference {
     pub name: String,
 }
 
+impl ActorReference {
+    /// The name as read from the Workspace `workspace`: the qualified `workspace/actor` for an
+    /// Actor of another Workspace.
+    pub fn name_in(&self, workspace: &str) -> String {
+        qualified(&self.workspace, &self.name, workspace)
+    }
+}
+
+fn qualified(own_workspace: &str, name: &str, workspace: &str) -> String {
+    if own_workspace == workspace {
+        name.to_owned()
+    } else {
+        format!("{own_workspace}/{name}")
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Requester {
@@ -189,6 +205,27 @@ impl Requester {
         match self {
             Requester::Admin => "Admin",
             Requester::Actor { name, .. } => name,
+        }
+    }
+
+    /// The name as read from the Workspace `workspace`: the qualified `workspace/actor` for an
+    /// Actor of another Workspace.
+    pub fn name_in(&self, workspace: &str) -> String {
+        match self {
+            Requester::Admin => "Admin".to_owned(),
+            Requester::Actor {
+                workspace: own_workspace,
+                name,
+                ..
+            } => qualified(own_workspace, name, workspace),
+        }
+    }
+
+    /// The Workspace of the requesting Actor, which the Admin has none of.
+    pub fn workspace(&self) -> Option<&str> {
+        match self {
+            Requester::Admin => None,
+            Requester::Actor { workspace, .. } => Some(workspace),
         }
     }
 

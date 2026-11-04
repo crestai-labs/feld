@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 use feld_core::home::{FELD_HOME_ENV, FELD_WORKSPACE_ENV};
-use feld_core::id::valid_key;
+use feld_core::id::{valid_actor_pattern, valid_key, valid_sender};
 use feld_core::model::{ActorKind, Grant, RecordKind};
 use feld_daemon::api::allowed_host_name;
 
@@ -704,6 +704,30 @@ pub enum WorkspaceCommand {
         #[arg(value_name = "KEY")]
         key: String,
     },
+    /// Accept Messages to the Workspace (`--workspace`) from Actors of another Workspace.
+    ///
+    /// A Session token of a matching Actor then sends to the Actors of the Workspace that
+    /// accept it.
+    #[command(after_help = help_footer(
+        "Examples:\n  feld --workspace team-a workspace allow-from team-b team-b-lead\n  feld --workspace team-a workspace allow-from team-b '*-lead'"
+    ))]
+    AllowFrom(AcceptFromArgs),
+    /// Stop accepting Messages to the Workspace (`--workspace`) from Actors of another
+    /// Workspace, as `allow-from` gave them.
+    #[command(after_help = help_footer(
+        "Examples:\n  feld --workspace team-a workspace deny-from team-b team-b-lead"
+    ))]
+    DenyFrom(AcceptFromArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct AcceptFromArgs {
+    /// Key of the Workspace the Actors belong to
+    #[arg(value_name = "FROM_WORKSPACE", value_parser = parse_workspace_key)]
+    pub from_workspace: String,
+    /// Actor name, or a glob in which `*` matches any run of characters
+    #[arg(value_name = "ACTOR_PATTERN", default_value = "*", value_parser = parse_actor_pattern)]
+    pub actor: String,
 }
 
 /// Create, change, and read the Actors of the Workspace.
@@ -799,8 +823,8 @@ pub struct ActorCreateArgs {
     /// Grant the Actor's Sessions an operation on the other Actors of the Workspace: read, control, manage-agent or manage-job; repeat for more
     #[arg(long = "grant", value_name = "GRANT", value_parser = parse_grant)]
     pub grants: Vec<Grant>,
-    /// Accept Messages only from this Actor of the Workspace, besides the Admin; repeat for more [default: every Actor of the Workspace]
-    #[arg(long = "accept-from", value_name = "ACTOR", value_parser = parse_actor_name)]
+    /// Accept Messages only from this Actor, `workspace/actor` for one of another Workspace, besides the Admin; repeat for more [default: every Actor the Workspace accepts]
+    #[arg(long = "accept-from", value_name = "ACTOR", value_parser = parse_sender)]
     pub accept_from: Vec<String>,
     #[command(flatten)]
     pub launch: LaunchArgs,
@@ -815,7 +839,7 @@ pub struct ActorCreateArgs {
 /// The Schedule keeps its enabled state and, without `--timezone`, its timezone; a Job without
 /// a Schedule gets one from `--cron`. `--grant` replaces every grant and `--no-grants` removes
 /// them. `--accept-from` replaces the accepted senders and `--no-accept-from` accepts every
-/// Actor of the Workspace again. At least one option is required.
+/// Actor the Workspace accepts again. At least one option is required.
 #[derive(Debug, Args)]
 #[command(after_help = launch_footer(
     "Examples:
@@ -844,10 +868,10 @@ pub struct ActorUpdateArgs {
     /// Remove every grant of the Actor
     #[arg(long, conflicts_with = "grants")]
     pub no_grants: bool,
-    /// Actor of the Workspace that replaces the accepted senders, besides the Admin; repeat for more
-    #[arg(long = "accept-from", value_name = "ACTOR", value_parser = parse_actor_name)]
+    /// Actor that replaces the accepted senders, `workspace/actor` for one of another Workspace, besides the Admin; repeat for more
+    #[arg(long = "accept-from", value_name = "ACTOR", value_parser = parse_sender)]
     pub accept_from: Vec<String>,
-    /// Accept Messages from every Actor of the Workspace again
+    /// Accept Messages from every Actor the Workspace accepts again
     #[arg(long, conflicts_with = "accept_from")]
     pub no_accept_from: bool,
     #[command(flatten)]
@@ -1176,6 +1200,24 @@ pub fn parse_actor_name(value: &str) -> std::result::Result<String, String> {
     valid_key(value)
         .then(|| value.to_owned())
         .ok_or_else(|| "Actor names must match ^[a-z0-9][a-z0-9-]*$".to_owned())
+}
+
+/// An Actor name, or a glob of names in which `*` matches any run of characters.
+pub fn parse_actor_pattern(value: &str) -> std::result::Result<String, String> {
+    valid_actor_pattern(value)
+        .then(|| value.to_owned())
+        .ok_or_else(|| {
+            "Actor patterns are Actor names, ^[a-z0-9][a-z0-9-]*$, in which `*` stands for any run of characters".to_owned()
+        })
+}
+
+/// An Actor that sends a Message: its name in the Workspace, or `workspace/actor` in another.
+pub fn parse_sender(value: &str) -> std::result::Result<String, String> {
+    valid_sender(value)
+        .then(|| value.to_owned())
+        .ok_or_else(|| {
+            "senders are Actor names, ^[a-z0-9][a-z0-9-]*$, or `workspace/actor` for an Actor of another Workspace".to_owned()
+        })
 }
 
 /// An Actor name, or an Actor ID (`actor_...`).

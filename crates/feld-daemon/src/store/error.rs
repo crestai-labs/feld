@@ -118,9 +118,9 @@ pub enum MessageWriteError {
     #[error("Session token is no longer valid")]
     InvalidToken,
     #[error(
-        "a Session token sends only within its Workspace; sending to Workspace '{0}' requires the local token or a browser token"
+        "Workspace '{workspace}' does not accept Messages from Actor '{from}'; the Admin allows them with `feld --workspace {workspace} workspace allow-from`"
     )]
-    OtherWorkspace(String),
+    OtherWorkspace { workspace: String, from: String },
     #[error("Actor '{actor}' does not accept Messages from Actor '{from}'")]
     NotAccepted { actor: String, from: String },
     #[error(transparent)]

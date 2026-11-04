@@ -52,7 +52,8 @@ export function sessionNotice(session: FeldApi.Session, since: number): BrowserN
 export function messageNotice(message: FeldApi.MessageSummary, since: number, now: number): BrowserNotice | null {
   if (!message.waiting || message.deletedAt || !afterOpen(message.accepted, since)) return null;
   if (now - Date.parse(message.accepted) < MESSAGE_WAITING_DELAY) return null;
-  const from = message.from.type === "actor" ? message.from.name : "Admin";
+  const sender = message.from;
+  const from = sender.type !== "actor" ? "Admin" : sender.workspace === message.to.workspace ? sender.name : `${sender.workspace}/${sender.name}`;
   return {
     condition: "message-waiting",
     title: t("notice.message-waiting", { actor: message.to.name }),

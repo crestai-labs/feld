@@ -25,7 +25,9 @@ use super::sessions::{
     get_output, get_self, get_session, get_session_metrics, get_transcript, kill_session,
     list_records, list_sessions, observe_session, stop_session,
 };
-use super::workspaces::{create_workspace, delete_workspace, get_workspace, list_workspaces};
+use super::workspaces::{
+    allow_from, create_workspace, delete_workspace, deny_from, get_workspace, list_workspaces,
+};
 
 /// A Router built together with the table of its routes, so a test compares the table with
 /// `docs/guide/daemon-api.openapi.yaml`.
@@ -100,6 +102,16 @@ pub(super) fn api_routes() -> Routes<AppState> {
             Method::DELETE,
             "/v1/workspaces/{workspace}",
             delete_workspace,
+        )
+        .route(
+            Method::PUT,
+            "/v1/workspaces/{workspace}/accept-from/{fromWorkspace}/{actorPattern}",
+            allow_from,
+        )
+        .route(
+            Method::DELETE,
+            "/v1/workspaces/{workspace}/accept-from/{fromWorkspace}/{actorPattern}",
+            deny_from,
         )
         .route(
             Method::GET,

@@ -13,6 +13,7 @@ use super::admission::RequestIdentity;
 use super::error::MessageWriteError;
 use super::record::{append_actor_record, append_record};
 use super::session::requester;
+use super::workspace::workspace_accepts;
 
 #[derive(Default)]
 pub struct MessageFilter<'a> {
@@ -40,27 +41,39 @@ impl Store {
     ) -> std::result::Result<Message, MessageWriteError> {
         self.write("Message send", |transaction, notices| {
             revalidate_message_identity(transaction, identity, token)?;
-            // An Actor sends within its Workspace, before it learns whether the Actor exists.
-            if let Requester::Actor {
-                workspace: own_workspace,
-                ..
-            } = identity.requester
-                && own_workspace != workspace
-            {
-                return Err(MessageWriteError::OtherWorkspace(workspace.to_owned()));
-            }
+            // An Actor sends to another Workspace that accepts it, before it learns whether
+            // the Actor exists. The recipient names a sender of another Workspace by its
+            // qualified name.
+            let from = match identity.requester {
+                Requester::Actor {
+                    workspace: own_workspace,
+                    name,
+                    ..
+                } if own_workspace != workspace => {
+                    let qualified = format!("{own_workspace}/{name}");
+                    if !workspace_accepts(transaction, workspace, own_workspace, name)? {
+                        return Err(MessageWriteError::OtherWorkspace {
+                            workspace: workspace.to_owned(),
+                            from: qualified,
+                        });
+                    }
+                    Some(qualified)
+                }
+                Requester::Actor { name, .. } => Some(name.clone()),
+                Requester::Admin => None,
+            };
             let (to_actor_id, _) = live_actor(transaction, workspace, actor)?.ok_or_else(|| {
                 MessageWriteError::ActorNotFound {
                     workspace: workspace.to_owned(),
                     actor: actor.to_owned(),
                 }
             })?;
-            if let Requester::Actor { name: from, .. } = identity.requester
-                && !accepts(transaction, &to_actor_id, from)?
+            if let Some(from) = from
+                && !accepts(transaction, &to_actor_id, &from)?
             {
                 return Err(MessageWriteError::NotAccepted {
                     actor: actor.to_owned(),
-                    from: from.to_owned(),
+                    from,
                 });
             }
             let to_session_id = transaction
@@ -141,6 +154,11 @@ impl Store {
             }
             let message = get_message(transaction, &id)?.context("sent Message disappeared")?;
             notices.push("message", &message.id, Some(&message.to.workspace));
+            if let Requester::Actor { workspace, .. } = &message.from
+                && *workspace != message.to.workspace
+            {
+                notices.push("message", &message.id, Some(workspace));
+            }
             notices.push(
                 "record",
                 message.to_session_id.as_deref().unwrap_or(&message.to.name),
@@ -208,6 +226,11 @@ impl Store {
                 .context("delete Message")?;
             let message = get_message(transaction, id)?.context("deleted Message disappeared")?;
             notices.push("message", &message.id, Some(&message.to.workspace));
+            if let Requester::Actor { workspace, .. } = &message.from
+                && *workspace != message.to.workspace
+            {
+                notices.push("message", &message.id, Some(workspace));
+            }
             Ok(message)
         })
     }

@@ -57,6 +57,8 @@ test("a Message is notified once it has waited a minute", () => {
   });
   const from = { type: "actor", id: "actor_b", workspace: "default", name: "developer" } as FeldApi.Requester;
   expect(messageNotice(message({ from }), SINCE, accepted + MESSAGE_WAITING_DELAY)?.body).toBe("From developer, unread for a minute: please review");
+  const lead = { type: "actor", id: "actor_c", workspace: "team-b", name: "lead" } as FeldApi.Requester;
+  expect(messageNotice(message({ from: lead }), SINCE, accepted + MESSAGE_WAITING_DELAY)?.body).toBe("From team-b/lead, unread for a minute: please review");
   expect(messageNotice(message({ waiting: false }), SINCE, accepted + MESSAGE_WAITING_DELAY)).toBeNull();
   expect(messageNotice(message({ deletedAt: AFTER }), SINCE, accepted + MESSAGE_WAITING_DELAY)).toBeNull();
   expect(messageNotice(message({ accepted: BEFORE }), SINCE, accepted + MESSAGE_WAITING_DELAY)).toBeNull();

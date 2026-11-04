@@ -67,7 +67,7 @@ The line has the following form.
 {"type":"feld_message","message":{"id":"message_f2a9d0","fifo":12,"from":"Admin","fromKind":"admin","fromSessionId":null,"accepted":"2026-09-13T11:45:03+09:00","body":"Please address the review comments"}}
 ```
 
-`fromKind` is the kind of sender: `admin` for the Admin and `actor` for an Actor. `from` is `Admin` for the Admin and the Actor's name for an Actor; an Actor named `admin` and the Admin are distinguished by `fromKind`.
+`fromKind` is the kind of sender: `admin` for the Admin and `actor` for an Actor. `from` is `Admin` for the Admin and the Actor's name for an Actor, the qualified name `workspace/actor` for an Actor of another Workspace; an Actor named `admin` and the Admin are distinguished by `fromKind`.
 
 At the start of a Session, the Adapter passes the meaning of the line to the model as context. Feld conveys the facts about the sender, and how far to trust them is left to the job description the Harness gives. The context conveys the following.
 

@@ -5,6 +5,12 @@ CREATE TABLE workspaces (
   deleted_at TEXT
 );
 CREATE UNIQUE INDEX workspace_live_key ON workspaces(key) WHERE deleted_at IS NULL;
+CREATE TABLE workspace_accept_from (
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  from_workspace TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, from_workspace, actor)
+);
 CREATE TABLE actors (
   id TEXT PRIMARY KEY NOT NULL,
   workspace_id TEXT NOT NULL REFERENCES workspaces(id),

@@ -7,8 +7,11 @@ use crate::output::kinded;
 
 pub fn print_message_summary(ctx: &Context, message: &Message) {
     println!("  message:      {}", message.id);
-    println!("  from:         {}", message.from.name());
-    println!("  to:           {}", message.to.name);
+    println!(
+        "  from:         {}",
+        message.from.name_in(&message.to.workspace)
+    );
+    println!("  to:           {}", recipient(message));
     if let Some(label) = &message.label {
         println!("  label:        {label}");
     }
@@ -18,6 +21,14 @@ pub fn print_message_summary(ctx: &Context, message: &Message) {
         message_state(message.waiting, message.queued.as_ref())
     );
     println!("  anchor:       {}", message.anchor);
+}
+
+/// The recipient as the sender reads it: qualified when the sender is of another Workspace.
+fn recipient(message: &Message) -> String {
+    match message.from.workspace() {
+        Some(workspace) => message.to.name_in(workspace),
+        None => message.to.name.clone(),
+    }
 }
 
 /// What a Message waits for: a read (`waiting`), a Runtime that holds it in a queue of its
@@ -33,12 +44,13 @@ pub fn message_state(waiting: bool, queued: Option<&MessageQueued>) -> &'static 
 pub fn print_message(ctx: &Context, message: &Message) {
     println!("Message");
     println!("  message:      {}", message.id);
+    let from = message.from.name_in(&message.to.workspace);
     let from = match (&message.from, &message.from_session_id) {
-        (Requester::Actor { name, .. }, Some(session)) => kinded(name, session),
-        (requester, _) => requester.name().to_owned(),
+        (Requester::Actor { .. }, Some(session)) => kinded(&from, session),
+        _ => from,
     };
     println!("  from:         {from}");
-    println!("  to:           {}", message.to.name);
+    println!("  to:           {}", recipient(message));
     if let Some(label) = &message.label {
         println!("  label:        {label}");
     }

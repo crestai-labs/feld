@@ -6,7 +6,7 @@ use tokio::sync::Notify;
 
 use crate::store::{ActorPatch, ActorWriteError, LaunchUpdate, Store, Writer};
 use feld_core::cron::{last_run_at_or_before, validate_cron, validate_timezone};
-use feld_core::id::valid_key;
+use feld_core::id::{valid_key, valid_sender};
 use feld_core::model::{
     Actor, ActorKind, Grant, LaunchSpec, LaunchSpecPatch, ScheduleDeclaration, SchedulePatch,
 };
@@ -365,15 +365,17 @@ fn actor_rank(actor: &Actor) -> u8 {
     }
 }
 
-/// The senders an Actor accepts are Actor names.
+/// The senders an Actor accepts are Actor names, and `workspace/actor` for those of another
+/// Workspace.
 fn validate_accept_from(accept_from: Option<&BTreeSet<String>>) -> Result<(), ActorError> {
     match accept_from
         .into_iter()
         .flatten()
-        .find(|name| !valid_key(name))
+        .find(|sender| !valid_sender(sender))
     {
-        Some(name) => Err(ActorError::Invalid(format!(
-            "acceptFrom names Actors, which must match ^[a-z0-9][a-z0-9-]*$; got '{name}'"
+        Some(sender) => Err(ActorError::Invalid(format!(
+            "acceptFrom names Actors, as `actor` or `workspace/actor` in the grammar \
+             ^[a-z0-9][a-z0-9-]*$; got '{sender}'"
         ))),
         None => Ok(()),
     }
