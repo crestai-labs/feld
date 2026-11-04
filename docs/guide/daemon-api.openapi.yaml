@@ -1922,7 +1922,7 @@ components:
             - $ref: "#/components/schemas/AcceptFrom"
             - type: "null"
         labels:
-          description: By key. A label whose `until` has passed is removed on the read and recorded as `label.expired`
+          description: By key. The daemon removes a label within seconds after its `until`, records `label.expired`, and sends the Actor's resource event
           type: array
           items: { $ref: "#/components/schemas/ActorLabel" }
         createdAt: { type: string, format: date-time }

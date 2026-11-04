@@ -30,6 +30,9 @@ const START_TIMEOUT: Duration = Duration::from_secs(10);
 const STOP_TIMEOUT: Duration = Duration::from_secs(10);
 /// How often the daemon removes the Telemetries of Sessions closed past their retention.
 const TELEMETRY_RETENTION_INTERVAL: Duration = Duration::from_secs(60 * 60);
+/// How often the daemon removes the labels past their `until`, whose removal tells the
+/// readers of the Actor through its resource event.
+const LABEL_EXPIRY_INTERVAL: Duration = Duration::from_secs(1);
 /// How long the daemon holding the lock has to answer its status before it counts as
 /// unresponsive.
 pub const STATUS_TIMEOUT: Duration = Duration::from_secs(5);
@@ -539,6 +542,11 @@ pub async fn run(
     ));
     let spool_task = tokio::spawn(api::serve_spool(state.clone(), shutdown_rx.clone()));
     let retention_task = tokio::spawn(retain_telemetries(Arc::clone(&store), shutdown_rx.clone()));
+    let label_task = tokio::spawn(expire_labels(
+        Arc::clone(&store),
+        LABEL_EXPIRY_INTERVAL,
+        shutdown_rx.clone(),
+    ));
     // Each loopback address and the socket are served until shutdown, and one that ends
     // ends the others.
     let router = api::router(state);
@@ -566,6 +574,7 @@ pub async fn run(
     let _ = collector_task.await;
     let _ = spool_task.await;
     let _ = retention_task.await;
+    let _ = label_task.await;
 
     remove_if_exists(&home.token_path())?;
     remove_if_exists(&socket_path)?;
@@ -590,6 +599,30 @@ async fn retain_telemetries(store: Arc<Store>, mut shutdown: watch::Receiver<boo
                     Ok(Ok(_)) => {}
                     Ok(Err(error)) => eprintln!("Feld telemetry retention failed: {error:#}"),
                     Err(error) => eprintln!("Feld telemetry retention failed: {error}"),
+                }
+            }
+            changed = shutdown.changed() => {
+                if changed.is_err() || *shutdown.borrow() {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Removes the labels past their `until` every interval until shutdown, so each lapse is
+/// recorded and sent as an event close to its `until`.
+async fn expire_labels(store: Arc<Store>, every: Duration, mut shutdown: watch::Receiver<bool>) {
+    let mut interval = tokio::time::interval(every);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                let store = Arc::clone(&store);
+                match tokio::task::spawn_blocking(move || store.expire_labels()).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => eprintln!("Feld label expiry failed: {error:#}"),
+                    Err(error) => eprintln!("Feld label expiry failed: {error}"),
                 }
             }
             changed = shutdown.changed() => {
@@ -1045,6 +1078,80 @@ mod tests {
         assert_eq!(mode(&path), 0o600);
         assert_eq!(mode(path.parent().unwrap()), 0o700);
         remove_if_exists(&path).unwrap();
+    }
+
+    /// A label past its `until` is removed and its Actor's event sent with no read of the
+    /// Actor, so a reader that refetches on events sees it go.
+    #[tokio::test]
+    async fn a_lapsed_label_is_removed_and_announced_without_a_read() {
+        let temporary = tempfile::tempdir().unwrap();
+        let store = Arc::new(Store::open(&temporary.path().join("feld.db")).unwrap());
+        let launch = feld_core::model::LaunchSpec {
+            runtime: None,
+            runtime_settings: None,
+            trust_workdir: None,
+            command: Some(vec!["true".to_owned()]),
+            workdir: Some("/tmp".to_owned()),
+            env: None,
+            provider: Some("tmux".to_owned()),
+            node: Some("local".to_owned()),
+            provider_options: None,
+        };
+        store
+            .create_actor(
+                "default",
+                "developer",
+                feld_core::model::ActorKind::Job,
+                &launch,
+                None,
+                None,
+            )
+            .unwrap();
+        let until = time::format(chrono::Utc::now() + chrono::Duration::milliseconds(300));
+        store
+            .set_label(
+                "default",
+                "developer",
+                "waiting-upstream",
+                Some(&until),
+                None,
+                crate::store::LabelWriter::Admin,
+            )
+            .unwrap();
+        let mut events = store.subscribe_events();
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        let task = tokio::spawn(expire_labels(
+            Arc::clone(&store),
+            Duration::from_millis(50),
+            shutdown_rx,
+        ));
+
+        let event = tokio::time::timeout(Duration::from_secs(5), events.recv())
+            .await
+            .expect("the lapse is announced")
+            .unwrap();
+        assert_eq!(
+            (event.resource.as_str(), event.id.as_str()),
+            ("actor", "developer")
+        );
+        let expired = store
+            .list_records(&crate::store::RecordFilter {
+                kind: Some(feld_core::model::RecordKind::LabelExpired),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(expired.len(), 1);
+        assert!(expired[0].at.as_str() >= until.as_str());
+        assert!(
+            store
+                .get_actor("default", "developer")
+                .unwrap()
+                .unwrap()
+                .labels
+                .is_empty()
+        );
+        shutdown_tx.send(true).unwrap();
+        task.await.unwrap();
     }
 
     #[test]

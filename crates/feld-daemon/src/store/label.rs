@@ -120,9 +120,22 @@ impl Store {
         })
     }
 
-    /// Removes the labels whose `until` has passed, recording each as `label.expired`.
+    /// Removes the labels whose `until` has passed, recording each as `label.expired`. Only a
+    /// store holding such a label is written.
     pub fn expire_labels(&self) -> anyhow::Result<()> {
         let at = time::now();
+        let lapsed = self.read(|connection| {
+            connection
+                .query_row(
+                    "SELECT EXISTS (SELECT 1 FROM actor_labels WHERE until <= ?1)",
+                    [&at],
+                    |row| row.get::<_, bool>(0),
+                )
+                .context("find lapsed labels")
+        })?;
+        if !lapsed {
+            return Ok(());
+        }
         self.write("label expiry", |transaction, notices| {
             expire_labels(transaction, notices, &at)
         })

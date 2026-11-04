@@ -1267,7 +1267,7 @@ export interface components {
             grants: components["schemas"]["Grants"];
             /** @description If null, receives from every Actor in the same Workspace */
             acceptFrom: components["schemas"]["AcceptFrom"] | null;
-            /** @description By key. A label whose `until` has passed is removed on the read and recorded as `label.expired` */
+            /** @description By key. The daemon removes a label within seconds after its `until`, records `label.expired`, and sends the Actor's resource event */
             labels: components["schemas"]["ActorLabel"][];
             /** Format: date-time */
             createdAt: string;

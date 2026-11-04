@@ -206,7 +206,7 @@ The list of `name`s of Actors in the same Workspace from which an Actor accepts 
 
 States an Actor declares about itself for the readers of the Actor (such as a harness's dispatcher and the Web UI), such as waiting on purpose until a time, what it waits for, or its phase of work. Each label has `key`, an optional `until` (when it lapses), an optional `reason`, `by` (`admin`, or `actor` for a Session of the Actor), and `setAt`. `key` follows the grammar of `name`, and an Actor has at most one label per key. The meaning of a key belongs to its readers; Feld keeps labels, removes those whose `until` has passed, and records each set, clear, and lapse.
 
-A Session sets and clears labels of its own Actor, and Admin those of any Actor. Setting a key the Actor has replaces that label, and clearing a key it lacks changes nothing. A label stays across Sessions until it is cleared or its `until` passes; a label past its `until` is removed when the Actor is next read, and recorded as `label.expired`.
+A Session sets and clears labels of its own Actor, and Admin those of any Actor. Setting a key the Actor has replaces that label, and clearing a key it lacks changes nothing. A label stays across Sessions until it is cleared or its `until` passes; the daemon removes a label within seconds after its `until` passes, records it as `label.expired`, and tells readers of the Actor through its resource event.
 
 ### Session
 
