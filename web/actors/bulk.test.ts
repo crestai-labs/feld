@@ -1,7 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { keys } from "../api/queries.ts";
-import { killSession, startActor, stopSession } from "../api/client.ts";
+import { killSession, restartActor, startActor, stopSession } from "../api/client.ts";
 import { bulkSummary, bulkTargetsFor, chosenAgents } from "./bulk.ts";
 import { runBulkAction } from "./mutations.ts";
 import { useActorsStore } from "./store.ts";
@@ -11,6 +11,7 @@ vi.mock("../api/client.ts", () => ({
   startActor: vi.fn(async () => ({ session: { id: "session_new" } })),
   stopSession: vi.fn(async () => ({})),
   killSession: vi.fn(async () => ({})),
+  restartActor: vi.fn(async () => ({})),
 }));
 
 const store = () => useActorsStore.getState();
@@ -35,7 +36,7 @@ const SESSIONS: Record<string, AgentSession> = {
 const model = { latestSessionFor: (agentId: string) => SESSIONS[agentId] ?? null };
 
 test("each action applies to the chosen Actors the Actions menu offers it for, and names why it skips the rest", () => {
-  const skips = (action: "start" | "stop" | "kill") => bulkTargetsFor(model, action, AGENTS).map((target) => [target.agent.name, target.sessionId, target.skip]);
+  const skips = (action: "start" | "restart" | "stop" | "kill") => bulkTargetsFor(model, action, AGENTS).map((target) => [target.agent.name, target.sessionId, target.skip]);
   expect(skips("start")).toEqual([
     ["dev", null, "session_dev is running"],
     ["att", null, "session_att is running"],
@@ -51,6 +52,7 @@ test("each action applies to the chosen Actors the Actions menu offers it for, a
     ["gone", null, "deleted"],
   ]);
   expect(skips("kill")).toEqual(skips("stop"));
+  expect(skips("restart")).toEqual(skips("stop"));
 });
 
 test("only the chosen Actors among the rows drawn are acted on, in the rows' order", () => {
@@ -86,13 +88,16 @@ test("Stop is sent to each Actor it applies to, and one refusal leaves the other
   expect(client.getQueryCache().find({ queryKey: keys.actors("default"), exact: true })!.state.isInvalidated).toBe(true);
 });
 
-test("Start and Kill send their own primitive, and nothing is read again when every Actor is skipped", async () => {
+test("Start, Restart, and Kill send their own primitive, and nothing is read again when every Actor is skipped", async () => {
   const client = new QueryClient();
   const invalidate = vi.spyOn(client, "invalidateQueries");
   await runBulkAction(client, model, "start", AGENTS);
   expect(vi.mocked(startActor).mock.calls).toEqual([["default", "idle"]]);
   await runBulkAction(client, model, "kill", AGENTS);
   expect(vi.mocked(killSession).mock.calls).toEqual([["session_dev"]]);
+  await runBulkAction(client, model, "restart", AGENTS);
+  expect(vi.mocked(restartActor).mock.calls).toEqual([["default", "dev"]]);
+  expect(store().bulkRequest?.results[0]).toEqual({ agentId: "default/dev", outcome: "accepted", detail: "The current Session is asked to end; the next generation starts once it does." });
   invalidate.mockClear();
   await runBulkAction(client, model, "kill", [AGENTS[2]]);
   expect(store().bulkRequest?.results).toEqual([{ agentId: "default/idle", outcome: "skipped", detail: "no running Session" }]);

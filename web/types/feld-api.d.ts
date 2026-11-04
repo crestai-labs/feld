@@ -33,6 +33,7 @@ declare global {
     type SubAgentSession = Schemas["SubAgentSession"];
     type SessionResponse = Schemas["SessionResponse"];
     type StartResponse = Schemas["StartResponse"];
+    type RestartResponse = Schemas["RestartResponse"];
     type RecordKind = Schemas["RecordKind"];
     // `Record` in the yaml, renamed away from TypeScript's own `Record`.
     type FeldRecord = Schemas["Record"];

@@ -1,6 +1,6 @@
 // The Bulk actions bar under the Actors header: a box on each row drawn, a box choosing
-// every row drawn (the Workspace and search decide which those are), and Start, Stop, and
-// Kill for the chosen Actors, with each Actor's result under them.
+// every row drawn (the Workspace and search decide which those are), and Start, Restart,
+// Stop, and Kill for the chosen Actors, with each Actor's result under them.
 
 import { useState } from "react";
 import { useActorsModel } from "./context.ts";
@@ -14,7 +14,7 @@ import { useActorsTools } from "./ui.tsx";
 export function BulkToggle({ open }: { open: boolean }) {
   const pending = useActorsStore((state) => Boolean(state.bulkRequest?.pending));
   return (
-    <button type="button" className={`feld-agents__button feld-agents__bulk-toggle${open ? " is-active" : ""}`} data-action="toggle-bulk" aria-pressed={open} disabled={pending} title={open ? "Close Bulk actions and clear the choice" : "Choose several Actors and start, stop, or kill them together"} onClick={() => useActorsStore.getState().toggleBulk()}>
+    <button type="button" className={`feld-agents__button feld-agents__bulk-toggle${open ? " is-active" : ""}`} data-action="toggle-bulk" aria-pressed={open} disabled={pending} title={open ? "Close Bulk actions and clear the choice" : "Choose several Actors and start, restart, stop, or kill them together"} onClick={() => useActorsStore.getState().toggleBulk()}>
       Bulk actions
     </button>
   );
@@ -50,7 +50,8 @@ export function BulkBar({ agents, state }: { agents: ActorRecord[]; state: Pick<
       return;
     }
     setConfirmKill(null);
-    runBulkAction(client, model, action, chosen, refusals ? refusals[action] : null);
+    // Fixture mode's refusing daemon refuses a restart as it refuses the stop it starts with.
+    runBulkAction(client, model, action, chosen, refusals ? refusals[action === "restart" ? "stop" : action] : null);
   }
 
   return (

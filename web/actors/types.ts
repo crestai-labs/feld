@@ -345,7 +345,7 @@ export interface CardView {
 }
 
 // The lifecycle primitives the Bulk actions bar sends to each selected Actor.
-export type BulkAction = "start" | "stop" | "kill";
+export type BulkAction = "start" | "restart" | "stop" | "kill";
 
 // One selected Actor's part in a bulk request: in flight, accepted, refused with the
 // daemon's message, or skipped (not sent) with the reason it does not apply.

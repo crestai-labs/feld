@@ -2,17 +2,26 @@
 // to, by the same facts as an Actor's Actions menu (a current Session, its ownership, a
 // launchSpec), and how each Actor's part in a request is reported.
 
-import { ownershipOf, type ActorsModel } from "./model.ts";
+import { MENU_ACTION_NOTES, ownershipOf, type ActorsModel } from "./model.ts";
 import type { ActorRecord, BulkAction, BulkResult } from "./types.ts";
 
-export const BULK_ACTIONS: readonly BulkAction[] = Object.freeze(["start", "stop", "kill"]);
+export const BULK_ACTIONS: readonly BulkAction[] = Object.freeze(["start", "restart", "stop", "kill"]);
 
-export const BULK_LABELS: Readonly<Record<BulkAction, string>> = Object.freeze({ start: "Start", stop: "Stop", kill: "Kill" });
+export const BULK_LABELS: Readonly<Record<BulkAction, string>> = Object.freeze({ start: "Start", restart: "Restart", stop: "Stop", kill: "Kill" });
 
 export const BULK_NOTES: Readonly<Record<BulkAction, string>> = Object.freeze({
   start: "feld actor start · runs each chosen Actor's launchSpec now",
+  restart: "feld actor restart · asks each chosen Actor's current Session to end, then starts the next generation from its launchSpec",
   stop: "feld session stop · asks each chosen Actor's current Session to end",
   kill: "feld session kill · ends each chosen Actor's current Session without asking",
+});
+
+// What an accepted request did, as the Actions menu's toast says it.
+export const BULK_ACCEPTED: Readonly<Record<BulkAction, string>> = Object.freeze({
+  start: MENU_ACTION_NOTES.start,
+  restart: "The current Session is asked to end; the next generation starts once it does.",
+  stop: MENU_ACTION_NOTES.stop,
+  kill: MENU_ACTION_NOTES.kill,
 });
 
 export const BULK_OUTCOMES: Readonly<Record<BulkResult["outcome"], string>> = Object.freeze({
@@ -22,8 +31,8 @@ export const BULK_OUTCOMES: Readonly<Record<BulkResult["outcome"], string>> = Ob
   skipped: "Skipped",
 });
 
-// One chosen Actor and what the action sends for it: the Session for Stop and Kill, or the
-// reason it is skipped.
+// One chosen Actor and what the action sends for it: the Session for Restart, Stop, and
+// Kill, or the reason it is skipped.
 export interface BulkTarget {
   agent: ActorRecord;
   sessionId: string | null;

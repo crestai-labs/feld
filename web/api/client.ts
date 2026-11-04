@@ -119,6 +119,12 @@ export function startActor(workspace: string, actor: string) {
   return write<FeldApi.StartResponse>(`${actorPath(workspace, actor)}/start`, "POST");
 }
 
+// `feld actor restart`: stop is requested for the current Session, and the next
+// generation starts once it closes.
+export function restartActor(workspace: string, actor: string) {
+  return write<FeldApi.RestartResponse>(`${actorPath(workspace, actor)}/restart`, "POST");
+}
+
 export function stopSession(sessionId: string) {
   return write<unknown>(sessionPath(sessionId, "stop"), "POST");
 }

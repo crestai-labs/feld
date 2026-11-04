@@ -10,7 +10,7 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { invalidateWritten } from "../api/events.ts";
 import { commandLine } from "../lib/command-line.ts";
 import { keys } from "../api/queries.ts";
-import { createActor, createWorkspace, deleteActor, killSession, listActors, readSession, sendMessage, startActor, stopSession, updateActor } from "../api/client.ts";
+import { createActor, createWorkspace, deleteActor, killSession, listActors, readSession, restartActor, sendMessage, startActor, stopSession, updateActor } from "../api/client.ts";
 import {
   MENU_ACTION_DONE,
   MENU_ACTION_LABELS,
@@ -30,7 +30,7 @@ import {
 } from "./model.ts";
 import { draftsWith, useActorsStore, without, type ActorsStore } from "./store.ts";
 import { useToasts, type ToastKind } from "./toasts.ts";
-import { bulkTargetsFor } from "./bulk.ts";
+import { BULK_ACCEPTED, bulkTargetsFor } from "./bulk.ts";
 import type { ActorDraft, ActorRecord, BulkAction, BulkResult, CreatedActor, EditDraft, ScheduleRecord } from "./types.ts";
 
 function messageOf(failure: unknown) {
@@ -115,14 +115,16 @@ export async function runBulkAction(client: QueryClient | null, model: Pick<Acto
     }
     if (!client) return Promise.resolve();
     if (action === "start") return startActor(agent.workspace, agent.name);
+    if (action === "restart") return restartActor(agent.workspace, agent.name);
     return action === "stop" ? stopSession(sessionId!) : killSession(sessionId!);
   };
   const written: QueryKey[] = [...LIFECYCLE_WRITTEN];
   await Promise.all(targets.filter((target) => !target.skip).map(async ({ agent, sessionId }) => {
     try {
       await send(agent, sessionId);
-      written.push(action === "start" ? keys.actorListingsOf(agent.name) : keys.session(sessionId!));
-      settle(agent.id, "accepted", client || refusal !== null ? MENU_ACTION_NOTES[action] : "Fixture mode: nothing is written.");
+      if (action !== "start") written.push(keys.session(sessionId!));
+      if (action === "start" || action === "restart") written.push(keys.actorListingsOf(agent.name));
+      settle(agent.id, "accepted", client || refusal !== null ? BULK_ACCEPTED[action] : "Fixture mode: nothing is written.");
     } catch (failure) {
       settle(agent.id, "refused", messageOf(failure));
     }
