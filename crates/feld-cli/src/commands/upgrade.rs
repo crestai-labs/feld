@@ -100,7 +100,17 @@ fn new_feld_json(ctx: &Context, feld: &Path, arguments: &[&str]) -> CliResult<(V
         .stderr(Stdio::inherit())
         .output()
         .with_context(|| format!("run {} {}", feld.display(), arguments.join(" ")))?;
-    let value = serde_json::from_slice(&output.stdout).unwrap_or(Value::Null);
+    let value = match serde_json::from_slice(&output.stdout) {
+        Ok(value) => value,
+        Err(_) if !output.status.success() => Value::Null,
+        Err(error) => {
+            return Err(operational!(
+                "{} {} printed no JSON: {error}",
+                feld.display(),
+                arguments.join(" ")
+            ));
+        }
+    };
     Ok((value, output.status))
 }
 
