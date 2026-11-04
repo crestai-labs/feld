@@ -21,7 +21,7 @@ feld-agents {
   color: inherit;
 }
 
-/* No specificity, so a control's own focus rule wins wherever its stylesheet loads. */
+/* Only the pseudo-class counts (0,1,0), so a control's own focus rule wins wherever its stylesheet loads. */
 :where(.feld-agents) :where(button, input, select):focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 1px;
