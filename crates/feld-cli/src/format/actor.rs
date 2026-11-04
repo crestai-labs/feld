@@ -238,6 +238,10 @@ pub fn print_actor_detail(ctx: &Context, actor: &Actor) {
         &accept_from_summary(actor.accept_from.as_ref()),
     );
     detail_line(
+        "archived_at:",
+        &ctx.local_time_or_dash(actor.archived_at.as_deref()),
+    );
+    detail_line(
         "deleted_at:",
         &ctx.local_time_or_dash(actor.deleted_at.as_deref()),
     );

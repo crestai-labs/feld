@@ -315,6 +315,11 @@ paths:
         - name: kind
           in: query
           schema: { $ref: "#/components/schemas/ActorKind" }
+        - name: includeArchived
+          in: query
+          description: Includes archived ones
+          allowEmptyValue: true
+          schema: { type: boolean, default: false }
         - $ref: "#/components/parameters/IncludeDeleted"
       responses:
         "200":
@@ -470,18 +475,39 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "500": { $ref: "#/components/responses/Error" }
 
+  /v1/workspaces/{workspace}/actors/{actor}/archive:
+    parameters:
+      - $ref: "#/components/parameters/Workspace"
+      - $ref: "#/components/parameters/Actor"
+    post:
+      tags: [Actor]
+      operationId: archiveActor
+      summary: Archives an Actor
+      description: 'Records `archivedAt`, which frees the name. An archived Actor is reached with `GET /v1/actors/{actor}`.'
+      responses:
+        "200":
+          description: The archived Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: The current Session is running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
   /v1/actors/{actor}:
     parameters:
-      - name: actor
-        in: path
-        required: true
-        description: The `id` of the Actor
-        schema: { type: string, examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
+      - $ref: "#/components/parameters/ActorId"
     get:
       tags: [Actor]
       operationId: getActorById
       summary: Returns an Actor by `id`
-      description: Also returns deleted Actors.
+      description: Also returns archived and deleted Actors.
       responses:
         "200":
           description: Actor
@@ -491,6 +517,30 @@ paths:
         "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
         "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+
+  /v1/actors/{actor}/unarchive:
+    parameters:
+      - $ref: "#/components/parameters/ActorId"
+    post:
+      tags: [Actor]
+      operationId: unarchiveActor
+      summary: Unarchives an Actor
+      description: 'Clears `archivedAt` of an archived Actor of a live Workspace.'
+      responses:
+        "200":
+          description: The unarchived Actor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActorResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: A live Actor holds the name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "500": { $ref: "#/components/responses/Error" }
 
   /v1/workspaces/{workspace}/actors/{actor}/start:
@@ -1524,6 +1574,12 @@ components:
       in: query
       description: Filters the target by Actor `name`
       schema: { type: string }
+    ActorId:
+      name: actor
+      in: path
+      required: true
+      description: The `id` of the Actor
+      schema: { type: string, examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
     Session:
       name: session
       in: path
@@ -1840,7 +1896,7 @@ components:
 
     Actor:
       type: object
-      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, createdAt, updatedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
+      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, createdAt, updatedAt, archivedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
       properties:
         id: { type: string, description: "ID assigned by Feld. Remains on the Actor after deletion", examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
         name: { $ref: "#/components/schemas/Key" }
@@ -1863,6 +1919,7 @@ components:
             - type: "null"
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        archivedAt: { type: [string, "null"], format: date-time }
         deletedAt: { type: [string, "null"], format: date-time }
         currentSession:
           description: 'Session without `end`'

@@ -177,7 +177,7 @@ impl Store {
             };
             Ok(StoreCounts {
                 actors: count(
-                    "SELECT COUNT(*) FROM actors WHERE deleted_at IS NULL",
+                    "SELECT COUNT(*) FROM actors WHERE archived_at IS NULL AND deleted_at IS NULL",
                     "count Actors",
                 )?,
                 running_sessions: count(
@@ -186,7 +186,7 @@ impl Store {
                 )?,
                 schedules: count(
                     "SELECT COUNT(*) FROM actors
-                     WHERE schedule_cron IS NOT NULL AND deleted_at IS NULL",
+                     WHERE schedule_cron IS NOT NULL AND archived_at IS NULL AND deleted_at IS NULL",
                     "count Schedules",
                 )?,
             })

@@ -18,6 +18,8 @@ pub enum ActorWriteError {
     WorkspaceNotFound(String),
     #[error("Actor '{actor}' was not found in Workspace '{workspace}'")]
     ActorNotFound { workspace: String, actor: String },
+    #[error("archived Actor '{0}' was not found")]
+    ArchivedNotFound(String),
     #[error("Actor '{actor}' is already kind {existing}; kind cannot change to {requested}")]
     KindMismatch {
         actor: String,
@@ -34,7 +36,7 @@ pub enum ActorWriteError {
     Running {
         actor: String,
         session: String,
-        /// The change the running Session refuses: `delete` or `rename`.
+        /// The change the running Session refuses: `delete`, `archive` or `rename`.
         change: &'static str,
     },
     #[error("Actor '{name}' already exists in Workspace '{workspace}'")]

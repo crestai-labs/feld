@@ -36,7 +36,8 @@ impl Store {
         self.read(|connection| {
             Ok(read_actor_rows(
                 connection,
-                "WHERE schedule_enabled = 1 AND deleted_at IS NULL ORDER BY workspace_key, name",
+                "WHERE schedule_enabled = 1 AND archived_at IS NULL AND deleted_at IS NULL
+                 ORDER BY workspace_key, name",
                 [],
             )?
             .into_iter()

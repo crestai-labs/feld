@@ -577,7 +577,7 @@ fn judge_owned(
 ) -> std::result::Result<Judgement, SessionWriteError> {
     let actor_record = read_actor_rows(
         connection,
-        "WHERE workspace_key = ?1 AND name = ?2 AND deleted_at IS NULL",
+        "WHERE workspace_key = ?1 AND name = ?2 AND archived_at IS NULL AND deleted_at IS NULL",
         params![workspace, actor],
     )?
     .into_iter()

@@ -92,6 +92,7 @@ fn actor(sessions: Vec<Session>, waiting_count: u64) -> Actor {
         accept_from: None,
         created_at: AT.to_owned(),
         updated_at: AT.to_owned(),
+        archived_at: None,
         deleted_at: None,
         current_session: None,
         latest_session: None,

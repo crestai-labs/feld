@@ -103,7 +103,7 @@ impl Store {
 
 const WORKSPACE_SELECT: &str = "SELECT w.id, w.key, COUNT(a.id), w.created_at, w.deleted_at
      FROM workspaces w
-     LEFT JOIN actors a ON a.workspace_id = w.id AND a.deleted_at IS NULL";
+     LEFT JOIN actors a ON a.workspace_id = w.id AND a.archived_at IS NULL AND a.deleted_at IS NULL";
 
 fn workspace_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Workspace> {
     Ok(Workspace {

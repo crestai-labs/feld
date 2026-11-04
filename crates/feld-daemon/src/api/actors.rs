@@ -25,7 +25,12 @@ pub(super) async fn list_actors(
     auth.require_workspace(&workspace)?;
     let actors = state
         .actors
-        .list(&workspace, query.kind.as_deref(), query.include_deleted)
+        .list(
+            &workspace,
+            query.kind.as_deref(),
+            query.include_archived,
+            query.include_deleted,
+        )
         .map_err(actor_error)?;
     let mut actors = derive_turns(&state, actors).await?;
     actors
@@ -131,7 +136,7 @@ async fn derive_turns(state: &AppState, mut actors: Vec<Actor>) -> Result<Vec<Ac
     .map_err(internal)
 }
 
-/// A create, an update or a delete of the Actor `actor` of a Session token. `kind` is the
+/// A create, an update, an archive or a delete of the Actor `actor` of a Session token. `kind` is the
 /// kind a create declares; an update and a delete take the kind of the Actor, and leave one
 /// that is not found to answer 404.
 fn authorize_manage(
@@ -206,6 +211,41 @@ pub(super) async fn delete_actor(
     let mut actor = state
         .actors
         .delete(&workspace, &actor, auth.writer())
+        .map_err(actor_write_error)?;
+    auth.conceal_actor(&mut actor);
+    Ok(Json(ActorResponse { actor }))
+}
+
+pub(super) async fn archive_actor(
+    State(state): State<AppState>,
+    Caller(auth): Caller,
+    Path((workspace, actor)): Path<(String, String)>,
+) -> Result<Json<ActorResponse>, ApiError> {
+    authorize_manage(&state, &auth, &workspace, &actor, None)?;
+    let mut actor = state
+        .actors
+        .archive(&workspace, &actor, auth.writer())
+        .map_err(actor_write_error)?;
+    auth.conceal_actor(&mut actor);
+    Ok(Json(ActorResponse { actor }))
+}
+
+/// The archived Actor is named by its `id`, since a name names the live Actor only.
+pub(super) async fn unarchive_actor(
+    State(state): State<AppState>,
+    Caller(auth): Caller,
+    Path(actor): Path<String>,
+) -> Result<Json<ActorResponse>, ApiError> {
+    if !auth.is_admin() {
+        let target = state.actors.get_by_id(&actor).map_err(internal)?;
+        if let Some(target) = target.filter(|target| target.archived_at.is_some()) {
+            auth.require_workspace(&target.workspace)?;
+            auth.require_manage(&target.workspace, target.kind, Some(&target))?;
+        }
+    }
+    let mut actor = state
+        .actors
+        .unarchive(&actor, auth.writer())
         .map_err(actor_write_error)?;
     auth.conceal_actor(&mut actor);
     Ok(Json(ActorResponse { actor }))

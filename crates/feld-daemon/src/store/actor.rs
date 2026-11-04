@@ -20,15 +20,17 @@ impl Store {
         &self,
         workspace: &str,
         kind: Option<ActorKind>,
+        include_archived: bool,
         include_deleted: bool,
     ) -> Result<Vec<Actor>> {
         self.read(|connection| {
             read_actor_rows(
                 connection,
                 "WHERE workspace_id = (SELECT id FROM workspaces WHERE key = ?1 AND deleted_at IS NULL)
-                   AND (?2 IS NULL OR kind = ?2) AND (?3 OR deleted_at IS NULL)
+                   AND (?2 IS NULL OR kind = ?2) AND (?3 OR archived_at IS NULL)
+                   AND (?4 OR deleted_at IS NULL)
                  ORDER BY name, created_at",
-                params![workspace, kind.map(Text), include_deleted],
+                params![workspace, kind.map(Text), include_archived, include_deleted],
             )?
             .into_iter()
             .map(|row| actor_from_row(connection, row))
@@ -41,7 +43,7 @@ impl Store {
         self.read(|connection| get_actor(connection, workspace, name))
     }
 
-    /// The Actor with this `id`, deleted or not.
+    /// The Actor with this `id`, archived, deleted or not.
     pub fn get_actor_by_id(&self, id: &str) -> Result<Option<Actor>> {
         self.read(|connection| get_actor_by_id(connection, id))
     }
@@ -326,6 +328,75 @@ impl Store {
             Ok(actor)
         })
     }
+
+    /// Records `archivedAt` by `writer` on an Actor whose current Session is not running,
+    /// which frees its name. A Session archives no Actor with grants or `trustWorkdir`.
+    pub fn archive_actor_as(
+        &self,
+        workspace: &str,
+        name: &str,
+        writer: Writer,
+    ) -> std::result::Result<Actor, ActorWriteError> {
+        self.write("Actor archive", |transaction, notices| {
+            let (id, kind) = live_actor(transaction, workspace, name)?.ok_or_else(|| {
+                ActorWriteError::ActorNotFound {
+                    workspace: workspace.to_owned(),
+                    actor: name.to_owned(),
+                }
+            })?;
+            writer.check(transaction, Some(&id), kind, name)?;
+            refuse_running(transaction, &id, name, "archive")?;
+            transaction
+                .execute(
+                    "UPDATE actors SET archived_at = ?2, updated_at = ?2 WHERE id = ?1",
+                    params![id, now()],
+                )
+                .context("archive Actor")?;
+            let actor = get_actor_by_id(transaction, &id)?
+                .ok_or_else(|| anyhow::anyhow!("archived Actor was not found"))?;
+            notices.push("actor", name, Some(workspace));
+            Ok(actor)
+        })
+    }
+
+    /// Clears `archivedAt` by `writer` on the archived Actor `id` of a live Workspace, while
+    /// no live Actor holds its name.
+    pub fn unarchive_actor_as(
+        &self,
+        id: &str,
+        writer: Writer,
+    ) -> std::result::Result<Actor, ActorWriteError> {
+        self.write("Actor unarchive", |transaction, notices| {
+            let row = read_actor_rows(
+                transaction,
+                "WHERE id = ?1 AND archived_at IS NOT NULL AND deleted_at IS NULL",
+                [id],
+            )?
+            .into_iter()
+            .next()
+            .ok_or_else(|| ActorWriteError::ArchivedNotFound(id.to_owned()))?;
+            if live_workspace_id(transaction, &row.workspace)?.is_none() {
+                return Err(ActorWriteError::WorkspaceNotFound(row.workspace));
+            }
+            writer.check(transaction, Some(id), row.kind, &row.name)?;
+            if live_actor(transaction, &row.workspace, &row.name)?.is_some() {
+                return Err(ActorWriteError::NameTaken {
+                    workspace: row.workspace,
+                    name: row.name,
+                });
+            }
+            transaction
+                .execute(
+                    "UPDATE actors SET archived_at = NULL, updated_at = ?2 WHERE id = ?1",
+                    params![id, now()],
+                )
+                .context("unarchive Actor")?;
+            let actor = get_actor_by_id(transaction, id)?
+                .ok_or_else(|| anyhow::anyhow!("unarchived Actor was not found"))?;
+            notices.push("actor", &actor.name, Some(&actor.workspace));
+            Ok(actor)
+        })
+    }
 }
 
 /// Who writes an Actor. A Session writes only an Actor without grants or `trustWorkdir` of a
@@ -415,7 +486,7 @@ pub struct LaunchUpdate<'a> {
 
 const ACTOR_COLUMNS: &str = "id, workspace_key, name, kind, launch_spec, created_at, updated_at,
      deleted_at, schedule_cron, schedule_timezone, schedule_enabled, schedule_created_at,
-     schedule_paused_at, schedule_enabled_at, schedule_revision, grants, accept_from";
+     schedule_paused_at, schedule_enabled_at, schedule_revision, grants, accept_from, archived_at";
 
 fn encode_grants(grants: &BTreeSet<Grant>) -> Result<String> {
     serde_json::to_string(grants).context("encode grants")
@@ -450,6 +521,7 @@ pub(super) struct ActorRow {
     pub(super) launch_spec: Option<String>,
     pub(super) created_at: String,
     pub(super) updated_at: String,
+    pub(super) archived_at: Option<String>,
     pub(super) deleted_at: Option<String>,
     pub(super) schedule: Option<Schedule>,
     pub(super) grants: String,
@@ -485,6 +557,7 @@ fn actor_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActorRow> {
         launch_spec: row.get(4)?,
         created_at: row.get(5)?,
         updated_at: row.get(6)?,
+        archived_at: row.get(17)?,
         deleted_at: row.get(7)?,
         schedule,
         grants: row.get(15)?,
@@ -544,6 +617,7 @@ fn actor_from_row(connection: &Connection, row: ActorRow) -> Result<Actor> {
             .transpose()?,
         created_at: row.created_at,
         updated_at: row.updated_at,
+        archived_at: row.archived_at,
         deleted_at: row.deleted_at,
         current_session: None,
         latest_session: None,
@@ -561,7 +635,7 @@ fn actor_from_row(connection: &Connection, row: ActorRow) -> Result<Actor> {
 fn get_actor(connection: &Connection, workspace: &str, name: &str) -> Result<Option<Actor>> {
     read_actor_rows(
         connection,
-        "WHERE workspace_key = ?1 AND name = ?2 AND deleted_at IS NULL",
+        "WHERE workspace_key = ?1 AND name = ?2 AND archived_at IS NULL AND deleted_at IS NULL",
         params![workspace, name],
     )?
     .into_iter()
@@ -612,7 +686,8 @@ pub(super) fn live_actor(
     connection
         .query_row(
             "SELECT id, kind FROM actors
-             WHERE workspace_key = ?1 AND name = ?2 AND deleted_at IS NULL",
+             WHERE workspace_key = ?1 AND name = ?2
+               AND archived_at IS NULL AND deleted_at IS NULL",
             params![workspace, name],
             |row| Ok((row.get(0)?, row.get::<_, Text<_>>(1)?.0)),
         )
