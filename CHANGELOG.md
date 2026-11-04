@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.1
+
+### Highlights
+
+- An idle daemon on Linux no longer spins a core and grows its memory until the OOM killer takes it. Upgrade if you run Feld on Linux.
+- `daemon.log` now records each start and the daemon's CPU and memory when they climb, so a later crash leaves a trail.
+
+### Added
+
+- **daemon**: `daemon.log` starts each run with the version, start time and pid, and logs the CPU share, peak RSS, live tokio tasks and uptime when the daemon turns busy (half a core or more) or calm, and each time its peak RSS passes 256 MiB or doubles (#27)
+
+### Changed
+
+- **deps**: minimatch 11.0.4 under `@redocly/openapi-core` for GHSA-g3hv-75wg-m249 (#28)
+
+### Fixed
+
+- **daemon**: on Linux, the spool watch ignores the open events that its own scans produce, so an idle daemon no longer wakes itself in a loop and fills memory (#27)
+
 ## 0.2.0
 
 ### Highlights
