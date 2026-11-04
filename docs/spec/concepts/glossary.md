@@ -341,7 +341,7 @@ Facts Feld itself left. It is a separate line from the dialogue history the Runt
 
 Records remain for both Agents and Jobs, and have `kind`, a time, Workspace, and the Actor's `id`, plus the related Session if any. All records have a global order along the time axis, and the continuation can be read from a cursor pointing to a position. They are read with a single search filtered by Workspace, Actor, Session, kind, and time range; per-Session history and the list of skipped ticks are both results of this search.
 
-There are 11 kinds.
+There are 13 kinds.
 
 - `session.started`, `session.ended`
 - `spawned`: See [spawned](#spawned)
@@ -350,6 +350,7 @@ There are 11 kinds.
 - `observation`: Only when the [observation](#observation) kind changes
 - `schedule.skipped`: A [Schedule](#schedule) tick rejected by admission
 - `schedule.missed`: A [Schedule](#schedule) tick not fired because the Scheduler stopped or woke 2 minutes or more past the scheduled time, with the reason. Has no Session
+- `schedule.paused`, `schedule.resumed`: A `pause` / `resume` that toggled `enabled` of a [Schedule](#schedule), with `requesterSessionId` (the requesting Session; null for a request from Admin). Has no Session
 
 #### spawned
 
