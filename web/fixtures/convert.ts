@@ -428,23 +428,10 @@ export function daemonReadOf(data: MockDaemonData, actors: MockActorsData, clock
   return { ...base, phase: "reachable", status, lastRead: status.serverTime };
 }
 
-// POST /v1/ui/pair against the fixture's daemon: a code works once, and a run of failures
-// drops every code it holds.
+// POST /v1/ui/pair against the fixture's daemon: a code works once.
 export function pairingOf(pairing: MockPairing): (code: string) => boolean {
   const codes = new Set(pairing.codes.map(normalizeCode));
-  let failures = 0;
-  return (code) => {
-    if (codes.delete(normalizeCode(code))) {
-      failures = 0;
-      return true;
-    }
-    failures += 1;
-    if (failures >= pairing.failureLimit) {
-      codes.clear();
-      failures = 0;
-    }
-    return false;
-  };
+  return (code) => codes.delete(normalizeCode(code));
 }
 
 export function daemonStateOf(value: string | null): FixtureDaemonState {

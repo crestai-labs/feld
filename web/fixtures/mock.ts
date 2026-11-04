@@ -165,11 +165,9 @@ export interface MockDaemonData {
   pairing: MockPairing;
 }
 
-// The pairing codes `feld ui pair` issued, each good once, and the failures in a row after
-// which the daemon drops every code.
+// The pairing codes `feld ui pair` issued, each good once.
 export interface MockPairing {
   codes: string[];
-  failureLimit: number;
 }
 
 // The daemon's message for each request it refuses; `{actor}` and `{session}` are filled in.

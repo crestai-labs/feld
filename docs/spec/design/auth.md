@@ -86,13 +86,13 @@ It expires at the earlier of 7 days after last use and 30 days after issue. The 
 
 pairing is the procedure that exchanges a short-lived code issued on the daemon's device for a browser token in the browser. A person carries only the code; the browser token never appears on screen, and the cookie value is never exposed to JS. On user-facing surfaces (Web UI, CLI output, README), this authentication is called Sign in, and `POST /v1/ui/unpair` is called Sign out.
 
-1. A local token caller (`feld ui pair`, `feld ui`) issues a pairing code. The code is 8 characters from 31 hard-to-misread characters (digits and uppercase letters, excluding `0`, `1`, `I`, `L`, `O`), shown in the form `K7QM-4XPD`. It is valid for 5 minutes and can be used once. The daemon keeps the code hashed only in memory, and it disappears when the daemon stops
+1. A local token caller (`feld ui pair`, `feld ui`) issues a pairing code. The code is 10 characters from 31 hard-to-misread characters (digits and uppercase letters, excluding `0`, `1`, `I`, `L`, `O`), shown in the form `K7QMW-4XPDR`. It is valid for 5 minutes and can be used once. The daemon keeps the code hashed only in memory, and it disappears when the daemon stops
 2. When the Web UI is opened in a browser and there is no browser token or a 401 occurs, the pairing screen appears at any address. A person enters the code. `feld ui` opens `/ui/pair#code=<code>`, and the Web UI tries a light read without showing the form. If a valid browser token exists, it moves to the Actors page without using the code
 3. If the read returns 401, the Web UI sends the code to `POST /v1/ui/pair`. Matching ignores case and hyphens. The daemon consumes the code, issues a browser token, and returns the cookie value via Set-Cookie and the key in the response body. The Web UI places the key in `localStorage`. If the request carries a valid browser token's cookie and key, the daemon revokes that token before issuing, so re-pairing in the same browser keeps a single token
 4. Before moving on, the Web UI tries a read to confirm the browser token works. On 401, it shows on the pairing screen that the browser did not save the cookie or the key
 5. Subsequent reads, writes, and SSE pass with the cookie and key
 
-When `POST /v1/ui/pair` fails 5 times in a row, the daemon invalidates all codes valid at that point. A person issues a new code on the daemon's device. A success resets the count.
+The daemon checks codes one at a time in arrival order and waits 20 ms after a failed check before the next, so guesses are bounded to 15,000 in a code's 5 minutes across the daemon, a success rate of about 1.8×10^-11. Failures leave the pending codes valid, so a code a person enters pairs after the checks queued ahead of it. Holding it past its 5 minutes takes about 15,000 wrong codes kept waiting at once.
 
 ## cookie and key
 

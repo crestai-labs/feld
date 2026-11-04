@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration as Pause;
 
 use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use sha2::{Digest, Sha256};
-use tokio::sync::watch;
+use tokio::sync::{Mutex as Queue, watch};
+use tokio::time::{Instant, sleep_until};
 
 use crate::store::{NewBrowser, Store};
 use feld_core::id::{fresh_id, fresh_token};
@@ -12,16 +14,19 @@ use feld_core::time;
 
 /// The 31 letters of a pairing code: digits and capitals without `0`, `1`, `I`, `L`, `O`.
 const CODE_ALPHABET: &[u8; 31] = b"23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-const CODE_LENGTH: usize = 8;
+const CODE_LENGTH: usize = 10;
 const CODE_LIFETIME: Duration = Duration::minutes(5);
-/// After this many failed pairings in a row every pending code is dropped.
-const FAILURES_BEFORE_RESET: u32 = 5;
+/// The wait after a failed check before the daemon checks the next code, which bounds guesses
+/// to 50 a second however many requests arrive at once.
+const FAILURE_PAUSE: Pause = Pause::from_millis(20);
 
 /// The browser tokens of `auth.md` and the pairing codes a browser exchanges for one.
 pub struct BrowserService {
     store: Arc<Store>,
     cookie: String,
     pairing: Mutex<Pairing>,
+    /// Checks of codes, one at a time in arrival order: the earliest a check may run.
+    checks: Queue<Option<Instant>>,
     revocations: watch::Sender<()>,
 }
 
@@ -29,7 +34,6 @@ pub struct BrowserService {
 #[derive(Default)]
 struct Pairing {
     codes: Vec<PendingCode>,
-    failures: u32,
 }
 
 struct PendingCode {
@@ -59,6 +63,7 @@ impl BrowserService {
             store,
             cookie: format!("feld_browser_{port}"),
             pairing: Mutex::default(),
+            checks: Queue::new(None),
             revocations: watch::Sender::new(()),
         }
     }
@@ -90,7 +95,7 @@ impl BrowserService {
             expires,
         });
         PairingCode {
-            code: format!("{}-{}", &letters[..4], &letters[4..]),
+            code: format!("{}-{}", &letters[..5], &letters[5..]),
             name: name.to_owned(),
             expires_at: time::format(expires),
         }
@@ -98,7 +103,11 @@ impl BrowserService {
 
     /// Exchanges a pairing code for a new browser token, revoking `replacing`, the credentials
     /// of the token the browser still holds. `None` when the code is unknown, expired, or used.
-    pub fn pair(&self, code: &str, replacing: &[String]) -> Result<Option<Paired>> {
+    pub async fn pair(&self, code: &str, replacing: &[String]) -> Result<Option<Paired>> {
+        let mut next_check = self.checks.lock().await;
+        if let Some(at) = *next_check {
+            sleep_until(at).await;
+        }
         let now = Utc::now();
         let normalized: String = code
             .chars()
@@ -109,21 +118,14 @@ impl BrowserService {
         let name = {
             let mut pairing = self.pairing.lock().expect("pairing mutex poisoned");
             pairing.codes.retain(|code| code.expires > now);
-            match pairing.codes.iter().position(|code| code.hash == supplied) {
-                Some(index) => {
-                    pairing.failures = 0;
-                    pairing.codes.swap_remove(index).name
-                }
-                None => {
-                    pairing.failures += 1;
-                    if pairing.failures >= FAILURES_BEFORE_RESET {
-                        pairing.codes.clear();
-                        pairing.failures = 0;
-                    }
-                    return Ok(None);
-                }
+            let found = pairing.codes.iter().position(|code| code.hash == supplied);
+            *next_check = found.is_none().then(|| Instant::now() + FAILURE_PAUSE);
+            match found {
+                Some(index) => pairing.codes.swap_remove(index).name,
+                None => return Ok(None),
             }
         };
+        drop(next_check);
         let token = fresh_token();
         let key = fresh_token();
         let id = fresh_id("browser");

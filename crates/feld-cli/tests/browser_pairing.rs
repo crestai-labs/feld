@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -242,8 +243,8 @@ fn a_pairing_code_becomes_a_browser_token_that_calls_the_api_as_the_admin() {
     let issued = api.issue_code(Some("laptop"));
     let code = issued["code"].as_str().unwrap();
     assert_eq!(issued["name"], "laptop");
-    assert_eq!(code.len(), 9);
-    assert_eq!(&code[4..5], "-");
+    assert_eq!(code.len(), 11);
+    assert_eq!(&code[5..6], "-");
     assert!(
         code.chars()
             .filter(|letter| *letter != '-')
@@ -719,7 +720,7 @@ fn ending_a_browser_token_closes_the_event_streams_it_opened() {
 }
 
 #[test]
-fn five_failed_pairings_in_a_row_drop_every_pending_code() {
+fn wrong_codes_wait_their_turn_and_leave_the_pending_codes_alone() {
     let fixture = Fixture::new();
     let api = fixture.start();
     let attempt = |code: &str| {
@@ -729,32 +730,41 @@ fn five_failed_pairings_in_a_row_drop_every_pending_code() {
             .unwrap()
             .status()
     };
+    let code = api.issue_code(None);
 
-    // A success counts again from zero.
-    let kept = api.issue_code(None);
-    for _ in 0..4 {
-        assert_eq!(attempt("WRONG-CODE"), StatusCode::UNAUTHORIZED);
+    // Each failed check holds the next one back 20 ms, however the guesses arrive.
+    let started = Instant::now();
+    thread::scope(|scope| {
+        let guesses: Vec<_> = (0..26)
+            .map(|_| scope.spawn(|| attempt("WRONG-CODE")))
+            .collect();
+        for guess in guesses {
+            assert_eq!(guess.join().unwrap(), StatusCode::UNAUTHORIZED);
+        }
+    });
+    assert!(started.elapsed() >= Duration::from_millis(500));
+
+    // A person's code pairs while wrong codes keep arriving.
+    let guessing = AtomicBool::new(true);
+    thread::scope(|scope| {
+        scope.spawn(|| {
+            while guessing.load(Ordering::Relaxed) {
+                assert_eq!(attempt("WRONG-CODE"), StatusCode::UNAUTHORIZED);
+            }
+        });
+        // The guesses stop even when the assertion fails.
+        let _stop = StopGuessing(&guessing);
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(attempt(code["code"].as_str().unwrap()), StatusCode::OK);
+    });
+}
+
+struct StopGuessing<'a>(&'a AtomicBool);
+
+impl Drop for StopGuessing<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Relaxed);
     }
-    assert_eq!(attempt(kept["code"].as_str().unwrap()), StatusCode::OK);
-    for _ in 0..4 {
-        assert_eq!(attempt("WRONG-CODE"), StatusCode::UNAUTHORIZED);
-    }
-
-    let dropped = api.issue_code(None);
-    let other = api.issue_code(None);
-    assert_eq!(attempt("WRONG-CODE"), StatusCode::UNAUTHORIZED);
-    assert_eq!(
-        attempt(dropped["code"].as_str().unwrap()),
-        StatusCode::UNAUTHORIZED
-    );
-    assert_eq!(
-        attempt(other["code"].as_str().unwrap()),
-        StatusCode::UNAUTHORIZED
-    );
-
-    // A code issued afterwards pairs.
-    let fresh = api.issue_code(None);
-    assert_eq!(attempt(fresh["code"].as_str().unwrap()), StatusCode::OK);
 }
 
 #[test]
@@ -818,7 +828,7 @@ fn a_browser_token_lapses_seven_days_after_its_last_use_and_thirty_after_its_pai
 }
 
 #[test]
-fn a_rebound_host_is_refused_before_it_can_drop_the_pairing_codes() {
+fn a_rebound_host_is_refused_before_its_code_is_checked() {
     let fixture = Fixture::new();
     let api = fixture.start();
     let port = api.api.rsplit_once(':').unwrap().1.to_owned();
@@ -863,7 +873,7 @@ fn a_rebound_host_is_refused_before_it_can_drop_the_pairing_codes() {
             "{host} {forwarded}"
         );
     }
-    // None of them counted as a failed pairing.
+    // None of them reached a check, and the code still pairs.
     let (token, _) = api.pair(code["code"].as_str().unwrap());
 
     // The Web UI and the API answer the loopback names on the daemon's port alone.

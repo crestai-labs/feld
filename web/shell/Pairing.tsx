@@ -5,7 +5,7 @@ import { t } from "./i18n.ts";
 
 // The characters a code is written in: digits and capitals without 0, 1, I, L, and O.
 const CODE_ALPHABET = /^[2-9A-HJKMNP-Z]*$/;
-const CODE_LENGTH = 8;
+const CODE_LENGTH = 10;
 const COPIED_DURATION = 1400;
 // How long "Signed in" shows before the page opens.
 const OPEN_DELAY = 600;
@@ -14,7 +14,7 @@ const PAGE_QUERY_KEYS = ["workspace", "scenario"];
 const PAIR_COMMAND = "feld ui pair";
 
 function formatted(code: string) {
-  return code.length > 4 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+  return code.length > 5 ? `${code.slice(0, 5)}-${code.slice(5)}` : code;
 }
 
 // The pairing page (`/ui/pair`) leads to the Actors page; any other page shows itself
@@ -189,11 +189,11 @@ export function Pairing({ notice, pairPage, send }: { notice: PairingNotice | nu
             <label htmlFor="feld-pairing-code">{t("pairing.code.label")}</label>
             <div className="feld-pairing__field">
               <input
-                id="feld-pairing-code" name="code" ref={input} value={formatted(code)} placeholder="XXXX-XXXX" maxLength={9}
+                id="feld-pairing-code" name="code" ref={input} value={formatted(code)} placeholder="XXXXX-XXXXX" maxLength={11}
                 autoComplete="one-time-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text"
                 aria-describedby="feld-pairing-message" disabled={locked}
                 onChange={(event) => {
-                  // The field keeps what was typed as the code reads: capitals, a hyphen after four.
+                  // The field keeps what was typed as the code reads: capitals, a hyphen after five.
                   setCode(normalizeCode(event.target.value).slice(0, CODE_LENGTH));
                   setResult(null);
                   setFailure(null);
