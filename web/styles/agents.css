@@ -13,16 +13,16 @@ feld-agents {
   color: var(--ink);
 }
 
-.feld-agents button,
-.feld-agents input,
-.feld-agents select {
+/* The Console resets its own controls in console.css. */
+.feld-agents button:where(:not(.feld-console__terminal *)),
+.feld-agents input:where(:not(.feld-console__terminal *)),
+.feld-agents select:where(:not(.feld-console__terminal *)) {
   font: inherit;
   color: inherit;
 }
 
-.feld-agents button:focus-visible,
-.feld-agents input:focus-visible,
-.feld-agents select:focus-visible {
+/* Only the pseudo-class counts (0,1,0), so a control's own focus rule wins wherever its stylesheet loads. */
+:where(.feld-agents) :where(button, input, select):focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 1px;
 }
