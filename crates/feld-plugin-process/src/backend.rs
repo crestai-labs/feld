@@ -89,6 +89,8 @@ pub struct ProcessProvider {
     /// The directory the state directories of launches go under.
     pub(crate) state_root: PathBuf,
     pub(crate) settle_timeout: Duration,
+    /// Reads the program's start time once the supervisor answers its pid.
+    pub(crate) program_incarnation: fn(u32) -> std::io::Result<Option<ProcessIncarnation>>,
 }
 
 impl Default for ProcessProvider {
@@ -106,6 +108,7 @@ impl Default for ProcessProvider {
             executable: std::env::current_exe().unwrap_or_else(|_| PathBuf::from("plugin")),
             state_root: home.join("providers").join("process"),
             settle_timeout: Duration::from_secs(2),
+            program_incarnation: feld_core::process::incarnation,
         }
     }
 }
@@ -422,10 +425,16 @@ impl ProcessProvider {
             Err(_) => return Err(abandon(&mut child, "the supervisor did not answer")),
         };
         match serde_json::from_str::<Started>(line.trim()) {
-            Ok(Started::Pid(pid)) => {
-                let program = feld_core::process::incarnation(pid).unwrap_or(None);
-                Ok((supervisor, program))
-            }
+            // A program that has already ended has no start time to read. One that cannot be
+            // read may be running, and a Placement without it could not be stopped, so the
+            // launch ends it with the supervisor instead.
+            Ok(Started::Pid(pid)) => match (self.program_incarnation)(pid) {
+                Ok(program) => Ok((supervisor, program)),
+                Err(error) => Err(abandon(
+                    &mut child,
+                    &format!("read the program's start time: {error}"),
+                )),
+            },
             Ok(Started::Error(error)) => {
                 let _ = child.wait();
                 Err(error)

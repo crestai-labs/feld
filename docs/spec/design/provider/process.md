@@ -34,9 +34,9 @@ The program has no terminal, so a person cannot attach to it, and an Agent does 
 2. `launch` creates the state directory and starts the Plugin's own executable as `<plugin> supervise <state>` in a new session (`setsid`), with `/` as its working directory and nothing on stdout but a pipe back to the launch
 3. The launch reads the supervisor's pid and start time while the supervisor waits on its stdin, then writes the command, the environment, and the workdir to that stdin as JSON and closes it. The environment travels only on this pipe ([token exposure prevention](../auth.md#preventing-token-exposure))
 4. The supervisor starts the program with the workdir as its working directory, `PWD` set to it, the environment it received on top of its own (without `FELD_SESSION_TOKEN`, `FELD_SESSION_ID`, `FELD_ACTOR`, `FELD_WORKSPACE` of the supervisor's own environment), and `/dev/null` as stdin, stdout, and stderr. It answers the program's pid as one line on its stdout, or the reason the program could not start, and then lets go of stdout
-5. The launch reads the program's start time, observes, and returns the Placement with the first observation
+5. The launch reads the program's start time, observes, and returns the Placement with the first observation. A program already gone from the process table is recorded without a start time
 
-When the program cannot start (the workdir is gone, the command cannot be run), or the supervisor does not answer within the deadline, the launch kills the supervisor's process group, removes the state directory, and answers `gone` without a Placement.
+When the program cannot start (the workdir is gone, the command cannot be run), the supervisor does not answer within the deadline, or the process table cannot be read for the program's start time, the launch kills the supervisor's process group, removes the state directory, and answers `gone` without a Placement.
 
 The supervisor waits for the program and writes `{"exitCode": <n>}` to `<state>/exit`, through a temporary file renamed over it. A program ended by a signal has the exit code 128 + the signal number.
 
