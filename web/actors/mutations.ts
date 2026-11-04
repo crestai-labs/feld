@@ -97,7 +97,7 @@ export function killActorSession(client: QueryClient | null, agentId: string, se
 // daemon answers it, so one refusal neither holds nor undoes the others; once all have
 // answered, the reads the accepted ones changed are redone. `refusal` stands in for the
 // daemon in fixture mode's refusing state, with {actor} and {session} filled per Actor.
-export async function runBulkAction(client: QueryClient | null, model: Pick<ActorsModel, "latestSessionFor">, action: BulkAction, agents: readonly ActorRecord[], refusal: string | null = null) {
+export async function runBulkAction(client: QueryClient | null, model: Pick<ActorsModel, "runningSessionOf">, action: BulkAction, agents: readonly ActorRecord[], refusal: string | null = null) {
   const store = useActorsStore;
   if (store.getState().bulkRequest?.pending) return;
   const targets = bulkTargetsFor(model, action, agents);

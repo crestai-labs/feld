@@ -3,9 +3,11 @@ import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { keys } from "../api/queries.ts";
 import { killSession, restartActor, startActor, stopSession } from "../api/client.ts";
 import { bulkSummary, bulkTargetsFor, chosenAgents } from "./bulk.ts";
+import { createModel } from "./model.ts";
 import { runBulkAction } from "./mutations.ts";
 import { useActorsStore } from "./store.ts";
-import type { ActorRecord, AgentSession } from "./types.ts";
+import type { ActorRecord, ActorsInput, AgentSession } from "./types.ts";
+import type { ConsoleReads } from "../console/reads.ts";
 
 vi.mock("../api/client.ts", () => ({
   startActor: vi.fn(async () => ({ session: { id: "session_new" } })),
@@ -23,7 +25,7 @@ beforeEach(() => {
 
 const launchSpec = { runtime: "claude-code" } as ActorRecord["launchSpec"];
 const actor = (name: string, extra: Partial<ActorRecord> = {}): ActorRecord => ({ id: `default/${name}`, name, workspace: "default", kind: "agent", launchSpec, ...extra });
-const session = (id: string, ownership: "owned" | "attached", end: number | null = null) => ({ id, end, ownership, execution: { ownership } }) as unknown as AgentSession;
+const session = (id: string, ownership: "owned" | "attached", end: number | null = null) => ({ id, end, ownership }) as unknown as AgentSession;
 
 // dev runs an owned Session, att an attached one, idle has ended, bare has no launchSpec,
 // and gone is deleted.
@@ -33,7 +35,11 @@ const SESSIONS: Record<string, AgentSession> = {
   "default/att": session("session_att", "attached"),
   "default/idle": session("session_idle", "owned", 1),
 };
-const model = { latestSessionFor: (agentId: string) => SESSIONS[agentId] ?? null };
+const runningOf = (sessions: Record<string, AgentSession>) => (agent: ActorRecord) => {
+  const held = sessions[agent.id];
+  return held && held.end === null ? { id: held.id, ownership: held.ownership } : null;
+};
+const model = { runningSessionOf: runningOf(SESSIONS) };
 
 test("each action applies to the chosen Actors the Actions menu offers it for, and names why it skips the rest", () => {
   const skips = (action: "start" | "restart" | "stop" | "kill") => bulkTargetsFor(model, action, AGENTS).map((target) => [target.agent.name, target.sessionId, target.skip]);
@@ -70,7 +76,7 @@ test("Stop is sent to each Actor it applies to, and one refusal leaves the other
     if (sessionId === "session_other") throw new Error("session_other has already ended");
     return {} as never;
   });
-  const running = runBulkAction(client, { latestSessionFor: (agentId) => sessions[agentId] ?? null }, "stop", [AGENTS[0], AGENTS[1], other]);
+  const running = runBulkAction(client, { runningSessionOf: runningOf(sessions) }, "stop", [AGENTS[0], AGENTS[1], other]);
   expect(store().bulkRequest).toMatchObject({ action: "stop", pending: true });
   await running;
   expect(vi.mocked(stopSession).mock.calls.map(([sessionId]) => sessionId)).toEqual(["session_dev", "session_other"]);
@@ -122,4 +128,25 @@ test("the choice and the bar hold while a request is in flight, and closing the 
   store().toggleBulk();
   expect(store()).toMatchObject({ bulkOpen: false, bulkRequest: null });
   expect(store().bulkActorIds.size).toBe(0);
+});
+
+test("a past range that holds none of an Actor's Sessions acts on the current Session its listing answers", () => {
+  // The range's Sessions are read for the range alone; the listing names what runs now.
+  const input = { workspaces: ["default"], defaultWorkspace: "default", actors: [], sessions: [], schedules: [], scheduleSkips: [], actions: [], messages: [], metrics: [], launchOptions: { runtimes: [], providers: [], nodes: [] } } as ActorsInput;
+  const reads = { recordingFor: () => null, runtimeRecordFor: () => null, lastRuntimeRecordFor: () => null, lastLogLineFor: () => null, feldRecordsFor: () => null, consoleSessionFor: (held: unknown) => held } as unknown as ConsoleReads;
+  const running = actor("dev", { currentSession: { id: "session_now", ownership: "owned" } });
+  const attached = actor("att", { currentSession: { id: "session_att", ownership: "attached" } });
+  const idle = actor("idle", { currentSession: null });
+  const past = createModel({ ...input, actors: [running, attached, idle] }, { now: Date.parse("2026-09-25T00:30:00Z"), timeZone: "UTC" }, reads);
+  const targets = (action: "start" | "stop") => bulkTargetsFor(past, action, [running, attached, idle]).map((target) => [target.agent.name, target.sessionId, target.skip]);
+  expect(targets("start")).toEqual([
+    ["dev", null, "session_now is running"],
+    ["att", null, "session_att is running"],
+    ["idle", null, null],
+  ]);
+  expect(targets("stop")).toEqual([
+    ["dev", "session_now", null],
+    ["att", null, "session_att is attached: the person who started it ends it"],
+    ["idle", null, "no running Session"],
+  ]);
 });

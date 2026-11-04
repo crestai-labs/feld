@@ -1,8 +1,9 @@
 // The Bulk actions bar's rules: which of the chosen Actors each lifecycle primitive applies
 // to, by the same facts as an Actor's Actions menu (a current Session, its ownership, a
-// launchSpec), and how each Actor's part in a request is reported.
+// launchSpec), and how each Actor's part in a request is reported. The current Session is
+// the one the Actor listing answers whatever the range, so a past range acts on what runs now.
 
-import { MENU_ACTION_NOTES, ownershipOf, type ActorsModel } from "./model.ts";
+import { MENU_ACTION_NOTES, type ActorsModel } from "./model.ts";
 import type { ActorRecord, BulkAction, BulkResult } from "./types.ts";
 
 export const BULK_ACTIONS: readonly BulkAction[] = Object.freeze(["start", "restart", "stop", "kill"]);
@@ -39,18 +40,17 @@ export interface BulkTarget {
   skip: string | null;
 }
 
-export function bulkTargetFor(model: Pick<ActorsModel, "latestSessionFor">, action: BulkAction, agent: ActorRecord): BulkTarget {
+export function bulkTargetFor(model: Pick<ActorsModel, "runningSessionOf">, action: BulkAction, agent: ActorRecord): BulkTarget {
   const skip = (reason: string): BulkTarget => ({ agent, sessionId: null, skip: reason });
   if (agent.deletedAt) return skip("deleted");
-  const session = model.latestSessionFor(agent.id);
-  const current = session && session.end === null ? session : null;
+  const current = model.runningSessionOf(agent);
   if (action === "start") {
     if (current) return skip(`${current.id} is running`);
     if (!agent.launchSpec) return skip("no launchSpec: created by attach");
     return { agent, sessionId: null, skip: null };
   }
   if (!current) return skip("no running Session");
-  if (ownershipOf(current) === "attached") return skip(`${current.id} is attached: the person who started it ends it`);
+  if (current.ownership === "attached") return skip(`${current.id} is attached: the person who started it ends it`);
   return { agent, sessionId: current.id, skip: null };
 }
 
@@ -60,7 +60,7 @@ export function chosenAgents(shown: readonly ActorRecord[], chosen: ReadonlySet<
   return shown.filter((agent) => chosen.has(agent.id));
 }
 
-export function bulkTargetsFor(model: Pick<ActorsModel, "latestSessionFor">, action: BulkAction, agents: readonly ActorRecord[]) {
+export function bulkTargetsFor(model: Pick<ActorsModel, "runningSessionOf">, action: BulkAction, agents: readonly ActorRecord[]) {
   return agents.map((agent) => bulkTargetFor(model, action, agent));
 }
 

@@ -44,6 +44,14 @@ export function BulkBar({ agents, state }: { agents: ActorRecord[]; state: Pick<
     useActorsStore.getState().setBulkChosen(agents.map((agent) => agent.id), all);
   }
 
+  // Any change of the choice turns Kill back, even one that returns to the choice it was
+  // confirmed for.
+  const [heldChoice, setHeldChoice] = useState(choiceKey);
+  if (heldChoice !== choiceKey) {
+    setHeldChoice(choiceKey);
+    setConfirmKill(null);
+  }
+
   function run(action: BulkAction) {
     if (action === "kill" && confirmKill !== choiceKey) {
       setConfirmKill(choiceKey);
