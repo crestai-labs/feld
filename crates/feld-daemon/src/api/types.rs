@@ -116,6 +116,10 @@ pub struct CreateActorRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub accept_from: Option<BTreeSet<String>>,
+    /// The `name` of the declaration file whose `feld apply` declares the Actor. A replaced
+    /// declaration keeps it without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_in: Option<String>,
     /// Where the creating CLI sits on the Provider, as its `self` answered. The Provider's
     /// `resolve` fills the omitted `providerOptions` from it.
     #[serde(default, deserialize_with = "optional_object")]

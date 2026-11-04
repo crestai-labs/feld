@@ -63,6 +63,7 @@ pub(super) async fn create_actor(
                 }),
                 grants: request.grants.as_ref(),
                 accept_from: request.accept_from.as_ref(),
+                declared_in: request.declared_in.as_deref(),
                 writer,
             },
             request.caller.as_ref(),

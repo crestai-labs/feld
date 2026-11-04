@@ -25,6 +25,10 @@ pub struct LaunchSpec {
     /// The environment the Session starts in, beneath what Feld sets itself.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<BTreeMap<String, String>>,
+    /// A file of `KEY=VALUE` lines read at each launch, beneath `env`, so that the values stay
+    /// out of the declaration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env_file: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,6 +148,13 @@ impl LaunchSpec {
                 "env name '{name}' must be letters, digits, and '_', not starting with a digit"
             ));
         }
+        if self
+            .env_file
+            .as_deref()
+            .is_some_and(|path| !Path::new(path).is_absolute())
+        {
+            return Err("launchSpec envFile must be absolute".to_owned());
+        }
         if self.provider.as_deref().is_none_or(str::is_empty) {
             return Err("launchSpec requires provider".to_owned());
         }
@@ -232,6 +243,7 @@ impl LaunchSpec {
             command: patch.command.apply(self.command.clone()),
             workdir: patch.workdir.apply(self.workdir.clone()),
             env: patch.env.apply(self.env.clone()),
+            env_file: patch.env_file.apply(self.env_file.clone()),
             provider: patch.provider.apply(self.provider.clone()),
             node: patch.node.apply(self.node.clone()),
             provider_options: patch.provider_options.apply(self.provider_options.clone()),
@@ -296,6 +308,8 @@ pub struct LaunchSpecPatch {
     #[serde(default, skip_serializing_if = "PatchValue::is_missing")]
     pub env: PatchValue<BTreeMap<String, String>>,
     #[serde(default, skip_serializing_if = "PatchValue::is_missing")]
+    pub env_file: PatchValue<String>,
+    #[serde(default, skip_serializing_if = "PatchValue::is_missing")]
     pub provider: PatchValue<String>,
     #[serde(default, skip_serializing_if = "PatchValue::is_missing")]
     pub node: PatchValue<String>,
@@ -318,6 +332,7 @@ impl LaunchSpecPatch {
             && self.command.is_missing()
             && self.workdir.is_missing()
             && self.env.is_missing()
+            && self.env_file.is_missing()
             && self.provider.is_missing()
             && self.node.is_missing()
             && self.provider_options.is_missing()

@@ -107,6 +107,9 @@ pub struct Actor {
     /// The names of the Actors of its Workspace whose Messages the Actor accepts, besides the
     /// Admin's. None accepts every Actor of the Workspace.
     pub accept_from: Option<BTreeSet<String>>,
+    /// The `name` of the declaration file whose `feld apply` declares the Actor. None for an
+    /// Actor declared otherwise.
+    pub declared_in: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub deleted_at: Option<String>,

@@ -14,6 +14,7 @@ CREATE TABLE actors (
   launch_spec TEXT,
   grants TEXT NOT NULL DEFAULT '[]',
   accept_from TEXT,
+  declared_in TEXT,
   schedule_cron TEXT,
   schedule_timezone TEXT,
   schedule_enabled INTEGER CHECK (schedule_enabled IN (0, 1)),

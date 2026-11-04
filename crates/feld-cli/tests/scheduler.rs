@@ -58,6 +58,7 @@ fn launch() -> LaunchSpec {
         command: Some(vec!["true".to_owned()]),
         workdir: Some("/tmp".to_owned()),
         env: None,
+        env_file: None,
         provider: Some("tmux".to_owned()),
         node: Some("local".to_owned()),
         provider_options: Some(json!({"socket": "feld-scheduler-test", "unit": "session"})),

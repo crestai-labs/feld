@@ -66,12 +66,14 @@ impl Store {
             schedule,
             grants,
             None,
+            None,
             Writer::Admin,
         )
     }
 
-    /// [`Self::create_actor`] by `writer`, with the senders the Actor accepts, which a
-    /// replaced declaration keeps when None. A Session replaces no Actor with grants or `trustWorkdir`.
+    /// [`Self::create_actor`] by `writer`, with the senders the Actor accepts and the
+    /// declaration file that declares it, which a replaced declaration keeps when None. A
+    /// Session replaces no Actor with grants or `trustWorkdir`.
     #[allow(clippy::too_many_arguments)]
     pub fn create_actor_as(
         &self,
@@ -82,6 +84,7 @@ impl Store {
         schedule: Option<&ScheduleDeclaration>,
         grants: Option<&BTreeSet<Grant>>,
         accept_from: Option<&BTreeSet<String>>,
+        declared_in: Option<&str>,
         writer: Writer,
     ) -> std::result::Result<Actor, ActorWriteError> {
         launch_spec
@@ -117,9 +120,10 @@ impl Store {
                         .execute(
                             "UPDATE actors SET launch_spec = ?2, grants = COALESCE(?3, grants),
                                                accept_from = COALESCE(?4, accept_from),
+                                               declared_in = COALESCE(?6, declared_in),
                                                updated_at = ?5
                              WHERE id = ?1",
-                            params![id, launch_spec, grants, accept_from, at],
+                            params![id, launch_spec, grants, accept_from, at, declared_in],
                         )
                         .context("replace Actor declaration")?;
                     id
@@ -130,9 +134,9 @@ impl Store {
                     transaction
                         .execute(
                             "INSERT INTO actors (id, workspace_id, workspace_key, name, kind,
-                                                 launch_spec, grants, accept_from, created_at,
-                                                 updated_at)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, '[]'), ?8, ?9, ?9)",
+                                                 launch_spec, grants, accept_from, declared_in,
+                                                 created_at, updated_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, '[]'), ?8, ?10, ?9, ?9)",
                             params![
                                 id,
                                 workspace_id,
@@ -142,7 +146,8 @@ impl Store {
                                 launch_spec,
                                 grants,
                                 accept_from,
-                                at
+                                at,
+                                declared_in
                             ],
                         )
                         .context("create Actor")?;
@@ -415,7 +420,7 @@ pub struct LaunchUpdate<'a> {
 
 const ACTOR_COLUMNS: &str = "id, workspace_key, name, kind, launch_spec, created_at, updated_at,
      deleted_at, schedule_cron, schedule_timezone, schedule_enabled, schedule_created_at,
-     schedule_paused_at, schedule_enabled_at, schedule_revision, grants, accept_from";
+     schedule_paused_at, schedule_enabled_at, schedule_revision, grants, accept_from, declared_in";
 
 fn encode_grants(grants: &BTreeSet<Grant>) -> Result<String> {
     serde_json::to_string(grants).context("encode grants")
@@ -454,6 +459,7 @@ pub(super) struct ActorRow {
     pub(super) schedule: Option<Schedule>,
     pub(super) grants: String,
     pub(super) accept_from: Option<String>,
+    pub(super) declared_in: Option<String>,
 }
 
 fn actor_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActorRow> {
@@ -489,6 +495,7 @@ fn actor_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActorRow> {
         schedule,
         grants: row.get(15)?,
         accept_from: row.get(16)?,
+        declared_in: row.get(17)?,
     })
 }
 
@@ -542,6 +549,7 @@ fn actor_from_row(connection: &Connection, row: ActorRow) -> Result<Actor> {
             .accept_from
             .map(|value| serde_json::from_str(&value).context("decode acceptFrom"))
             .transpose()?,
+        declared_in: row.declared_in,
         created_at: row.created_at,
         updated_at: row.updated_at,
         deleted_at: row.deleted_at,

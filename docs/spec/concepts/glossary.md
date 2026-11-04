@@ -24,6 +24,7 @@ This document collects the concepts that make up Feld and their meanings. It def
     - [kind](#kind)
     - [launchSpec](#launchspec)
     - [Schedule](#schedule)
+    - [declaration file](#declaration-file)
   - [Session](#session)
     - [ownership](#ownership)
     - [Placement](#placement)
@@ -163,15 +164,16 @@ The default Workspace always exists. `delete` of a Workspace is accepted only fo
 
 ### Actor
 
-A durable identity that Feld handles. It has `id`, `name`, `kind`, an optional `launchSpec`, for a Job an optional [Schedule](#schedule), [grants](#grants), and an optional [acceptFrom](#acceptfrom); it holds no execution state.
+A durable identity that Feld handles. It has `id`, `name`, `kind`, an optional `launchSpec`, for a Job an optional [Schedule](#schedule), [grants](#grants), an optional [acceptFrom](#acceptfrom), and an optional `declaredIn`; it holds no execution state.
 
 - `id`: An opaque, immutable ID assigned by Feld. Sessions, Messages, and records reference Actors by `id`, and display resolves it to `name`
 - `name`: A name unique among live Actors in the Workspace. Matches `^[a-z0-9][a-z0-9-]*$`. It can be changed with `update`, and history and the mailbox referenced by `id` appear under the new name
+- `declaredIn`: The `name` of the [declaration file](#declaration-file) that declares the Actor
 - `deletedAt`: The time of soft delete
 
 [Sessions](#session) carry the actual execution, and the Actor is the permanent principal that groups them. Every Actor has a [mailbox](#mailbox) and exactly one current Session slot.
 
-`create` against a live Actor of the same name replaces the declaration while keeping the same `id`, and keeps grants and, if not given, acceptFrom. Changing an Actor's `name` and `delete` are accepted only when the current Session is not running. A deleted Actor leaves the targets of `start` and of Message recipients, and also leaves the `name` uniqueness constraint. `create` with the same `name` makes a separate Actor with a new `id`, and a deleted Actor's history is traced with `get` by its `id`.
+`create` against a live Actor of the same name replaces the declaration while keeping the same `id`, and keeps grants and, if not given, acceptFrom and `declaredIn`. Changing an Actor's `name` and `delete` are accepted only when the current Session is not running. A deleted Actor leaves the targets of `start` and of Message recipients, and also leaves the `name` uniqueness constraint. `create` with the same `name` makes a separate Actor with a new `id`, and a deleted Actor's history is traced with `get` by its `id`.
 
 #### kind
 
@@ -184,7 +186,7 @@ Among the shared lifecycle, the central rule that varies by kind is "how to inte
 
 #### launchSpec
 
-The definition Feld uses to launch this Actor's Sessions. It has `runtime` (with `runtimeSettings` and `trustWorkdir`) or a `command` argv, `workdir`, `env` (environment variables added to the Session's launch environment), `provider`, `node`, and `providerOptions` (provider-specific options). `runtime` is the name of an installed [Runtime](#runtime) and `provider` the name of an installed [Execution Provider](#execution-provider); each receives `runtimeSettings` and `providerOptions` respectively as is. `trustWorkdir` (default false) is a declaration by Admin that settings the workdir brings into the Runtime take effect without confirmation; how it is handled is decided per Runtime Adapter. `create` provides it; `update` changes it per top-level field, or re-running `create` replaces it wholesale. It is not a single launch request but a launch recipe permanently tied to the Actor, and `start`, `restart`, and Schedule ticks all read it to launch a Session. A Session's `execution` is a copy of the launchSpec at launch time, and a Session's [Placement](#placement) is the binding Feld decided at launch from the launchSpec's provider, node, and options. Changing the launchSpec later does not change past Sessions.
+The definition Feld uses to launch this Actor's Sessions. It has `runtime` (with `runtimeSettings` and `trustWorkdir`) or a `command` argv, `workdir`, `env` (environment variables added to the Session's launch environment), `envFile` (the absolute path of a file of `KEY=VALUE` lines whose variables Feld reads at each launch and places beneath `env`; only the path is kept, so the values stay out of the launchSpec and the Session's `execution`), `provider`, `node`, and `providerOptions` (provider-specific options). `runtime` is the name of an installed [Runtime](#runtime) and `provider` the name of an installed [Execution Provider](#execution-provider); each receives `runtimeSettings` and `providerOptions` respectively as is. `trustWorkdir` (default false) is a declaration by Admin that settings the workdir brings into the Runtime take effect without confirmation; how it is handled is decided per Runtime Adapter. `create` provides it; `update` changes it per top-level field, or re-running `create` replaces it wholesale. It is not a single launch request but a launch recipe permanently tied to the Actor, and `start`, `restart`, and Schedule ticks all read it to launch a Session. A Session's `execution` is a copy of the launchSpec at launch time, and a Session's [Placement](#placement) is the binding Feld decided at launch from the launchSpec's provider, node, and options. Changing the launchSpec later does not change past Sessions.
 
 Feld can launch only Actors that have a launchSpec. `attach` decides only the Session's `execution` and leaves the Actor's launchSpec as is. An Actor without a launchSpec is limited to an Agent created only by `attach`; a Job always has a launchSpec.
 
@@ -201,6 +203,10 @@ The set of operations on other Actors in the same Workspace that [Admin](#admin)
 #### acceptFrom
 
 The list of `name`s of Actors in the same Workspace from which an Actor accepts Messages. Messages from [Admin](#admin) are always accepted. An Actor that omits it accepts from all Actors in the same Workspace. It belongs to the Actor's declaration alongside launchSpec; Admin and Sessions that can manage the Actor ([grants](#grants) `manage-agent` / `manage-job`) set it with `create` and `update`, and `update` replaces it wholesale or returns it to omitted.
+
+#### declaration file
+
+A file that declares a Workspace's Actors (launchSpec, Schedule, grants, acceptFrom). Its `name` is recorded as each declared Actor's `declaredIn` and is the scope of deletion: Actors whose `declaredIn` is that `name` and that the file no longer declares are deleted, and other Actors are left as they are. One file covers one Workspace. Admin compares it with `feld diff` and applies it with `feld apply`; each apply makes the Workspace match the file once. The format is in the [CLI guide](../../guide/cli.md#declaration-file).
 
 ### Session
 

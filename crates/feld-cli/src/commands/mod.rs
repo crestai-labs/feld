@@ -1,6 +1,7 @@
 //! The commands, one module per noun.
 
 pub mod actor;
+pub mod apply;
 pub mod attach;
 pub mod browser;
 pub mod daemon;

@@ -190,6 +190,7 @@ export interface paths {
          *     Omitting `schedule.timezone` uses the daemon's timezone.
          *     Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A replacement that omits `grants` keeps the Actor's grants.
          *     A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+         *     `declaredIn` is the name of the declaration file whose `feld apply` declares the Actor. A replacement that omits it keeps the Actor's `declaredIn`.
          */
         post: operations["createActor"];
         delete?: never;
@@ -1150,6 +1151,12 @@ export interface components {
                 [key: string]: string;
             };
             /**
+             * @description Absolute path of a file of `KEY=VALUE` lines. The daemon reads it at each launch, and its variables go beneath `env`.
+             *     Only the path is stored. A file that cannot be read or parsed fails that launch.
+             * @example /home/me/Dev/harness/.env
+             */
+            envFile?: string;
+            /**
              * @example tmux
              * @example herdr
              */
@@ -1186,6 +1193,7 @@ export interface components {
             env?: {
                 [key: string]: string;
             } | null;
+            envFile?: string | null;
             provider?: string | null;
             node?: string | null;
             /** @description Replaced as a whole */
@@ -1231,6 +1239,8 @@ export interface components {
             grants: components["schemas"]["Grants"];
             /** @description If null, receives from every Actor in the same Workspace */
             acceptFrom: components["schemas"]["AcceptFrom"] | null;
+            /** @description Name of the declaration file whose `feld apply` declares the Actor. null for an Actor declared otherwise */
+            declaredIn: components["schemas"]["Key"] | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -2235,6 +2245,7 @@ export interface operations {
                     launchSpec: components["schemas"]["LaunchSpec"];
                     grants?: components["schemas"]["Grants"];
                     acceptFrom?: components["schemas"]["AcceptFrom"];
+                    declaredIn?: components["schemas"]["Key"];
                     caller?: components["schemas"]["Caller"];
                     schedule?: {
                         /** @description 5-field cron expression */

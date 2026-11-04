@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -11,7 +12,9 @@ use feld_core::home::{
     FELD_ACTOR_ENV, FELD_API_ENV, FELD_HOME_ENV, FELD_SESSION_ID_ENV, FELD_SESSION_TOKEN_ENV,
     FELD_WORKSPACE_ENV,
 };
-use feld_core::model::{Execution, ObservationKind, Placement, Requester, Schedule, Session};
+use feld_core::model::{
+    Execution, LaunchSpec, ObservationKind, Placement, Requester, Schedule, Session,
+};
 use feld_core::plugin::PluginKind;
 use feld_core::plugin::protocol::{PlaceRequest, ProviderLaunchRequest, RuntimeLaunchRequest};
 use feld_core::time::now;
@@ -304,6 +307,19 @@ impl SessionController {
                     replaced,
                 ));
             }
+            // The env file is read at each launch, beneath the launchSpec's own `env`.
+            let launch_env = match launch_env(launch) {
+                Ok(env) => env,
+                Err(error) => {
+                    return Ok(started(
+                        self.store.record_launch_failure(
+                            &pending.session.id,
+                            &gone(format!("{error:#}")),
+                        )?,
+                        replaced,
+                    ));
+                }
+            };
             let (command, env) = match &runtime {
                 Some((_, adapter)) => {
                     match adapter.launch(&RuntimeLaunchRequest {
@@ -313,7 +329,7 @@ impl SessionController {
                         workdir: workdir.clone(),
                         runtime_settings: launch.runtime_settings.clone(),
                         trust_workdir: launch.trust_workdir.unwrap_or(false),
-                        env: launch.env.clone().unwrap_or_default(),
+                        env: launch_env,
                         session_dir: self.home.session_runtime_dir(&pending.session.id),
                         token: pending.token.clone(),
                         collector: collector_endpoint.clone(),
@@ -335,10 +351,7 @@ impl SessionController {
                 }
                 None => (
                     launch.command.clone().expect("program command checked"),
-                    launch
-                        .env
-                        .clone()
-                        .unwrap_or_default()
+                    launch_env
                         .into_iter()
                         .chain(
                             [
@@ -471,4 +484,15 @@ fn program_label(command: &[String]) -> String {
         .and_then(|name| name.to_str())
         .map(|name| format!("{name} program"))
         .unwrap_or_else(|| "Program".to_owned())
+}
+
+/// The environment a launchSpec gives its Session: the variables of its env file, beneath its
+/// own `env`.
+fn launch_env(launch: &LaunchSpec) -> anyhow::Result<BTreeMap<String, String>> {
+    let mut env = match &launch.env_file {
+        Some(path) => feld_core::env_file::read(Path::new(path))?,
+        None => BTreeMap::new(),
+    };
+    env.extend(launch.env.clone().unwrap_or_default());
+    Ok(env)
 }

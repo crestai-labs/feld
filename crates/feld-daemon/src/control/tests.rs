@@ -37,6 +37,7 @@ async fn shutdown_while_tick_waits_for_control_lock_cancels_before_admission() {
         command: Some(vec!["true".to_owned()]),
         workdir: Some("/tmp".to_owned()),
         env: None,
+        env_file: None,
         provider: Some("tmux".to_owned()),
         node: Some("local".to_owned()),
         provider_options: Some(serde_json::json!({
@@ -538,6 +539,7 @@ fn program_launch(workdir: &str) -> LaunchSpec {
         command: Some(vec!["true".to_owned()]),
         workdir: Some(workdir.to_owned()),
         env: None,
+        env_file: None,
         provider: Some("stub".to_owned()),
         node: Some("local".to_owned()),
         provider_options: None,

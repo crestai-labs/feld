@@ -16,6 +16,8 @@ Output examples show the human-readable output in its non-TTY form. `--json` out
 - [daemon](#daemon): [start](#feld-daemon-start) / [status](#feld-daemon-status) / [stop](#feld-daemon-stop) / [restart](#feld-daemon-restart)
 - [workspace](#workspace): [list](#feld-workspace-list) / [create](#feld-workspace-create) / [delete](#feld-workspace-delete) / [get](#feld-workspace-get)
 - [actor](#actor): [create](#feld-actor-create) / [update](#feld-actor-update) / [delete](#feld-actor-delete) / [get](#feld-actor-get) / [list](#feld-actor-list) / [start](#feld-actor-start) / [attach](#feld-actor-attach) / [restart](#feld-actor-restart) / [pause](#feld-actor-pause) / [resume](#feld-actor-resume)
+- [feld diff](#feld-diff)
+- [feld apply](#feld-apply)
 - [session](#session): [get](#feld-session-get) / [list](#feld-session-list) / [stop](#feld-session-stop) / [kill](#feld-session-kill) / [observe](#feld-session-observe) / [log](#feld-session-log) / [metrics](#feld-session-metrics)
 - [record](#record): [list](#feld-record-list)
 - [message](#message): [send](#feld-message-send) / [delete](#feld-message-delete) / [get](#feld-message-get) / [list](#feld-message-list)
@@ -44,6 +46,8 @@ feld [OPTIONS] <COMMAND>
 - `daemon`: Run and inspect the daemon that holds the store and serves the API
 - `workspace`: Group Actors into Workspaces. Actor names are unique per Workspace
 - `actor`: Create, change, and read the Actors of a Workspace
+- `diff`: Show how the Actors a declaration file declares differ from the Actors of its Workspace
+- `apply`: Make the Actors of the Workspace match a declaration file, once
 - `session`: Read and operate Sessions, the runs of an Actor
 - `record`: Read the facts Feld itself recorded
 - `message`: Send, delete, read, and list Messages between Actors. Alias `msg`
@@ -87,7 +91,7 @@ The commands that start the daemon (`init`, `daemon start`, `daemon restart`, `d
 
 **Caller identification and token resolution**
 
-Commands that use the daemon resolve a token in this order: `FELD_SESSION_TOKEN`, the self index of the caller's Execution Provider, the self index of the caller's Runtime Adapter, and `FELD_HOME/admin/api-token` (the local token) ([resolution order in auth.md](../spec/design/auth.md#runtime-adapter-resolution-order)). With the first three, the caller is treated as the Session's Actor; with `api-token`, as [Admin](../spec/concepts/glossary.md#admin). `actor attach`, `ui`, `browser`, and `daemon` always use `api-token`, and `self` uses only the first three. A Message's `from` and the `spawner` of a [spawned](../spec/concepts/glossary.md#spawned) Session are determined from this, and the CLI cannot forge them.
+Commands that use the daemon resolve a token in this order: `FELD_SESSION_TOKEN`, the self index of the caller's Execution Provider, the self index of the caller's Runtime Adapter, and `FELD_HOME/admin/api-token` (the local token) ([resolution order in auth.md](../spec/design/auth.md#runtime-adapter-resolution-order)). With the first three, the caller is treated as the Session's Actor; with `api-token`, as [Admin](../spec/concepts/glossary.md#admin). `actor attach`, `diff`, `apply`, `ui`, `browser`, and `daemon` always use `api-token`, and `self` uses only the first three. A Message's `from` and the `spawner` of a [spawned](../spec/concepts/glossary.md#spawned) Session are determined from this, and the CLI cannot forge them.
 
 When the Runtime's sandbox rejects TCP, commands go through the [spool](../spec/design/spool.md#choosing-the-path). A call without a Session token (an Admin operation) tells the user to run it outside the sandbox and ends with exit code 1.
 
@@ -719,7 +723,7 @@ feld actor get <ACTOR>
 
 - `<ACTOR>`: Actor name or Actor ID (`actor_...`)
 
-The fields are the ID, kind, launchSpec (`env` shows only variable names; `--json` shows the values), grants, acceptFrom (`*` if omitted), and, for a Job, the Schedule, next run, number of skipped ticks, and the overdue tick if any. The Session history shows only recent Sessions. Read all Sessions with `feld session list --actor <name>`, the details of one Session with `feld session get`, and skipped ticks with `feld record list --actor <name> --kind schedule.skipped`.
+The fields are the ID, kind, launchSpec (`env` shows only variable names; `--json` shows the values; `env_file` is the path of the env file), grants, acceptFrom (`*` if omitted), `declared_in` (the [declaration file](#declaration-file) that declares the Actor, if any), and, for a Job, the Schedule, next run, number of skipped ticks, and the overdue tick if any. The Session history shows only recent Sessions. Read all Sessions with `feld session list --actor <name>`, the details of one Session with `feld session get`, and skipped ticks with `feld record list --actor <name> --kind schedule.skipped`.
 
 ```console
 $ feld actor get dispatcher
@@ -730,11 +734,13 @@ Actor
   workspace:        default
   launch_spec:      python3 dispatch.py · ~/Dev/my-project · tmux · local
   env:              GH_CONFIG_DIR, GIT_AUTHOR_NAME
+  env_file:         /Users/alice/Dev/my-project/.env
   schedule:         13,43 * * * * (Asia/Tokyo) · enabled since 2026-09-10T09:00:00+09:00
   next_run:         2026-09-13T12:13:00+09:00
   skipped_ticks:    1
   grants:           read,control
   accept_from:      *
+  declared_in:      my-project
   deleted_at:       -
 Sessions (38)
    GEN  SESSION         START                      START_KIND  OUTCOME
@@ -916,6 +922,98 @@ Schedule resumed.
   enabled:      yes (since 2026-09-13T14:12:08+09:00)
   next_run:     2026-09-13T14:20:00+09:00
 ```
+
+## feld diff
+
+Shows how the Actors a [declaration file](#declaration-file) declares differ from the Actors of its Workspace, changing nothing.
+
+```text
+feld diff -f <FILE>
+```
+
+**Options**
+
+- `-f, --file <FILE>`: Declaration file (YAML)
+
+Each Actor of the file is `+` when it is new, with its fields, and `~` when its declaration differs, with each differing field by its dotted path (`env.EPIC`, `schedule.cron`, `runtimeSettings.model`, `grants`, `acceptFrom`, `declaredIn`, and so on) as `before -> after`. `-` is a live Actor whose `declaredIn` is the file's `name` and that the file no longer declares. An `env` value shows only as `set`, `changed`, or `removed`; `--json` shows the values. The `providerOptions` the file leaves out and the Schedule `timezone` and `enabled` the file leaves out are left to the daemon and not compared. With no difference, it prints `No changes: Workspace <ws> matches declaration file <name>.`
+
+```console
+$ feld diff -f feld.yaml
+Declaration file feld-harness · Workspace feld-dev
+~ dispatcher (job)
+    env.EPIC: changed
+    schedule.cron: */15 * * * * -> */20 * * * *
+- nightly (job)
+```
+
+`--json` prints `{"name","workspace","changes":[{"action","actor","kind","fields":[{"field","before","after"}]}]}`, where `action` is `create`, `replace`, or `delete`.
+
+**Exit codes**
+
+- `0`: The difference was shown
+- `1`: Refused: a declared launchSpec is refused as `feld actor create` refuses it, or a live Actor of another kind holds a declared name (an Actor keeps its kind; delete it first)
+- `2`: The file cannot be read or is invalid, a `${VAR}` is not set, or the daemon cannot be reached
+
+## feld apply
+
+Makes the Actors of the Workspace match a declaration file, once. A new Actor is created and a differing one has its declaration replaced under the same ID, through the same create as [`feld actor create`](#feld-actor-create), and both record the file's `name` as `declaredIn`. An Actor of the same name declared by hand or by another file is taken over and gets this file's `name`. Then a live Actor whose `declaredIn` is the file's `name` and that the file no longer declares is deleted; one whose current Session runs is kept with a warning on stderr and exit code 1, and the next `feld diff` still shows it. Other Actors are left as they are: those declared by hand, by other files, or created by a harness at run time.
+
+```text
+feld apply -f <FILE>
+```
+
+**Options**
+
+- `-f, --file <FILE>`: Declaration file (YAML)
+
+apply starts and stops no Session. An Agent starts with [`feld actor start`](#feld-actor-start), a Job with a Schedule runs on its cron, and a running Session keeps its launchSpec until its next start. A second run changes nothing. A refusal stops apply, the changes before it stay committed, and the error says how many were committed.
+
+```console
+$ feld apply -f feld.yaml
+Declaration file feld-harness applied to Workspace feld-dev.
+  ~ dispatcher (job)               replaced
+  - nightly (job)                  deleted
+```
+
+`--json` prints the same shape as `feld diff`, and a kept delete adds `kept` with the reason.
+
+**Exit codes**
+
+- `0`: The Workspace matches the file
+- `1`: Refused: a change was refused, or an Actor with a running Session was kept
+- `2`: The file cannot be read or is invalid, a `${VAR}` is not set, or the daemon cannot be reached
+
+### Declaration file
+
+A YAML file that declares the Actors of one Workspace: launchSpec, Schedule, grants, and acceptFrom.
+
+```yaml
+version: 1                  # required; 1
+name: feld-harness          # required; Actor-name grammar; recorded as declaredIn
+workspace: feld-dev         # default: --workspace
+defaults:                   # launchSpec fields shared by every Actor
+  workdir: ~/Dev/feld-harness
+  envFile: .env
+  env: { GIT_AUTHOR_NAME: someone }
+actors:
+  - name: dispatcher
+    kind: job
+    command: [python3, scripts/dispatch.py]
+    env: { EPIC: "96" }
+    schedule: { cron: "*/15 * * * *", timezone: Asia/Tokyo }
+    grants: [read, control, manage-agent]
+  - name: ops-reviewer
+    kind: agent
+    runtime: codex
+    runtimeSettings: { model: gpt-6-sol }
+    acceptFrom: [dispatcher]
+```
+
+- An Actor takes `name`, `kind` (`agent` or `job`), the launchSpec fields (`runtime`, `runtimeSettings`, `trustWorkdir`, `command`, `workdir`, `env`, `envFile`, `provider`, `node`, `providerOptions`), `schedule` (`cron`, `timezone`, `enabled`), `grants`, and `acceptFrom`. `defaults` takes the launchSpec fields. Unknown fields are refused
+- An Actor's own field overrides the default, and `env` merges per variable. The defaults `runtime`, `runtimeSettings`, and `trustWorkdir` apply only to an Actor that runs a Runtime, and `command` only to one that runs a command
+- `workdir` defaults to the file's directory. A relative `workdir` or `envFile` resolves from the file's directory, and `~/` from `HOME`. The workdir is checked as in `feld actor create`. `provider` defaults to the only installed Execution Provider, `node` to `local`, and the Provider fills the `providerOptions` the file leaves out
+- The file declares the whole of each Actor: without `grants` the Actor has no grants, without `acceptFrom` it accepts every Actor of the Workspace, and without `schedule` it has no Schedule. A Schedule without `timezone` takes the daemon's, and one without `enabled` stays paused or enabled as it is
+- `${VAR}` in a string expands from the environment of the CLI, `$$` writes `$`, and any other `$` stays as written. The expanded value is stored in the launchSpec, so secrets go in the `envFile`. `env` values may be numbers or booleans and read as text
 
 ## session
 
@@ -1549,6 +1647,8 @@ Accepted by `actor create` and `actor update`. What runs is either `--runtime` (
 - `--no-trust-workdir`: Remove `trustWorkdir` in `actor update`
 - `--workdir <PATH>`: The Session's working directory. A relative path resolves from the current directory. Default the current directory. Validated before declaring; if it is not an existing, enterable directory on the `local` node, it is rejected without declaring anything
 - `--env <KEY=VALUE>`: An environment variable added to the Session's launch environment. Repeat to give several. In `actor update`, the given set of variables replaces the whole set. Variables Feld sets (such as `FELD_*`) and the Runtime's settings (Claude Code's `runtimeSettings.env`, Codex's `runtimeSettings.shell_environment_policy.set`) take precedence over values with the same name. Output such as `actor get` shows only variable names; `--json` shows the values
+- `--env-file <PATH>`: A file of `KEY=VALUE` lines whose variables the daemon reads at each launch and places beneath `--env` (the same name takes the `--env` value). A relative path resolves from the current directory. Only the path is declared, so the values stay out of the launchSpec, `actor get`, and the Session's `execution`. A file that cannot be read fails that launch. The file skips blank lines and `#` comments, accepts an `export ` prefix, and takes a value in matching single or double quotes literally
+- `--no-env-file`: Stop reading the env file in `actor update`
 - `--provider <PROVIDER>`: The [Execution Provider](../spec/concepts/glossary.md#execution-provider) that hosts the Session. `tmux` or `herdr`. Default the one the Provider options point to, else the Provider the CLI runs in, else the only installed Provider
 - `--node <NODE>`: The Node that runs the Session. Default `local`
 - `--<provider>-<key> <VALUE>`: Provider-specific choices. The CLI passes the key without the prefix and the value to the Provider as is, as `providerOptions`. The Provider defines the choices and their defaults, and omitted choices are filled from the caller's environment at declaration time ([tmux](../spec/design/provider/tmux.md#resolving-the-three-axes), [herdr](../spec/design/provider/herdr.md#resolving-the-three-axes)). Feld decides the Session's Placement from these at launch

@@ -13,6 +13,8 @@ export interface ActorLaunchSpec {
   command?: string[];
   workdir: string;
   env?: Record<string, string>;
+  // The file of `KEY=VALUE` lines the daemon reads at each launch; only its path is held.
+  envFile?: string;
   provider: string;
   node: string;
   // The Execution Provider's own choices, as it resolved them.
@@ -27,6 +29,8 @@ export interface ActorRecord {
   launchSpec: ActorLaunchSpec | null;
   // What the Admin lets the Actor's Sessions do to the other Actors of the Workspace.
   grants?: FeldApi.Actor["grants"];
+  // The declaration file whose `feld apply` declares the Actor.
+  declaredIn?: string | null;
   // The daemon's `id` of the Actor, which its deleted history is read by.
   actorId?: string;
   // When the Actor was deleted; absent while it is live.

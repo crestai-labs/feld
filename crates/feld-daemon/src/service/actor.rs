@@ -46,6 +46,9 @@ pub struct ActorDeclaration<'a> {
     /// The names of the Actors it accepts Messages from, kept from a replaced declaration
     /// when None.
     pub accept_from: Option<&'a BTreeSet<String>>,
+    /// The `name` of the declaration file that declares it, kept from a replaced declaration
+    /// when None.
+    pub declared_in: Option<&'a str>,
     pub writer: Writer,
 }
 
@@ -176,6 +179,7 @@ impl ActorService {
             schedule,
             grants,
             accept_from,
+            declared_in,
             writer,
         } = declaration;
         if !valid_key(name) {
@@ -184,6 +188,11 @@ impl ActorService {
             ));
         }
         validate_accept_from(accept_from)?;
+        if declared_in.is_some_and(|name| !valid_key(name)) {
+            return Err(ActorError::Invalid(
+                "declaredIn must match ^[a-z0-9][a-z0-9-]*$".to_owned(),
+            ));
+        }
         let launch = self
             .admit_launch(kind, launch, caller)
             .map_err(ActorError::Invalid)?;
@@ -198,6 +207,7 @@ impl ActorService {
             schedule.as_ref(),
             grants,
             accept_from,
+            declared_in,
             writer,
         )?;
         self.schedule_notify.notify_one();

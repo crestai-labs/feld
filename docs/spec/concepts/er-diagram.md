@@ -27,6 +27,7 @@ erDiagram
     string workspaceId FK
     string name "unique among live Actors in the Workspace"
     string kind "agent | job"
+    string declaredIn "name of the declaration file"
     datetime deletedAt
   }
   LaunchSpec {

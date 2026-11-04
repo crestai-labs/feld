@@ -94,7 +94,9 @@ pub enum Command {
     Doctor(DoctorArgs),
     Daemon(DaemonArgs),
     Workspace(WorkspaceArgs),
-    Actor(ActorArgs),
+    Actor(Box<ActorArgs>),
+    Diff(DiffArgs),
+    Apply(ApplyArgs),
     Session(SessionArgs),
     Record(RecordArgs),
     #[command(visible_alias = "msg")]
@@ -706,6 +708,52 @@ pub enum WorkspaceCommand {
     },
 }
 
+/// Show how the Actors a declaration file declares differ from the Actors of its Workspace,
+/// changing nothing.
+///
+/// Each Actor of the file is `+` when it is new and `~` when its declaration differs, with the
+/// fields that change; `-` is an Actor an earlier `feld apply` of the same file `name` declared
+/// and the file no longer has. An `env` value shows only as changed; `--json` shows the values.
+/// The `providerOptions` and the Schedule `timezone` and `enabled` a file leaves out are
+/// not compared. The command speaks with the local token, as the Admin.
+#[derive(Debug, Args)]
+#[command(after_help = "Examples:
+  feld diff -f feld.yaml
+
+Exit codes:
+  0  the difference was shown
+  1  refused: a declared launchSpec is refused as `feld actor create` refuses it, or an Actor of another kind holds a declared name
+  2  operational: the file cannot be read, a ${VAR} is not set, or the daemon cannot be reached")]
+pub struct DiffArgs {
+    /// Declaration file, YAML
+    #[arg(long, short = 'f', value_name = "FILE")]
+    pub file: PathBuf,
+}
+
+/// Make the Actors of the Workspace match a declaration file, once.
+///
+/// A new Actor is created and a differing one has its declaration replaced, as `feld actor
+/// create` does, and both record the file `name` as `declaredIn`. An Actor whose `declaredIn`
+/// is the file `name` and that the file no longer declares is deleted; one whose current
+/// Session runs is kept with a warning and exit 1. Actors of other files and Actors declared
+/// otherwise are left alone. No Session is started or stopped: an Agent starts with `feld actor
+/// start`, and a Job with a Schedule runs on its cron. A second run changes nothing. The
+/// command speaks with the local token, as the Admin, which the grants need.
+#[derive(Debug, Args)]
+#[command(after_help = "Examples:
+  feld diff -f feld.yaml    see what changes first
+  feld apply -f feld.yaml
+
+Exit codes:
+  0  the Workspace matches the file
+  1  refused: a change was refused, or an Actor with a running Session was kept
+  2  operational: the file cannot be read, a ${VAR} is not set, or the daemon cannot be reached")]
+pub struct ApplyArgs {
+    /// Declaration file, YAML
+    #[arg(long, short = 'f', value_name = "FILE")]
+    pub file: PathBuf,
+}
+
 /// Create, change, and read the Actors of the Workspace.
 #[derive(Debug, Args)]
 pub struct ActorArgs {
@@ -941,6 +989,12 @@ pub struct LaunchArgs {
     /// Environment variable the Session starts in, as KEY=VALUE; repeat for more. On update, the given ones replace every declared variable
     #[arg(long = "env", value_name = "KEY=VALUE", value_parser = parse_env_variable)]
     pub env: Vec<(String, String)>,
+    /// File of KEY=VALUE lines read at each launch beneath --env, which keeps their values out of the declaration; a relative path resolves from here
+    #[arg(long, value_name = "PATH", conflicts_with = "no_env_file")]
+    pub env_file: Option<PathBuf>,
+    /// On update, stop reading the env file
+    #[arg(long)]
+    pub no_env_file: bool,
     /// Execution Provider that places the Session, tmux or herdr [default: the Provider an option names, else the one this CLI runs in, else the only installed one]
     #[arg(long, value_name = "PROVIDER")]
     pub provider: Option<String>,

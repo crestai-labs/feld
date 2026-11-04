@@ -47,12 +47,13 @@
   // `command` (argv), plus `workdir`, an optional `env`, `runtimeSettings` for a Runtime, `provider`, and `node`. `feld actor create` gives
   // one; `feld actor update` changes it. An Actor that only `feld actor attach` created has none,
   // so Feld cannot start a Session for it until one is given. `grants` are what the Admin
-  // lets the Actor's Sessions do to the other Actors.
+  // lets the Actor's Sessions do to the other Actors. `declaredIn` names the declaration file
+  // whose `feld apply` declares the Actor.
   const ACTORS = [
     { id: "dispatcher", workspace: "default", kind: "job", launchSpec: { command: ["python3", "dispatch.py"], workdir: FELD_WORKDIR, env: { GH_CONFIG_DIR: "/Users/alice/.config/gh-dispatcher", GIT_AUTHOR_NAME: "dispatcher" }, provider: "tmux", node: "Local Node" } },
     // Its launchSpec was updated between the Codex run on tmux and the Claude Code run in
     // Docker: a Session's execution is a copy taken when the Session starts.
-    { id: "developer-01", workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", runtimeSettings: { model: "opus", env: { GITHUB_TOKEN: "ghp_fixture", GIT_AUTHOR_NAME: "developer-01" } }, workdir: "/workspace/feld", env: { NPM_TOKEN: "npm_fixture", CI: "1" }, provider: "docker", node: "Build Node" }, grants: ["read", "manage-agent"] },
+    { id: "developer-01", workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", runtimeSettings: { model: "opus", env: { GITHUB_TOKEN: "ghp_fixture", GIT_AUTHOR_NAME: "developer-01" } }, workdir: "/workspace/feld", env: { NPM_TOKEN: "npm_fixture", CI: "1" }, envFile: "/workspace/feld/.env", provider: "docker", node: "Build Node" }, grants: ["read", "manage-agent"], declaredIn: "feld-harness" },
     // Agents the dispatcher spawns per PR: Coding Agent Sessions that report back over
     // the mailbox and then ask Feld to stop them (a requested end, so no attention).
     { id: "reviewer-01", workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", workdir: FELD_WORKDIR, provider: "tmux", node: "Local Node" } },

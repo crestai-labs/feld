@@ -21,6 +21,7 @@ export interface MockActor {
   kind: FeldApi.ActorKind;
   launchSpec: ActorLaunchSpec | null;
   grants?: FeldApi.Actor["grants"];
+  declaredIn?: string;
 }
 
 type Unreported = { status: "n/a" | "unavailable"; source: string };

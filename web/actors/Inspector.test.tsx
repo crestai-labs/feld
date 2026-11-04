@@ -311,6 +311,8 @@ test("an Agent's Actions menu opens its card at the launch spec and grants, with
   await click(element(`.feld-agents__action-menu [data-action="open-agent"][data-agent-id="${agentId}"]`));
   const card = element(".feld-agents__inspector.is-actor");
   expect(card.textContent).toContain("read, manage-agent");
+  expect(element("[data-declared-in]").textContent).toBe("feld-harness");
+  expect(element("[data-env-file]").textContent).toBe("/workspace/feld/.env");
   expect(element("[data-runtime-settings]").textContent).toContain('"GITHUB_TOKEN": "••••••••"');
   expect(card.textContent).not.toContain("ghp_fixture");
   expect(element("[data-launch-drift]").textContent).toMatch(/ran with|Same launch spec/);
