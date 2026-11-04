@@ -333,6 +333,8 @@ warn  shell             eval "$(feld env)" is in /Users/alice/.zshrc, but this s
         next:  source /Users/alice/.zshrc
 ok    collector         http://127.0.0.1:4318 is free
 ok    browser           open
+warn  release           feld 0.3.0 is released · this is 0.2.1
+        next:  brew upgrade feld (or run the install script again), then feld init
 ```
 
 | Check | What it looks at | `warn` | `fail` |
@@ -348,8 +350,9 @@ ok    browser           open
 | `shell` | Whether the shell config file has `eval "$(feld env)"` and the current shell's environment has the values of `feld env` | Missing from the config file, not read by the current shell (`next:` is `source <file>`), or a shell other than zsh and bash | — |
 | `collector` | If the daemon is running, whether the Collector is receiving OTLP; if stopped, whether the Port of the Collector endpoint is free | The Collector is not running, or the endpoint's Port is in use | — |
 | `browser` | Whether the means `feld ui` uses to open a browser (`BROWSER`, otherwise `open` on macOS and `xdg-open` elsewhere) can be run | It cannot be run (`next:` is `feld ui --print-url`) | — |
+| `release` | The tag of the latest Release of Feld on GitHub, asked as described in [Data & Privacy](data-and-privacy.md#what-feld-does-not-send) (`FELD_RELEASE_URL` replaces the address). The detail shows the latest version when it differs from `feld`. When GitHub does not answer within 5 seconds, the check is `ok` with the detail that it was not checked | A newer version is released (`next:` is to upgrade and run `feld init`) | — |
 
-Non-bundled Plugins show only their name in `provider` and `runtime`. Checks that could not be verified are `warn`. When the Runtime's sandbox rejects TCP, `daemon` shows the pid and API of the daemon holding the lock from `daemon.json`, and together with `collector` is `warn`, with `feld doctor` outside the sandbox as `next:`. The spool is not used.
+Non-bundled Plugins show only their name in `provider` and `runtime`. Checks that could not be verified are `warn`, except `release`. When the Runtime's sandbox rejects TCP, `daemon` shows the pid and API of the daemon holding the lock from `daemon.json`, and together with `collector` is `warn`, with `feld doctor` outside the sandbox as `next:`. The spool is not used.
 
 If any check is `fail`, the exit code is 1; otherwise 0. `--json` returns a `checks` array with each check's `name`, `result` (`ok` / `warn` / `fail`), `detail` (the detail), and `next` (the fix, or null if none).
 

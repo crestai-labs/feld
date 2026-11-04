@@ -18,7 +18,7 @@ use support::stand_in::write_stand_in;
 const FELD: &str = env!("CARGO_BIN_EXE_feld");
 
 /// The checks, in the order `feld doctor` runs them.
-const CHECKS: [&str; 11] = [
+const CHECKS: [&str; 12] = [
     "executables",
     "home",
     "store",
@@ -30,6 +30,7 @@ const CHECKS: [&str; 11] = [
     "shell",
     "collector",
     "browser",
+    "release",
 ];
 
 struct Fixture {
@@ -83,6 +84,8 @@ impl Fixture {
 
     fn feld_with(&self, arguments: &[&str], variables: &[(&str, &str)]) -> Output {
         Command::new(FELD)
+            // `feld doctor` asks for the latest Release here, not on github.com.
+            .env("FELD_RELEASE_URL", "http://127.0.0.1:9/")
             .arg("--home")
             .arg(self.home())
             // Nothing here may reach the real `~/.feld`, `~/.claude` or `~/.zshrc`.
@@ -614,6 +617,73 @@ fn the_browser_check_follows_what_feld_ui_opens() {
     fixture.with_on_path(&[("tmux", "echo 'tmux 3.6a'")]);
     let (checks, _) = fixture.doctor();
     assert_eq!(result(&checks, "browser"), "warn");
+}
+
+/// A stand-in for github.com that answers one request with `location` as its redirect, and
+/// the URL `feld doctor` asks.
+fn release_server(location: String) -> String {
+    use std::io::{Read, Write};
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a release server");
+    let url = format!("http://{}/releases/latest", listener.local_addr().unwrap());
+    std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept the request");
+        let _ = stream.read(&mut [0; 4096]);
+        let _ = write!(
+            stream,
+            "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        );
+    });
+    url
+}
+
+#[test]
+fn the_release_check_tells_a_newer_release_in_one_line() {
+    let fixture = Fixture::new();
+    let version = env!("CARGO_PKG_VERSION");
+    let url =
+        release_server("https://github.com/crestai-labs/feld/releases/tag/v999.0.0".to_owned());
+    let (checks, _) = fixture.doctor_with(&[("FELD_RELEASE_URL", &url)]);
+    assert_eq!(result(&checks, "release"), "warn");
+    assert_eq!(
+        detail(&checks, "release"),
+        format!("feld 999.0.0 is released \u{b7} this is {version}")
+    );
+    assert_eq!(
+        next(&checks, "release"),
+        "brew upgrade feld (or run the install script again), then feld init"
+    );
+
+    let url = release_server(format!(
+        "https://github.com/crestai-labs/feld/releases/tag/v{version}"
+    ));
+    let (checks, _) = fixture.doctor_with(&[("FELD_RELEASE_URL", &url)]);
+    assert_eq!(result(&checks, "release"), "ok");
+    assert_eq!(
+        detail(&checks, "release"),
+        format!("feld {version} is the latest Release")
+    );
+
+    let url = release_server("https://github.com/crestai-labs/feld/releases/tag/v0.0.1".to_owned());
+    let (checks, _) = fixture.doctor_with(&[("FELD_RELEASE_URL", &url)]);
+    assert_eq!(result(&checks, "release"), "ok");
+    assert_eq!(
+        detail(&checks, "release"),
+        format!("feld {version} \u{b7} the latest Release is 0.0.1")
+    );
+}
+
+#[test]
+fn the_release_check_passes_quietly_without_the_network() {
+    let fixture = Fixture::new();
+    let (checks, _) = fixture.doctor();
+    assert_eq!(result(&checks, "release"), "ok");
+    assert_eq!(
+        detail(&checks, "release"),
+        format!(
+            "feld {} \u{b7} the latest Release was not checked",
+            env!("CARGO_PKG_VERSION")
+        )
+    );
 }
 
 #[test]
