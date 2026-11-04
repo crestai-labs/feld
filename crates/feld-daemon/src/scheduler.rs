@@ -9,7 +9,8 @@ use tokio::sync::{Notify, watch};
 
 use crate::control::{ScheduleTickResult, SessionController};
 use crate::store::{ScheduledActor, Store};
-use feld_core::model::{Schedule, next_run_after};
+use feld_core::cron::next_run_after;
+use feld_core::model::Schedule;
 use feld_core::time;
 
 const ERROR_RETRY_INTERVAL: Duration = Duration::from_secs(1);

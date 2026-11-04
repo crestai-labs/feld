@@ -28,7 +28,7 @@ import {
 import { useActorsStore } from "../store.ts";
 import type { AgentsState, Instant, ListedMetricLane, MetricLane, MetricSeries } from "../types.ts";
 import { metricTooltip, useChartTooltip, viewPointFor } from "./hover.tsx";
-import { useParentBox, usePlotHandlers, type PointerAt } from "./interaction.ts";
+import { useCompactLayout, useParentBox, usePlotHandlers, type PointerAt } from "./interaction.ts";
 
 export type MetricsView = Pick<AgentsState, "mode" | "anchor" | "duration" | "metricsDuration" | "visibleMetricIds" | "query" | "expandedMetricIds" | "emphasizedSeries">;
 
@@ -100,7 +100,8 @@ function MetricReadings({ model, lane, range }: { model: ActorsModel; lane: List
 function useMetricsView() {
   const model = useActorsModel();
   const view = useActorsStore(useShallow(selectMetricsView));
-  return { model, view, range: model.metricsRangeFor(view), lanes: model.metricLanesFor(view) };
+  const compact = useCompactLayout();
+  return { model, view, range: model.metricsRangeFor(view), lanes: model.metricLanesFor(view, compact) };
 }
 
 // The label column: the contents of `.feld-agents__metric-labels`.
@@ -151,8 +152,8 @@ export interface MetricsLayers {
   marks: ReactNode;
 }
 
-export function metricsLayers(model: ActorsModel, view: MetricsView, width: number): MetricsLayers {
-  const lanes = model.metricLanesFor(view);
+export function metricsLayers(model: ActorsModel, view: MetricsView, width: number, compact = false): MetricsLayers {
+  const lanes = model.metricLanesFor(view, compact);
   const range = model.metricsRangeFor(view);
   const height = lanes.reduce((total, lane) => total + lane.height, 0);
   const x = (instant: Instant) => plotX(range, width, instant);
@@ -240,7 +241,8 @@ export const MetricsSvg = memo(function MetricsSvg() {
   const svgRef = useRef<SVGSVGElement>(null);
   const box = useParentBox(svgRef);
   const width = Math.max(box.minWidth, box.clientWidth || box.minWidth);
-  const layers = useMemo(() => metricsLayers(model, view, width), [model, view, width]);
+  const compact = useCompactLayout();
+  const layers = useMemo(() => metricsLayers(model, view, width, compact), [model, view, width, compact]);
   const { range, height } = layers;
   const plotRight = width - PLOT_PAD_RIGHT;
   // The lane under the pointer marks the hovered instant with a dashed line and a point on

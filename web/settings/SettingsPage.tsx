@@ -233,9 +233,10 @@ function Nav({ current, onGo }: { current: string; onGo(id: string): void }) {
     const link = element?.querySelector<HTMLElement>(`[data-settings-link="${current}"]`);
     if (element && link && element.scrollWidth > element.clientWidth) element.scrollTo({ left: link.offsetLeft - 16 });
   }, [current]);
+  const scopes = [["browser", "scope.browser"], ["feld", "scope.feld"]] as const;
   return (
     <nav className="feld-settings__nav" aria-label={t("settings.sections")} ref={nav}>
-      {([["browser", "scope.browser"], ["feld", "scope.feld"]] as const).map(([scope, label]) => [
+      {scopes.map(([scope, label]) => [
         <p className="feld-settings__nav-scope" key={scope}>{t(label)}</p>,
         ...SECTIONS.filter(([, sectionScope]) => sectionScope === scope).map(([id]) => (
           <a key={id} href={`#settings-${id}`} data-settings-link={id} aria-current={id === current ? "true" : undefined} onClick={(event) => { event.preventDefault(); onGo(id); }}>
@@ -243,6 +244,14 @@ function Nav({ current, onGo }: { current: string; onGo(id: string): void }) {
           </a>
         )),
       ])}
+      {/* The compact layout names the sections in a select in place of the row of links. */}
+      <select className="feld-settings__nav-select" aria-label={t("settings.sections")} value={current} onChange={(event) => onGo(event.target.value)}>
+        {scopes.map(([scope, label]) => (
+          <optgroup key={scope} label={t(label)}>
+            {SECTIONS.filter(([, sectionScope]) => sectionScope === scope).map(([id]) => <option key={id} value={id}>{t(`${id}.title`)}</option>)}
+          </optgroup>
+        ))}
+      </select>
     </nav>
   );
 }

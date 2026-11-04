@@ -343,7 +343,10 @@ fn a_launch_carries_the_hooks_the_exporters_and_a_first_prompt() {
     .unwrap();
 
     assert_eq!(response.command[..2], ["codex", "--no-daemon"]);
-    assert_eq!(response.command.last(), Some(&INITIAL_PROMPT.to_owned()));
+    assert_eq!(
+        response.command[response.command.len() - 2..],
+        ["--", INITIAL_PROMPT]
+    );
     assert!(response.identity.is_none());
 
     let overrides = overrides(&response);
@@ -675,6 +678,9 @@ fn adapter_owned_settings_are_refused_and_the_first_prompt_is_the_one_declared()
 
     let declared = launched(None, Some(json!({INITIAL_PROMPT_SETTING: "start here"}))).unwrap();
     assert_eq!(declared.command.last().unwrap(), "start here");
+    // A prompt that starts with `-` follows `--`, so Codex reads it as the prompt.
+    let dashed = launched(None, Some(json!({INITIAL_PROMPT_SETTING: "--yolo"}))).unwrap();
+    assert_eq!(dashed.command[dashed.command.len() - 2..], ["--", "--yolo"]);
     // The prompt is this Adapter's own, so it reaches Codex as the prompt and not as a
     // setting of its own.
     assert!(

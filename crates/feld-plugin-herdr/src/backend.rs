@@ -647,6 +647,12 @@ impl ProviderBackend for HerdrProvider {
         let pane_id = placement.pane_id.as_deref().ok_or_else(|| {
             HerdrProviderError::InvalidRequest("this Placement holds no herdr pane".to_owned())
         })?;
+        if is_global_option(input) {
+            return Err(HerdrProviderError::InvalidRequest(format!(
+                "herdr reads the input {} as its own option, so it cannot be sent to the pane",
+                quote_for_display(input)
+            )));
+        }
         match input.is_empty() {
             true => self.send(&placement.endpoint, ["pane", "send-keys", pane_id, "enter"]),
             false => self.send(&placement.endpoint, ["pane", "run", pane_id, input]),

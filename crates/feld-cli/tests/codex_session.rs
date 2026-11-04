@@ -500,6 +500,7 @@ fn owned_codex_session_projects_its_launch_telemetry_and_rollout() {
         !argv.contains(&"--dangerously-bypass-hook-trust".to_owned()),
         "{argv:?}"
     );
+    assert_eq!(argv[argv.len() - 2], "--", "{argv:?}");
     let prompt = argv.last().unwrap();
     assert!(
         prompt.contains("Feld") && prompt.contains("Message"),
@@ -560,8 +561,8 @@ fn owned_codex_session_projects_its_launch_telemetry_and_rollout() {
         .unwrap()
         .join("spool")
         .join(&session);
-    assert_eq!(argv[argv.len() - 3], "-c", "{argv:?}");
-    let sandbox = &argv[argv.len() - 2];
+    assert_eq!(argv[argv.len() - 4], "-c", "{argv:?}");
+    let sandbox = &argv[argv.len() - 3];
     assert!(
         sandbox.starts_with("sandbox_workspace_write.writable_roots=[")
             && sandbox.ends_with(&format!("\"{}\"]", own_spool.display())),

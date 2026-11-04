@@ -24,16 +24,17 @@ pub struct NewBrowser<'a> {
 }
 
 impl Store {
-    /// Issues a browser token, first revoking the one the pairing browser still holds.
+    /// Issues a browser token, first revoking the ones whose hashes are in `replacing`, which
+    /// the pairing browser still holds.
     pub fn pair_browser(
         &self,
         browser: NewBrowser<'_>,
-        replacing: Option<&str>,
+        replacing: &[String],
         now: DateTime<Utc>,
     ) -> Result<Browser> {
         let at = time::format(now);
         self.write("browser pairing", |transaction, _| {
-            if let Some(replacing) = replacing {
+            for replacing in replacing {
                 transaction
                     .execute(
                         "UPDATE browser_tokens SET revoked_at = ?2

@@ -112,6 +112,8 @@ fn build_launch(
     if request.trust_workdir {
         command.push("--dangerously-bypass-hook-trust".to_owned());
     }
+    // After `--`, so a prompt that starts with `-` reaches Codex as the prompt.
+    command.push("--".to_owned());
     command.push(declared.initial_prompt);
     Ok(RuntimeLaunchResponse {
         command,

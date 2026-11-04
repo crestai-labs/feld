@@ -1312,6 +1312,54 @@ fn a_program_that_ends_on_the_first_stop_input_is_sent_no_more() {
 }
 
 #[test]
+fn only_the_global_options_of_herdr_are_read_as_its_options() {
+    for input in [
+        "--session",
+        "--session=main",
+        "--remote",
+        "--remote=host",
+        "--remote-keybindings",
+        "--remote-keybindings=",
+    ] {
+        assert!(is_global_option(input), "{input}");
+    }
+    for input in [
+        "-x",
+        "--help",
+        "--",
+        "-",
+        "--session x",
+        "--sessions",
+        "/exit",
+        "",
+    ] {
+        assert!(!is_global_option(input), "{input}");
+    }
+}
+
+/// herdr consumes such an input before `pane run` reads it, so the stop answers why and
+/// runs nothing.
+#[test]
+fn a_stop_input_herdr_reads_as_its_own_option_is_refused_before_herdr_runs() {
+    let program = Sleeper::new();
+    let placement = placed_on(&program);
+    let herdr = FakeHerdr::answering(&reading(vec![stopped_pane()]), "nothing", program.pid);
+    let result = herdr
+        .provider()
+        .graceful_stop(&placement, &["--session=main".to_owned()]);
+    assert_eq!(result.observed.kind, ObservationKind::Unknown);
+    assert!(
+        result
+            .observed
+            .detail
+            .contains("--session=main as its own option"),
+        "{}",
+        result.observed.detail
+    );
+    assert!(herdr.inputs().is_empty(), "{:?}", herdr.inputs());
+}
+
+#[test]
 fn a_program_that_outlives_the_wait_leaves_the_session_open() {
     let program = Sleeper::new();
     let placement = placed_on(&program);

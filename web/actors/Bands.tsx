@@ -1,9 +1,11 @@
 // The bands pane: the Actors section (its header, the table of the label column, the
 // Timeline, and the Actions column, and the Timeline's time axis) and the Metrics section
 // under it (its header, the lanes, and their time axis). The two tables scroll sideways
-// together.
+// together. On the compact layout the table has no column head, and each band's label and
+// Actions button lie in a name row over the top of its lane, so the Timeline spans the
+// full width (see agents.css).
 
-import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useActorsModel } from "./context.ts";
 import { actorColumns, actorColumnsWidth, COMPACT_LAYOUT_QUERY, isPinned, kindLabel, kindRules } from "./model.ts";
@@ -12,7 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { markPointerFocusedLane } from "./charts/interaction.ts";
 import { useActorsStore } from "./store.ts";
 import type { ActorRecord, AgentsState, Focus } from "./types.ts";
-import { ClockGlyph, GearGlyph, useActorsTools, usePageActions } from "./ui.tsx";
+import { ClockGlyph, GearGlyph, useActorsTools, usePageActions, useReturnFocus } from "./ui.tsx";
 import { deleteActorFromMenu, killActorSession, refuseMenuAction, setScheduleEnabled, startActorSession, stopActorSession } from "./mutations.ts";
 import { MetricsWindowControl, TimeControls } from "./Heading.tsx";
 import { TimelineSvg } from "./charts/Timeline.tsx";
@@ -28,7 +30,7 @@ type BandsView = Pick<AgentsState,
   | "showAgentsOutsideRange" | "showSubAgents" | "frozenBandIds" | "actorsCollapsed" | "metricsCollapsed"
   | "actorWidth" | "visibleActorDetails" | "actorColumnWidths" | "agentsPaneHeight" | "visibleMetricIds"
   | "timelineGuideOpen" | "agentDisplayMenuOpen" | "metricsMenuOpen" | "actionMenuAgent"
-  | "inspectedSessionId" | "actorCard" | "focusedActorId">;
+  | "inspectedSessionId" | "actorCard" | "focusedActorId" | "compactLayout">;
 
 function selectBandsView(state: AgentsState): BandsView {
   return {
@@ -57,6 +59,7 @@ function selectBandsView(state: AgentsState): BandsView {
     inspectedSessionId: state.inspectedSessionId,
     actorCard: state.actorCard,
     focusedActorId: state.focusedActorId,
+    compactLayout: state.compactLayout,
   };
 }
 
@@ -99,22 +102,24 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
       <ActorsHead state={state} agents={agents} />
       <div className="feld-agents__bands-scroll" ref={bandsScroll} onScroll={() => follow(bandsScroll.current, metricsScroll.current)}>
         <div className="feld-agents__bands-content">
-          <div className="feld-agents__bands-head">
-            <div className="feld-agents__agent-head">
-              <div className="feld-agents__agent-head-identity">
-                <span>Name</span>
+          {state.compactLayout ? null : (
+            <div className="feld-agents__bands-head">
+              <div className="feld-agents__agent-head">
+                <div className="feld-agents__agent-head-identity">
+                  <span>Name</span>
+                </div>
+                <ColumnResizer column="name" label="Name" onResizing={onResizing} />
               </div>
-              <ColumnResizer column="name" label="Name" onResizing={onResizing} />
+              <ActorDetailHead state={state} onResizing={onResizing} />
+              <div className="feld-agents__timeline-head">
+                <span>Timeline</span>
+                <button className="feld-agents__timeline-guide" type="button" data-action="open-timeline-guide" aria-haspopup="dialog" aria-expanded={state.timelineGuideOpen} title="Read what every Timeline mark means" onClick={openGuide}>
+                  <span aria-hidden="true">?</span>Guide
+                </button>
+              </div>
+              <div className="feld-agents__actions-head"></div>
             </div>
-            <ActorDetailHead state={state} onResizing={onResizing} />
-            <div className="feld-agents__timeline-head">
-              <span>Timeline</span>
-              <button className="feld-agents__timeline-guide" type="button" data-action="open-timeline-guide" aria-haspopup="dialog" aria-expanded={state.timelineGuideOpen} title="Read what every Timeline mark means" onClick={openGuide}>
-                <span aria-hidden="true">?</span>Guide
-              </button>
-            </div>
-            <div className="feld-agents__actions-head"></div>
-          </div>
+          )}
           <div className={`feld-agents__body${agents.length ? "" : " is-empty"}`}>
             <BandLabels state={state} agents={agents} />
             <ActorDetailRows state={state} agents={agents} />
@@ -200,8 +205,8 @@ function ActorsHead({ state, agents }: { state: BandsView; agents: ActorRecord[]
 }
 
 // The Metrics section's own header, in the same form as the Actors one: the fold, then at
-// the end the Metrics window and the lane settings; folded, the latest reading of every
-// visible lane.
+// the end the Metrics window (the compact layout keeps the Actors range alone) and the lane
+// settings; folded, the latest reading of every visible lane.
 function MetricsHead({ state }: { state: BandsView }) {
   const { focus } = usePageActions();
   const store = useActorsStore.getState;
@@ -216,7 +221,7 @@ function MetricsHead({ state }: { state: BandsView }) {
         Metrics
       </button>
       <div className="feld-agents__section-tools">
-        <MetricsWindowControl />
+        {state.compactLayout ? null : <MetricsWindowControl />}
         <button type="button" className="feld-agents__section-settings" data-action="toggle-metrics-menu" aria-label="Configure visible metrics" aria-expanded={state.metricsMenuOpen} title="Metrics display" onClick={toggleMetricsMenu}>
           <GearGlyph />
         </button>
@@ -532,18 +537,48 @@ function BandMarks({ agent, state }: { agent: ActorRecord; state: BandsView }) {
 
 // The open Actions menu is drawn at the component's top level, outside the scrolling table
 // and its sticky columns, so it draws over the page while ActionMenu anchors it to its row.
+// Opening it focuses its first enabled item; closing it returns the focus to ⋮.
 function ActionCell({ agent, state }: { agent: ActorRecord; state: BandsView }) {
   const model = useActorsModel();
+  const { focus } = usePageActions();
   const open = state.actionMenuAgent === agent.id;
   const cell = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const [host, setHost] = useState<Element | null>(null);
   useLayoutEffect(() => setHost(cell.current?.closest(".feld-agents") ?? null), []);
+  useReturnFocus(open, button);
+  function toggle() {
+    useActorsStore.getState().toggleAgentMenu(agent.id);
+    if (useActorsStore.getState().actionMenuAgent === agent.id) focus(`.feld-agents__action-menu ${ENABLED_MENU_ITEM}`, { preventScroll: true });
+  }
   return (
     <div className="feld-agents__action-cell" style={{ height: `${model.laneHeightFor(agent.id, state)}px` }} ref={cell}>
-      <button className="feld-agents__action-button" type="button" data-action="toggle-agent-menu" data-agent-id={agent.id} aria-label={`More actions for ${model.actorLabel(agent.id, state)}`} aria-expanded={open} title="More actions" onClick={() => useActorsStore.getState().toggleAgentMenu(agent.id)}>⋮</button>
+      <button className="feld-agents__action-button" type="button" data-action="toggle-agent-menu" data-agent-id={agent.id} aria-label={`More actions for ${model.actorLabel(agent.id, state)}`} aria-expanded={open} title="More actions" ref={button} onClick={toggle}>⋮</button>
       {open && host ? createPortal(<ActionMenu agent={agent} state={state} anchor={cell} />, host) : null}
     </div>
   );
+}
+
+const ENABLED_MENU_ITEM = '[role="menuitem"]:not(:disabled)';
+
+// The arrow keys, Home, and End move among the enabled items, round the ends; Tab closes
+// the menu, and the focus returns to ⋮.
+function moveInMenu(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    useActorsStore.getState().dismissAgentMenu();
+    return;
+  }
+  const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(ENABLED_MENU_ITEM));
+  const index = items.indexOf(document.activeElement as HTMLElement);
+  const next = event.key === "ArrowDown" ? (index + 1) % items.length
+    : event.key === "ArrowUp" ? (index <= 0 ? items.length : index) - 1
+    : event.key === "Home" ? 0
+    : event.key === "End" ? items.length - 1
+    : null;
+  if (next === null || !items.length) return;
+  event.preventDefault();
+  items[next].focus();
 }
 
 // Agent Actions expose only the primitives the product contract names:
@@ -656,7 +691,7 @@ function ActionMenu({ agent, state, anchor }: { agent: ActorRecord; state: Bands
   }
 
   return (
-    <div className="feld-agents__action-menu" role="menu" aria-label={`Actions for ${model.actorLabel(agent.id, state)}`} ref={element}>
+    <div className="feld-agents__action-menu" role="menu" aria-label={`Actions for ${model.actorLabel(agent.id, state)}`} ref={element} onKeyDown={moveInMenu}>
       {menu.items.map((item, index) => item.kind === "rule"
         ? <div key={`rule-${index}`} className="feld-agents__action-menu-rule" role="separator"></div>
         : (

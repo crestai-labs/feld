@@ -128,11 +128,11 @@ feld init [OPTIONS]
 - `--provider <NAME>`: Execution Provider to install. `tmux` or `herdr`. Can be given multiple times
 - `-y, --yes`: Without asking, install the Plugins found on PATH, consent to changing the Runtime config and appending to the shell config file, and start the daemon
 
-On a TTY, it prints the `∿ Feld v0.1.0` wordmark first and stacks the steps along a `│` rule. Only the step being answered is open with `◆`; answered steps collapse to a single `◇ heading  answer` line. Steps that need no question appear collapsed from the start. The final `└` line shows whether Feld is ready (`✓` / `✗`) and the next step.
+On a TTY, it prints the `∿ Feld v0.2.1` wordmark first and stacks the steps along a `│` rule. Only the step being answered is open with `◆`; answered steps collapse to a single `◇ heading  answer` line. Steps that need no question appear collapsed from the start. The final `└` line shows whether Feld is ready (`✓` / `✗`) and the next step.
 
 ```console
 $ feld init
-∿ Feld v0.1.0
+∿ Feld v0.2.1
 
 ◇ Feld home  /Users/alice/.feld
 │
@@ -152,7 +152,7 @@ When not on a TTY, it prints the collapsed form as plain `key: value`.
 
 ```console
 $ feld init --yes | cat
-Feld v0.1.0
+Feld v0.2.1
 Feld home:   /Users/alice/.feld
 Plugins:     runtimes: claude-code  providers: tmux
 Claude Code: prepared · otelHeadersHelper replaced · statusLine chained
@@ -320,7 +320,7 @@ Each line shows the result (`ok` / `warn` / `fail`), the check name, and the det
 
 ```console
 $ feld doctor
-ok    executables       feld 0.1.0 · feld-plugin-claude-code, codex, tmux, herdr 0.1.0 · /Users/alice/.local/bin
+ok    executables       feld 0.2.1 · feld-plugin-claude-code, codex, tmux, herdr 0.2.1 · /Users/alice/.local/bin
 ok    home              /Users/alice/.feld · runtimes: claude-code · providers: tmux
 ok    store             schema 15
 fail  daemon            not running · port 7381 is in use on 127.0.0.1
@@ -399,6 +399,8 @@ The daemon answers only requests sent to loopback names (`127.0.0.1`, `localhost
 
 The daemon log goes to `$FELD_HOME/daemon.log`. While running, when it reaches 10 MiB, the daemon moves it to `daemon.log.1`, shifts the existing generations up by one, and deletes those older than `daemon.log.4`. Every file is readable and writable only by the owner.
 
+The log starts each run with the version, start time, and pid. The daemon measures its own CPU and memory every minute and writes a line when it starts or stops using half a core or more, and each time its peak RSS passes 256 MiB or doubles from the last line. Each line shows the CPU share, peak RSS, and number of running tasks.
+
 **Opening the Web UI from another device**
 
 Exposure to other devices is left to a relay such as Tailscale. `tailscale serve` relays the daemon's Port to the tailnet.
@@ -424,7 +426,7 @@ It shows whether the daemon is running, its version (the same value as `feld --v
 $ feld daemon status
 Daemon
   state:      running
-  version:    0.1.0 (built 2026-10-01T00:00:00Z)
+  version:    0.2.1 (built 2026-10-01T00:00:00Z)
   pid:        48213
   home:       /Users/alice/.feld
   api:        http://127.0.0.1:7381

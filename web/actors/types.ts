@@ -455,6 +455,8 @@ export interface AgentsState {
   // The series whose reading row the pointer is on (`metricId:index`): its line comes
   // forward and the lane's other lines recede.
   emphasizedSeries: string | null;
+  // The compact (phone) layout: each Actor band is a name row over a full-width Timeline row.
+  compactLayout: boolean;
   actorsCollapsed: boolean;
   metricsCollapsed: boolean;
   visibleMetricIds: Set<string>;

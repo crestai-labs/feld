@@ -1,11 +1,12 @@
 // ---- Timeline guide ----------------------------------------------------------------
 // Every mark drawn in the Actors chart, with the shape as it is drawn and the rule it
-// follows. The Timeline column's header opens it; the page draws no standing legend.
+// follows. The Timeline column's header opens it (on the compact layout, Timeline display
+// does); the page draws no standing legend.
 
 import { memo, useEffect, useRef } from "react";
 import { TIMELINE_LEGEND } from "../model.ts";
 import { useActorsStore } from "../store.ts";
-import { usePageActions } from "../ui.tsx";
+import { timelineGuideOpener, usePageActions } from "../ui.tsx";
 import { LegendGlyph } from "./glyphs.tsx";
 
 // The guide is one of the page-level dialogs: a scrim that closes it (for the pointer only)
@@ -22,10 +23,10 @@ export const TimelineGuide = memo(function TimelineGuide() {
   }, [open]);
 
   if (!open) return null;
-  // Closing returns focus to the Guide button in the Timeline column's header.
+  // Closing returns focus to the control that opens the guide.
   const close = () => {
     closeTimelineGuide();
-    focus('[data-action="open-timeline-guide"]');
+    focus(timelineGuideOpener());
   };
   return (
     <div className="feld-agents__display-modal">

@@ -60,7 +60,8 @@ function DisplayModal({ modifier = "", closeAction, closeLabel, onClose, titleId
 // What Timeline display reads from the page state.
 type AgentDisplayView = Pick<AgentsState,
   | "agentDisplayMenuOpen" | "inspectedSessionId" | "visibleActorDetails" | "sessionMetric"
-  | "showSpawnLinks" | "showMessageLinks" | "showSubAgents" | "showScheduleSkips" | "showAgentsOutsideRange" | "showDeletedActors">;
+  | "showSpawnLinks" | "showMessageLinks" | "showSubAgents" | "showScheduleSkips" | "showAgentsOutsideRange" | "showDeletedActors"
+  | "compactLayout">;
 
 function selectAgentDisplayView(state: AgentsState): AgentDisplayView {
   return {
@@ -74,6 +75,7 @@ function selectAgentDisplayView(state: AgentsState): AgentDisplayView {
     showScheduleSkips: state.showScheduleSkips,
     showAgentsOutsideRange: state.showAgentsOutsideRange,
     showDeletedActors: state.showDeletedActors,
+    compactLayout: state.compactLayout,
   };
 }
 
@@ -93,15 +95,23 @@ export function AgentDisplayMenu() {
       title="Timeline display"
       subtitle="Choose the evidence and detail shown in the Actors timeline."
     >
-      <fieldset>
-        <legend>Actor details</legend>
-        {ACTOR_DETAIL_OPTIONS.map((option) => (
-          <label key={option.id}>
-            <input type="checkbox" data-actor-detail={option.id} checked={state.visibleActorDetails.has(option.id)} onChange={(event) => store().setActorDetail(option.id, event.target.checked)} />
-            <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-          </label>
-        ))}
-      </fieldset>
+      {/* The compact layout has no column header, which holds the Guide, nor the Actor
+          table, whose columns the Actor card carries. */}
+      {state.compactLayout ? (
+        <button className="feld-agents__timeline-guide is-menu-item" type="button" data-action="open-timeline-guide" aria-haspopup="dialog" title="Read what every Timeline mark means" onClick={() => store().openTimelineGuide()}>
+          <span aria-hidden="true">?</span>Timeline guide
+        </button>
+      ) : (
+        <fieldset>
+          <legend>Actor details</legend>
+          {ACTOR_DETAIL_OPTIONS.map((option) => (
+            <label key={option.id}>
+              <input type="checkbox" data-actor-detail={option.id} checked={state.visibleActorDetails.has(option.id)} onChange={(event) => store().setActorDetail(option.id, event.target.checked)} />
+              <span><strong>{option.label}</strong><small>{option.detail}</small></span>
+            </label>
+          ))}
+        </fieldset>
+      )}
       <fieldset>
         <legend>Session metric</legend>
         {SESSION_METRIC_OPTIONS.map(([value, label, detail]) => (

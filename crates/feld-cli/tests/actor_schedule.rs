@@ -23,6 +23,11 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
+        Self::installing(support::install_plugins)
+    }
+
+    /// A Fixture whose home has the Plugins `install` puts there.
+    fn installing(install: fn(&Path)) -> Self {
         let temp = tempfile::tempdir().expect("create temporary Feld home");
         let socket = temp.path().join("tmux.sock");
         // A stub on PATH keeps the claude-code Runtime from starting the real
@@ -33,7 +38,7 @@ impl Fixture {
         fs::write(&claude, "#!/bin/sh\nexec sleep 300\n").expect("write claude stub");
         fs::set_permissions(&claude, fs::Permissions::from_mode(0o755))
             .expect("make the claude stub executable");
-        support::install_plugins(temp.path());
+        install(temp.path());
         Self { temp, socket, bin }
     }
 
@@ -1619,4 +1624,60 @@ fn provider_options_follow_the_option_prefix_and_the_callers_own_position() {
             rejected.join(" ")
         );
     }
+}
+
+/// An update that switches the Provider replaces the options with the new Provider's own:
+/// `--provider` alone takes its defaults, and an option without `--provider` names the Provider
+/// by its prefix.
+#[test]
+fn update_switching_the_provider_resolves_the_new_providers_options() {
+    let fixture = Fixture::installing(support::install_plugins_with_herdr);
+    fixture.start();
+    fixture.json(&[
+        "actor",
+        "create",
+        "switched",
+        "--kind",
+        "agent",
+        "--no-start",
+        "--runtime",
+        "claude-code",
+        "--tmux-unit",
+        "window",
+        "--tmux-session",
+        "main",
+        "--json",
+    ]);
+
+    let to_herdr = fixture.json(&[
+        "actor",
+        "update",
+        "switched",
+        "--provider",
+        "herdr",
+        "--json",
+    ]);
+    assert_eq!(to_herdr["actor"]["launchSpec"]["provider"], "herdr");
+    assert_eq!(
+        to_herdr["actor"]["launchSpec"]["providerOptions"],
+        json!({"session": "default", "unit": "workspace"})
+    );
+
+    let to_tmux = fixture.json(&[
+        "actor",
+        "update",
+        "switched",
+        "--tmux-socket",
+        "work",
+        "--json",
+    ]);
+    assert_eq!(to_tmux["actor"]["launchSpec"]["provider"], "tmux");
+    assert_eq!(
+        to_tmux["actor"]["launchSpec"]["providerOptions"],
+        json!({"socket": "work", "unit": "session"})
+    );
+    assert_eq!(
+        fixture.json(&["actor", "get", "switched", "--json"])["actor"]["launchSpec"],
+        to_tmux["actor"]["launchSpec"]
+    );
 }

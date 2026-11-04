@@ -9,7 +9,7 @@ import { connectionOf } from "../api/queries.ts";
 import { fixtureActorsStateOf, fixtureScenarioOf, useFixture, type Fixture } from "../fixtures/index.ts";
 import { workspaceOfSearch } from "../shell/workspace-url.ts";
 import { ActorsView } from "./ActorsView.tsx";
-import { followsLive, selectedSessionId } from "./model.ts";
+import { COMPACT_LAYOUT_QUERY, followsLive, selectedSessionId } from "./model.ts";
 import { useActorsStore } from "./store.ts";
 import { useActorsData, type ActorsFixture } from "./useActorsData.ts";
 
@@ -42,6 +42,15 @@ function Fresh({ fixture = null, children }: { fixture?: Fixture | null; childre
     // Only a new page is set back; the URL moves the store from here on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixture]);
+  // The lanes follow the viewport across the compact breakpoint.
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const query = window.matchMedia(COMPACT_LAYOUT_QUERY);
+    const follow = () => useActorsStore.getState().setCompactLayout(query.matches);
+    follow();
+    query.addEventListener("change", follow);
+    return () => query.removeEventListener("change", follow);
+  }, []);
   return ready ? children : <feld-agents></feld-agents>;
 }
 

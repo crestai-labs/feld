@@ -575,17 +575,18 @@ function Placement({ session }: { session: AgentSession }) {
 // Session performs an authenticated mailbox read.
 function Composer({ agentId }: { agentId: string }) {
   const model = useActorsModel();
-  const { client, afterRender } = useActorsTools();
+  const { client } = useActorsTools();
   const { closeCard, cancelComposer } = usePageActions();
   const compose = useActorsStore(useShallow((state) => ({ workspace: state.workspace, draft: state.composeDrafts[agentId]?.text ?? "", sending: Boolean(state.composeSending[agentId]), result: state.composeResult, error: state.composeError })));
   const store = useActorsStore.getState;
   const { session, current, waiting } = model.composerFor(agentId);
 
+  // The focus moves to the textarea before the Send button is disabled, so it stays in the
+  // composer while the Message is sent and the page's Escape still closes it.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    sendComposedMessage(client, model).then(() => {
-      if (store().composeResult) afterRender((root) => root.querySelector<HTMLElement>("[data-composer] textarea")?.focus());
-    });
+    event.currentTarget.querySelector("textarea")?.focus();
+    sendComposedMessage(client, model);
   }
 
   return (

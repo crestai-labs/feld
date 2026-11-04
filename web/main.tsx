@@ -24,8 +24,8 @@ import "./styles/pairing.css";
 // `?state=unauthorized` shows the pairing screen at once.
 const FIXTURE_EXPIRY_DELAY = 4000;
 
-// Each page names itself in the tab; the Actors page draws its own Workspace switcher,
-// which the compact shell makes room for.
+// Each page names itself in the tab; the Actors page draws its own heading row with the
+// Workspace switcher, which the compact shell takes as its top bar.
 function Page({ title, switcher = false, children }: { title: string; switcher?: boolean; children: ReactNode }) {
   useEffect(() => {
     document.title = title;

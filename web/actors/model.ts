@@ -65,15 +65,25 @@ export interface ActorsClock {
 
 // ---- Geometry ------------------------------------------------------------------------
 
+// What the lane geometry reads from the page state.
+type LaneState = Pick<AgentsState, "showSubAgents"> & Partial<Pick<AgentsState, "compactLayout">>;
+
 // Actor lane geometry. `mainOffset` is the main line's y inside the lane; the metric
 // histogram sits above it.
 export const LANE = Object.freeze({ laneHeight: 44, mainOffset: 30, subAgentRowHeight: 28, barBase: 2, barRange: 13 });
+// On the compact layout a lane starts with the Actor's name row (its marks beside the name),
+// and the Timeline row under it spans the full width.
+export const COMPACT_LANE = Object.freeze({ nameRowHeight: 30, laneHeight: 62, mainOffset: 51 });
 export const METRIC_LANE_HEIGHT = 56;
 // A lane's chart runs from the lane's top line to its bottom: 100 % of the range on the
 // line that parts it from the lane above, 0 at the bottom.
 export const METRIC_CHART_INSET = Object.freeze({ top: 0, bottom: 0 });
 // Each reading row past the second makes a lane this much taller.
 export const METRIC_ROW_HEIGHT = 16;
+// In the compact layout a lane label stacks its readings under its name and caption, which
+// take this much with the padding; each reading row and the "+N more" row adds
+// METRIC_ROW_HEIGHT.
+export const METRIC_COMPACT_LABEL_HEIGHT = 50;
 // A lane lists this many series and folds the rest behind "+N more".
 export const METRIC_ROW_LIMIT = 3;
 // The colours of accounts (--series-account-N), apart from the Runtime colours.
@@ -91,6 +101,9 @@ export const PLOT_PAD_RIGHT = 24;
 export const TIMELINE_MIN_WIDTH = 280;
 // Mirrors the compact breakpoint in styles/shell.css and styles/agents.css.
 export const COMPACT_LAYOUT_QUERY = "(max-width: 760px)";
+export function matchesCompactLayout() {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(COMPACT_LAYOUT_QUERY).matches;
+}
 export const TOKEN_BIN_PIXEL_TARGET = 6;
 export const TOKEN_BIN_OPTIONS = [MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE, 15 * MINUTE, 30 * MINUTE, HOUR, 2 * HOUR, 6 * HOUR];
 export const WINDOW_OPTIONS: readonly (readonly [string, number])[] = [
@@ -2275,17 +2288,19 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     return { rows, count: 1 + subAgents.length };
   }
 
-  function laneHeightFor(agentId: string, state: Pick<AgentsState, "showSubAgents">) {
-    return LANE.laneHeight + unreadRowHeightFor(agentId) + (bandRowsFor(agentId, state).count - 1) * LANE.subAgentRowHeight;
+  function laneHeightFor(agentId: string, state: LaneState) {
+    const subAgentRows = (bandRowsFor(agentId, state).count - 1) * LANE.subAgentRowHeight;
+    if (state.compactLayout) return COMPACT_LANE.laneHeight + subAgentRows;
+    return LANE.laneHeight + unreadRowHeightFor(agentId) + subAgentRows;
   }
 
-  function laneLayoutFor(agents: ActorRecord[], state: Pick<AgentsState, "showSubAgents">) {
+  function laneLayoutFor(agents: ActorRecord[], state: LaneState) {
     let top = 0;
     const layout = new Map<string, Lane>();
     agents.forEach((agent) => {
       const bandRows = bandRowsFor(agent.id, state);
       const height = laneHeightFor(agent.id, state);
-      const mainY = top + LANE.mainOffset;
+      const mainY = top + (state.compactLayout ? COMPACT_LANE.mainOffset : LANE.mainOffset);
       layout.set(agent.id, {
         top,
         height,
@@ -2334,8 +2349,9 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
 
   // The lanes as the Metrics section lists them, each in listedSeriesOrder by the latest
   // reading. A lane with more than METRIC_ROW_LIMIT series folds the rest unless it is
-  // expanded, and grows by one reading row per row it lists past two.
-  function metricLanesFor(state: Pick<AgentsState, "mode" | "anchor" | "duration" | "metricsDuration" | "visibleMetricIds" | "query" | "expandedMetricIds">): ListedMetricLane[] {
+  // expanded, and grows by one reading row per row it lists past two; in the compact
+  // layout, it is as tall as its stacked label.
+  function metricLanesFor(state: Pick<AgentsState, "mode" | "anchor" | "duration" | "metricsDuration" | "visibleMetricIds" | "query" | "expandedMetricIds">, compact = false): ListedMetricLane[] {
     const range = metricsRangeFor(state);
     let top = 0;
     return visibleMetrics(state).map(({ metric, series: searched }) => {
@@ -2348,7 +2364,9 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
       const expanded = foldable && state.expandedMetricIds.has(metric.id);
       const series = foldable && !expanded ? ordered.slice(0, METRIC_ROW_LIMIT) : ordered;
       const rows = series.length + (foldable ? 1 : 0);
-      const height = Math.max(METRIC_LANE_HEIGHT, METRIC_LANE_HEIGHT + (rows - 2) * METRIC_ROW_HEIGHT);
+      const height = Math.max(METRIC_LANE_HEIGHT, compact
+        ? METRIC_COMPACT_LABEL_HEIGHT + rows * METRIC_ROW_HEIGHT
+        : METRIC_LANE_HEIGHT + (rows - 2) * METRIC_ROW_HEIGHT);
       const lane = { metric, series, hiddenCount: ordered.length - series.length, expanded, top, height };
       top += height;
       return lane;

@@ -203,7 +203,7 @@ When the CLI cannot write a request to the spool (`EPERM`, `EACCES`, `EROFS`), i
 
 | Clue | Cause | Fix shown |
 |---|---|---|
-| `CODEX_PERMISSION_PROFILE=:read-only` | The sandbox is `read-only`, including when it reverted on an app-server restart ([Known constraints](adapter/codex.md#the-sandbox-reverts-when-the-app-server-restarts)) | Start a new thread with `/new`, or quit Codex and run `codex resume <thread id> --yolo`. The thread id is shown from `CODEX_THREAD_ID` in the environment |
+| `CODEX_PERMISSION_PROFILE=:read-only` | The sandbox is `read-only`, including when it reverted on an app-server restart ([Known constraints](adapter/codex.md#the-sandbox-reverts-when-the-app-server-restarts)) | Start a new thread with `/new`, or quit Codex and run `codex resume <thread id> --sandbox workspace-write`. The thread id is shown from `CODEX_THREAD_ID` in the environment |
 | `CODEX_SANDBOX` is set, and `writable_roots` in `config.toml` of the configuration root lacks `spool/shared` | Not prepared | Run `feld init --runtime codex` outside the sandbox and restart Codex |
 | `CODEX_SANDBOX` is set, and `config.toml` has `spool/shared` | `writable_roots` was replaced by `-c` at Codex startup, or the sandbox is `read-only` | Show both: add the spool path to `-c sandbox_workspace_write.writable_roots`, and, if `read-only`, the fix in the first row |
 | None of the above | Unknown sandbox | The spool path and the OS error, and that writing to the spool must be allowed |

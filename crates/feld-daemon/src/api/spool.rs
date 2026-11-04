@@ -6,6 +6,7 @@ use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
@@ -14,7 +15,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{HeaderValue, Method, StatusCode, Uri, header};
 use fs2::FileExt;
 use notify::Watcher as _;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{Notify, watch};
 use tokio::task::JoinSet;
 use tower::ServiceExt as _;
 
@@ -45,10 +46,16 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
         settle_left_behind(&directory);
     }
 
-    let (events_tx, mut events) = mpsc::unbounded_channel();
+    // However many notifications come between two passes, one pass answers them all.
+    let woken = Arc::new(Notify::new());
     // Without notifications the scan still takes every request, only later.
-    let watcher = notify::recommended_watcher(move |_event| {
-        let _ = events_tx.send(());
+    let watcher = notify::recommended_watcher({
+        let woken = Arc::clone(&woken);
+        move |event| {
+            if wakes(&event) {
+                woken.notify_one();
+            }
+        }
     })
     .and_then(|mut watcher| {
         watcher.watch(&spool, notify::RecursiveMode::Recursive)?;
@@ -71,7 +78,7 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
                     remove_stale(&directory, false);
                 }
             }
-            Some(()) = events.recv() => {}
+            () = woken.notified() => {}
             _ = shutdown.changed() => {}
         }
         if *shutdown.borrow() {
@@ -100,6 +107,13 @@ pub async fn serve(state: AppState, mut shutdown: watch::Receiver<bool>) -> Resu
     handling.abort_all();
     drop(watcher);
     Ok(())
+}
+
+/// Whether a notification may mean a request came. A pass reads the spool, and on Linux
+/// reading a directory is itself a notification, so one that only reports a read would
+/// wake the next pass without end.
+fn wakes(event: &notify::Result<notify::Event>) -> bool {
+    !matches!(event, Ok(event) if event.kind.is_access())
 }
 
 /// One directory of the spool: whose requests it takes, and where it is.
@@ -720,6 +734,69 @@ mod tests {
             assert!(answering(dir.path()), "{}", file.display());
             fs::remove_file(&file).unwrap();
         }
+    }
+
+    #[test]
+    fn a_notification_of_a_read_does_not_wake_the_scan() {
+        use notify::event::{
+            AccessKind, AccessMode, CreateKind, EventKind, ModifyKind, RenameMode,
+        };
+        let event = |kind| Ok(notify::Event::new(kind));
+        assert!(!wakes(&event(EventKind::Access(AccessKind::Open(
+            AccessMode::Any
+        )))));
+        assert!(!wakes(&event(EventKind::Access(AccessKind::Close(
+            AccessMode::Read
+        )))));
+        assert!(wakes(&event(EventKind::Create(CreateKind::File))));
+        assert!(wakes(&event(EventKind::Modify(ModifyKind::Name(
+            RenameMode::To
+        )))));
+        assert!(wakes(&Err(notify::Error::generic("lost"))));
+    }
+
+    /// inotify reports the opening of a watched directory, so the pass that reads the spool
+    /// is notified of its own reads; none of those notifications wakes the next pass.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_pass_over_the_spool_does_not_wake_the_next() {
+        use std::sync::mpsc::channel;
+
+        let dir = tempfile::tempdir().unwrap();
+        let spool = dir.path();
+        fs::create_dir(spool.join(feld_core::spool::SHARED_DIR)).unwrap();
+        let (sender, notifications) = channel();
+        let mut watcher = notify::recommended_watcher(move |event| {
+            let _ = sender.send(event);
+        })
+        .unwrap();
+        watcher
+            .watch(spool, notify::RecursiveMode::Recursive)
+            .unwrap();
+        let collect = || {
+            let mut events = Vec::new();
+            while let Ok(event) = notifications.recv_timeout(Duration::from_millis(300)) {
+                events.push(event);
+            }
+            events
+        };
+
+        for (_, directory) in directories(spool) {
+            assert!(waiting_requests(&directory).is_empty());
+        }
+        let read = collect();
+        assert!(!read.is_empty(), "inotify reports the reads of the spool");
+        assert!(read.iter().all(|event| !wakes(event)), "{read:?}");
+
+        let id = "0".repeat(32);
+        fs::write(
+            spool
+                .join(feld_core::spool::SHARED_DIR)
+                .join(wire::file_name(&id, State::Request)),
+            b"{}",
+        )
+        .unwrap();
+        assert!(collect().iter().any(wakes));
     }
 
     #[test]

@@ -98,6 +98,21 @@ test("the composer closed with Escape, × or Cancel returns the focus to its Act
   }
 });
 
+test("Escape closes the composer while its Message is being sent", async () => {
+  const agentId = await openComposer();
+  await act(async () => store().setComposeDraft("hello"));
+  const send = element('[data-composer] [type="submit"]');
+  send.focus();
+  await click(send);
+  // The fixture page has no daemon, so the send is held in flight by hand.
+  await act(async () => useActorsStore.setState({ composeSending: { [agentId]: true } }));
+  expect(send.hasAttribute("disabled")).toBe(true);
+  expect(document.activeElement).toBe(element("[data-composer] textarea"));
+  await press(document.activeElement!, "Escape");
+  expect(page.querySelector("[data-composer]")).toBeNull();
+  expect(document.activeElement).toBe(element(actionsMenu(agentId)));
+});
+
 test("a card closed while a search hides its Actor leaves the focus on the search field", async () => {
   await openConsole();
   await act(async () => store().setQuery("no actor matches this"));
@@ -162,6 +177,52 @@ test("the Session opened again closes its Console, and the Actor's name pressed 
   expect(store().focusedActorId).toBeNull();
 });
 
+test("the Actions menu takes the focus, moves it with the arrow keys, and gives it back to ⋮ when it closes", async () => {
+  const button = element('[data-action="toggle-agent-menu"]');
+  const agentId = button.getAttribute("data-agent-id")!;
+  const items = () => Array.from(page.querySelectorAll<HTMLElement>('.feld-agents__action-menu [role="menuitem"]:not(:disabled)'));
+  await click(button);
+  expect(document.activeElement).toBe(items()[0]);
+  await press(document.activeElement!, "ArrowUp");
+  expect(document.activeElement).toBe(items().at(-1));
+  await press(document.activeElement!, "ArrowDown");
+  expect(document.activeElement).toBe(items()[0]);
+  await press(document.activeElement!, "End");
+  await press(document.activeElement!, "Home");
+  await press(document.activeElement!, "ArrowDown");
+  expect(document.activeElement).toBe(items()[1]);
+
+  for (const key of ["Escape", "Tab"]) {
+    await press(document.activeElement!, key);
+    expect(page.querySelector(".feld-agents__action-menu")).toBeNull();
+    expect(document.activeElement).toBe(element(actionsMenu(agentId)));
+    await click(element(actionsMenu(agentId)));
+  }
+  // An item that closes the menu without moving the focus elsewhere gives it back to ⋮.
+  await click(element('.feld-agents__action-menu [data-action="stop-session"]'));
+  expect(page.querySelector(".feld-agents__action-menu")).toBeNull();
+  expect(document.activeElement).toBe(element(actionsMenu(agentId)));
+});
+
+test("a picker takes the focus once open, and gives it back to its button once closed", async () => {
+  for (const [toggle, picker, close] of [
+    ["toggle-picker", ".feld-agents__picker", '[data-action="close-picker"]'],
+    ["toggle-metrics-picker", ".feld-agents__metrics-picker", '[data-action="metrics-quick"]:not(:disabled)'],
+  ]) {
+    const button = element(`[data-action="${toggle}"]`);
+    await click(button);
+    expect(element(picker).contains(document.activeElement)).toBe(true);
+    await press(document.activeElement!, "Escape");
+    expect(page.querySelector(picker)).toBeNull();
+    expect(document.activeElement).toBe(button);
+    await click(button);
+    element(close).focus();
+    await click(element(close));
+    expect(page.querySelector(picker)).toBeNull();
+    expect(document.activeElement).toBe(button);
+  }
+});
+
 test("a range picker closes when the pointer goes down outside it, and stays while it goes down inside", async () => {
   async function pressAt(target: Element) {
     await act(async () => { target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true })); });
@@ -178,6 +239,38 @@ test("a range picker closes when the pointer goes down outside it, and stays whi
   expect(page.querySelector(".feld-agents__metrics-picker")).not.toBeNull();
   await pressAt(document.body);
   expect(page.querySelector(".feld-agents__metrics-picker")).toBeNull();
+});
+
+test("on the compact layout the range picker shows the Quick ranges and opens the Historical range from Custom…", async () => {
+  await click(element('[data-action="toggle-picker"]'));
+  expect(page.querySelector('[data-action="toggle-custom-range"]')).toBeNull();
+  expect(page.querySelector('[data-action="apply-picker"]')).not.toBeNull();
+  await click(element('[data-action="close-picker"]'));
+
+  await act(async () => store().setCompactLayout(true));
+  await click(element('[data-action="toggle-picker"]'));
+  const custom = element('[data-action="toggle-custom-range"]');
+  expect(page.querySelectorAll('[data-action="quick-live"]').length).toBeGreaterThan(0);
+  expect(page.querySelector('[data-action="apply-picker"]')).toBeNull();
+  expect(custom.getAttribute("aria-expanded")).toBe("false");
+  await click(custom);
+  expect(custom.getAttribute("aria-expanded")).toBe("true");
+  expect(page.querySelector('[data-action="apply-picker"]')).not.toBeNull();
+});
+
+test("on the compact layout the Actions menu and the range picker take the focus and give it back on Escape", async () => {
+  await act(async () => store().setCompactLayout(true));
+  for (const [toggle, opened] of [
+    ['[data-action="toggle-agent-menu"]', ".feld-agents__action-menu"],
+    ['[data-action="toggle-picker"]', ".feld-agents__picker"],
+  ]) {
+    const button = element(toggle);
+    await click(button);
+    expect(element(opened).contains(document.activeElement)).toBe(true);
+    await press(document.activeElement!, "Escape");
+    expect(page.querySelector(opened)).toBeNull();
+    expect(document.activeElement).toBe(button);
+  }
 });
 
 test("a Job's Schedule line opens its Actor card at the Job section, whose edit form Escape closes first", async () => {

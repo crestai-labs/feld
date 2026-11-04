@@ -630,11 +630,23 @@ fn a_waiting_cli_cancels_on_a_signal_and_reports_a_stopped_daemon() {
     fixture.succeed(&["daemon", "start"]);
     let token = fixture.start_job("worker");
     let wait = ["self", "message", "recv", "--wait"];
+    // The CLI asks the daemon status through the spool before it waits, so only the taken
+    // read of the Messages is the request the daemon waits on.
     let taken = || {
-        fixture
-            .listing()
-            .iter()
-            .any(|name| name.ends_with(".taken"))
+        fs::read_dir(fixture.directory(&token))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.extension()
+                    .is_some_and(|extension| extension == "taken")
+            })
+            .filter_map(|path| fs::read(path).ok())
+            .filter_map(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .any(|request| {
+                request["path"]
+                    .as_str()
+                    .is_some_and(|path| path.starts_with("/v1/self/messages"))
+            })
     };
 
     let interrupted = sandboxed(&fixture, &wait, Some(&token)).spawn().unwrap();

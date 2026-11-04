@@ -6,10 +6,11 @@ use std::thread;
 use std::time::{Duration as StdDuration, Instant};
 
 use chrono::{DateTime, SecondsFormat, Timelike, Utc};
+use feld_core::cron::{last_run_at_or_before, next_run_after};
 use feld_core::home::FeldHome;
 use feld_core::model::{
     ActorKind, EndKind, Execution, LaunchSpec, ObservationKind, Placement, Record, RecordKind,
-    Requester, Schedule, StartKind, last_run_at_or_before, next_run_after, validate_cron,
+    Requester, Schedule, StartKind,
 };
 use feld_daemon::control::SessionController;
 use feld_daemon::scheduler::{Clock, Scheduler, SystemClock, Watch};
@@ -92,100 +93,6 @@ fn schedule(store: &Store, actor: &str) -> Schedule {
         .get_schedule("default", actor)
         .unwrap()
         .expect("Schedule exists")
-}
-
-#[test]
-fn cron_planner_preserves_both_fall_back_instants_and_skips_spring_gap() {
-    let before_fall = "2026-11-01T04:00:00Z".parse::<DateTime<Utc>>().unwrap();
-    let first = next_run_after("30 1 * * *", "America/New_York", before_fall).unwrap();
-    assert_eq!(first, "2026-11-01T05:30:00.000Z");
-    let first_instant = DateTime::parse_from_rfc3339(&first)
-        .unwrap()
-        .with_timezone(&Utc);
-    let second = next_run_after("30 1 * * *", "America/New_York", first_instant).unwrap();
-    assert_eq!(second, "2026-11-01T06:30:00.000Z");
-
-    // An origin inside the second copy of the repeated hour.
-    for (cron, timezone, after, expected) in [
-        (
-            "* * * * *",
-            "America/New_York",
-            "2026-11-01T06:30:00Z",
-            "2026-11-01T06:31:00.000Z",
-        ),
-        (
-            "30 1 * * *",
-            "America/New_York",
-            "2026-11-01T06:15:00Z",
-            "2026-11-01T06:30:00.000Z",
-        ),
-        (
-            "* * * * *",
-            "Australia/Lord_Howe",
-            "2026-04-04T15:00:00Z",
-            "2026-04-04T15:01:00.000Z",
-        ),
-        (
-            "30 1 * * *",
-            "America/New_York",
-            "2026-11-01T06:45:00Z",
-            "2026-11-02T06:30:00.000Z",
-        ),
-    ] {
-        assert_eq!(
-            next_run_after(cron, timezone, after.parse().unwrap()).unwrap(),
-            expected,
-            "{cron} in {timezone} after {after}"
-        );
-    }
-
-    let before_spring = "2026-03-08T05:00:00Z".parse::<DateTime<Utc>>().unwrap();
-    assert_eq!(
-        next_run_after("30 2 * * *", "America/New_York", before_spring).unwrap(),
-        "2026-03-09T06:30:00.000Z"
-    );
-    assert_eq!(
-        next_run_after("* * * * *", "UTC", "2026-09-16T00:05:30Z".parse().unwrap()).unwrap(),
-        "2026-09-16T00:06:00.000Z"
-    );
-}
-
-#[test]
-fn last_run_is_the_latest_tick_at_or_before_the_instant_as_the_planner_writes_it() {
-    for (cron, timezone, at, expected) in [
-        (
-            "*/15 * * * *",
-            "Asia/Tokyo",
-            "2026-09-29T20:14:59Z",
-            Some("2026-09-29T20:00:00.000Z"),
-        ),
-        (
-            "*/15 * * * *",
-            "Asia/Tokyo",
-            "2026-09-29T20:15:00Z",
-            Some("2026-09-29T20:15:00.000Z"),
-        ),
-        (
-            "30 1 * * *",
-            "America/New_York",
-            "2026-11-01T06:45:00Z",
-            Some("2026-11-01T06:30:00.000Z"),
-        ),
-        (
-            "0 0 1 1 *",
-            "UTC",
-            "1970-01-01T00:00:00Z",
-            Some("1970-01-01T00:00:00.000Z"),
-        ),
-    ] {
-        assert_eq!(
-            last_run_at_or_before(cron, timezone, at.parse().unwrap())
-                .unwrap()
-                .as_deref(),
-            expected,
-            "{cron} in {timezone} at {at}"
-        );
-    }
 }
 
 #[test]
@@ -1467,78 +1374,6 @@ fn a_renamed_job_ticks_by_its_new_name() {
         );
         thread::sleep(StdDuration::from_millis(100));
     }
-}
-
-#[test]
-fn cron_rejection_names_the_feld_of_the_expression_given() {
-    assert_eq!(
-        validate_cron("61 * * * *").unwrap_err(),
-        "invalid cron expression '61 * * * *': the minute field '61' takes 0-59"
-    );
-    assert_eq!(
-        validate_cron("0 9 * 13 MON").unwrap_err(),
-        "invalid cron expression '0 9 * 13 MON': the month field '13' takes 1-12 or JAN-DEC"
-    );
-    assert_eq!(
-        validate_cron("0 9 * *").unwrap_err(),
-        "invalid cron expression '0 9 * *': it takes five fields, minute, hour, day of month, month, and day of week"
-    );
-    assert!(validate_cron("59 23 31 12 SUN").is_ok());
-    assert_eq!(
-        validate_cron("0 9 * * 8").unwrap_err(),
-        "invalid cron expression '0 9 * * 8': the day of week field '8' takes 0-7 or SUN-SAT"
-    );
-}
-
-#[test]
-fn cron_day_of_week_numbers_follow_standard_cron() {
-    // 2026-09-16 is a Wednesday.
-    let after = "2026-09-16T00:05:00Z".parse().unwrap();
-    let next = |cron| next_run_after(cron, "UTC", after).unwrap();
-    assert_eq!(next("0 0 * * 1"), "2026-09-21T00:00:00.000Z");
-    assert_eq!(next("0 0 * * MON"), "2026-09-21T00:00:00.000Z");
-    assert_eq!(next("0 0 * * 0"), "2026-09-20T00:00:00.000Z");
-    assert_eq!(next("0 0 * * 7"), "2026-09-20T00:00:00.000Z");
-    assert_eq!(next("0 0 * * 6"), "2026-09-19T00:00:00.000Z");
-    assert_eq!(next("0 0 * * 5-7"), "2026-09-18T00:00:00.000Z");
-    assert_eq!(next("0 0 * * 1-5/2"), "2026-09-18T00:00:00.000Z");
-    assert_eq!(next("0 0 * * 0,3"), "2026-09-20T00:00:00.000Z");
-}
-
-#[test]
-fn cron_with_both_day_fields_fires_on_days_either_allows() {
-    let next = |cron, after: &str| next_run_after(cron, "UTC", after.parse().unwrap()).unwrap();
-    // 2026-09-16 is a Wednesday, and 2027-02-01 a Monday.
-    assert_eq!(
-        next("0 9 1 * MON", "2026-09-16T00:00:00Z"),
-        "2026-09-21T09:00:00.000Z"
-    );
-    assert_eq!(
-        next("0 9 1 * MON", "2026-09-28T10:00:00Z"),
-        "2026-10-01T09:00:00.000Z"
-    );
-    assert_eq!(
-        next("0 9 1 * MON", "2027-01-25T10:00:00Z"),
-        "2027-02-01T09:00:00.000Z"
-    );
-    assert_eq!(
-        next("0 9 1 * MON", "2027-02-01T09:00:00Z"),
-        "2027-02-08T09:00:00.000Z"
-    );
-    // A day field starting with `*` leaves both to be met, as in standard cron.
-    assert_eq!(
-        next("0 9 */10 * MON", "2026-09-22T00:00:00Z"),
-        "2026-12-21T09:00:00.000Z"
-    );
-
-    let last = |at: &str| {
-        last_run_at_or_before("0 9 1 * MON", "UTC", at.parse().unwrap())
-            .unwrap()
-            .unwrap()
-    };
-    assert_eq!(last("2026-10-02T00:00:00Z"), "2026-10-01T09:00:00.000Z");
-    assert_eq!(last("2026-09-30T00:00:00Z"), "2026-09-28T09:00:00.000Z");
-    assert!(validate_cron("0 9 31 2 MON").is_ok());
 }
 
 #[tokio::test]

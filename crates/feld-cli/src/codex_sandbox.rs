@@ -66,7 +66,7 @@ impl Sandbox {
     /// Session its own.
     pub fn unwritable_hint(&self, spool: &Path, shared: bool) -> Option<String> {
         let read_only = format!(
-            "start a new thread with `/new`, or quit Codex and run `codex resume {} --yolo`",
+            "start a new thread with `/new`, or quit Codex and run `codex resume {} --sandbox workspace-write`",
             self.thread.as_deref().unwrap_or("<thread id>")
         );
         if self.permission_profile.as_deref() == Some(":read-only") {
@@ -201,7 +201,9 @@ mod tests {
             .unwrap();
         assert!(read_only.contains("read-only sandbox"), "{read_only}");
         assert!(
-            read_only.contains("`codex resume 019a0000-0000-7000-8000-000000000000 --yolo`"),
+            read_only.contains(
+                "`codex resume 019a0000-0000-7000-8000-000000000000 --sandbox workspace-write`"
+            ),
             "{read_only}"
         );
 

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { ConsoleReads } from "../console/reads.ts";
-import { DAY, HOUR, MINUTE, actorColumnWidthsOf, actorColumns, actorColumnsWidth, clampActorColumnWidth, axisLabels, axisTicks, consoleSessionOf, createModel, metricsQueryOf, metricsRangeOf, withAccountTones, laneSeriesName, listedSeriesOrder, cronError, draftLaunchSpec, emptyActorDraft, followsLive, gridLines, isMidnight, orderWithMove, pinsWith, executionDetailFor, formatDuration, launchChoice, metricSampleTimes, metricValueAt, seriesSampledAt, nextCronInstant, placementRows, quotaReporterAt, readingMarkerAt, validateActorDraft, validateEditDraft, envText, launchSpecPatchOf, maskSecrets, parseEnv, editDraftOf, SECRET_MASK } from "./model.ts";
+import { COMPACT_LANE, DAY, HOUR, LANE, MINUTE, UNREAD_ROW_HEIGHT, actorColumnWidthsOf, actorColumns, actorColumnsWidth, clampActorColumnWidth, axisLabels, axisTicks, consoleSessionOf, createModel, metricsQueryOf, metricsRangeOf, withAccountTones, laneSeriesName, listedSeriesOrder, cronError, draftLaunchSpec, emptyActorDraft, followsLive, gridLines, isMidnight, orderWithMove, pinsWith, executionDetailFor, formatDuration, launchChoice, metricSampleTimes, metricValueAt, seriesSampledAt, nextCronInstant, placementRows, quotaReporterAt, readingMarkerAt, validateActorDraft, validateEditDraft, envText, launchSpecPatchOf, maskSecrets, parseEnv, editDraftOf, SECRET_MASK } from "./model.ts";
 import { createInitialState } from "./store.ts";
 import type { ActorRecord, ActorsInput, AgentSession, AgentsState, MessageRecord, MetricLane, MetricSeries, ScheduleRecord } from "./types.ts";
 
@@ -229,6 +229,21 @@ test("unread mail and skipped ticks are marks, not attention", () => {
   expect(model.unreadMarkFor(actor("job", "job"), state())?.count).toBe(1);
   expect(model.skipMarkFor(actor("job", "job"))?.count).toBe(1);
   expect(model.attentionReasons("default/job")).toEqual([]);
+});
+
+test("on the compact layout a lane starts with its name row, which holds the marks line", () => {
+  const message: MessageRecord = { id: "m1", from: "Admin", fromWorkspace: null, fromSessionId: null, to: "default/dev", toWorkspace: "default", toSessionId: "s1", accepted: NOW - 10 * MINUTE, read: null, anchor: null, preview: "hi", body: null };
+  const sub = session({ id: "sub1", actor: "default/dev", parentSession: "s1", subAgent: "Plan", startKind: "sub-agent", ownership: null, endKind: null, start: NOW - 30 * MINUTE, end: NOW - 20 * MINUTE, observation: null });
+  const model = modelOf({ actors: [actor("dev"), actor("rev")], sessions: [session({ id: "s1", actor: "default/dev" }), sub], messages: [message] });
+  const agents = [actor("dev"), actor("rev")];
+  const wide = model.laneLayoutFor(agents, state()).agents;
+  expect(wide.get("default/dev")).toMatchObject({ top: 0, height: LANE.laneHeight + UNREAD_ROW_HEIGHT + LANE.subAgentRowHeight, mainY: LANE.mainOffset });
+  const compact = model.laneLayoutFor(agents, state({ compactLayout: true })).agents;
+  expect(compact.get("default/dev")).toMatchObject({ top: 0, height: COMPACT_LANE.laneHeight + LANE.subAgentRowHeight, mainY: COMPACT_LANE.mainOffset });
+  expect(compact.get("default/dev")!.sessionY.get("sub1")).toBe(COMPACT_LANE.mainOffset + LANE.subAgentRowHeight);
+  expect(compact.get("default/rev")).toMatchObject({ top: COMPACT_LANE.laneHeight + LANE.subAgentRowHeight, height: COMPACT_LANE.laneHeight });
+  // The session metric's bars stay clear of the name row.
+  expect(COMPACT_LANE.mainOffset - LANE.barRange - 2 * LANE.barBase).toBeGreaterThanOrEqual(COMPACT_LANE.nameRowHeight);
 });
 
 test("an owned Runtime with no identity yet is marked unlinked, not attention", () => {
@@ -768,11 +783,13 @@ test("a quota lane lists its accounts highest first and folds past three", () =>
     series: [account("a", 10), account("b", 70), account("c", 40), account("d", 90)],
   };
   const model = modelOf({ metrics: [quota] });
-  const listed = (expanded: string[]) => model.metricLanesFor(state({ visibleMetricIds: new Set(["quota-5h"]), expandedMetricIds: new Set(expanded) }))[0];
+  const listed = (expanded: string[], compact = false) => model.metricLanesFor(state({ visibleMetricIds: new Set(["quota-5h"]), expandedMetricIds: new Set(expanded) }), compact)[0];
   const folded = listed([]);
   expect([folded.series.map((series) => series.account), folded.hiddenCount, folded.height]).toEqual([["d", "b", "c"], 1, 88]);
   const expanded = listed(["quota-5h"]);
   expect([expanded.series.map((series) => series.account), expanded.hiddenCount, expanded.height]).toEqual([["d", "b", "c", "a"], 0, 104]);
+  // The compact layout stacks the readings under the name, so every row adds to the lane.
+  expect([listed([], true).height, listed(["quota-5h"], true).height]).toEqual([114, 130]);
   expect(model.metricReadingFor(quota, quota.series[0], model.metricsRangeFor(state())).resetTime).toBe(`resets ${model.timeOnly.format(NOW + HOUR)}`);
 });
 

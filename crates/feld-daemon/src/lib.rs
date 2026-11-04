@@ -9,3 +9,4 @@ pub mod metrics;
 pub mod scheduler;
 pub mod service;
 pub mod store;
+pub mod usage;
