@@ -103,7 +103,7 @@ An `owned` Session has no entity when its record is written; it starts running o
 5. When the Provider cannot answer the launch request, whether the entity exists is unknown, so the observation is written as `unknown` and the Session remains without `end`
 6. When the daemon stops after the resources are created but before the incarnation is written, the Session becomes `lost` in [recovery after a restart](#recovery-after-a-daemon-restart)
 
-From then on, the Provider writes a record only when the kind of the observation changes, and the latest observation time is kept as `observation.at`. Each Provider's observation rules are described in [provider/tmux.md](provider/tmux.md#observation) and [provider/herdr.md](provider/herdr.md#observation).
+From then on, the Provider writes a record only when the kind of the observation changes, and the latest observation time is kept as `observation.at`. Each Provider's observation rules are described in [provider/tmux.md](provider/tmux.md#observation), [provider/herdr.md](provider/herdr.md#observation), and [provider/process.md](provider/process.md#observation).
 
 ## Stopping
 

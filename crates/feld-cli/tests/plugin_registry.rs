@@ -158,7 +158,7 @@ fn installed_plugins_are_listed_and_unusable_directories_are_left_out_with_a_log
         "{printed}"
     );
     assert!(
-        printed.contains("providers:  fixture-provider, tmux"),
+        printed.contains("providers:  fixture-provider, process, tmux"),
         "{printed}"
     );
 
@@ -171,7 +171,10 @@ fn installed_plugins_are_listed_and_unusable_directories_are_left_out_with_a_log
     assert_eq!(listed["runtimes"][1]["label"], "Fixture Runtime");
     assert_eq!(listed["runtimes"][1]["runningSessions"], 0);
     let listed = fixture.json(&["--json", "provider", "list"]);
-    assert_eq!(names(&listed["providers"]), ["fixture-provider", "tmux"]);
+    assert_eq!(
+        names(&listed["providers"]),
+        ["fixture-provider", "process", "tmux"]
+    );
     assert_eq!(
         listed["providers"][1]["nodes"],
         serde_json::json!(["local"])

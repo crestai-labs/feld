@@ -37,7 +37,7 @@ Integration tests that run the `feld` binary, and their fixtures, are in `crates
 
 ### Plugins
 
-Runtime Adapters and Execution Providers are Plugins placed in `$FELD_HOME/plugins/<kind>/<name>/`, which the daemon reads at startup. The bundled ones are `claude-code`, `codex`, `tmux` and `herdr`, and `feld init` writes the selected ones there. The static files of the bundled Plugins are in the repository's `plugins/<kind>/<name>/`. Their executables are binaries of the Cargo workspace crates `crates/feld-plugin-<name>`, built together with `feld`. The product-independent skeleton is in `feld_core::plugin::sdk` and `feld_core::self_api` of `crates/feld-core`, the crate shared by the daemon, the CLI and Plugins. The only Feld crate a Plugin crate depends on is `feld-core`. The contract with core is in [`docs/spec/design/plugin.md`](docs/spec/design/plugin.md).
+Runtime Adapters and Execution Providers are Plugins placed in `$FELD_HOME/plugins/<kind>/<name>/`, which the daemon reads at startup. The bundled ones are `claude-code`, `codex`, `tmux`, `herdr` and `process`, and `feld init` writes the selected ones there. The static files of the bundled Plugins are in the repository's `plugins/<kind>/<name>/`. Their executables are binaries of the Cargo workspace crates `crates/feld-plugin-<name>`, built together with `feld`. The product-independent skeleton is in `feld_core::plugin::sdk` and `feld_core::self_api` of `crates/feld-core`, the crate shared by the daemon, the CLI and Plugins. The only Feld crate a Plugin crate depends on is `feld-core`. The contract with core is in [`docs/spec/design/plugin.md`](docs/spec/design/plugin.md).
 
 ## Checking changes
 
