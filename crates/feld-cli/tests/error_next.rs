@@ -224,3 +224,19 @@ fn an_unresolved_provider_names_the_provider_or_the_pane() {
         "run it inside the herdr or tmux pane where Claude Code runs; `feld doctor` checks the rest"
     );
 }
+
+/// `feld upgrade` of a feld built from source fetches nothing and names the build.
+#[test]
+fn an_upgrade_of_a_source_build_names_the_build() {
+    let fixture = Fixture::new(&["tmux"]);
+    let expected = "pull and build the new source, then run `feld init`";
+    let output = fixture.feld(&["upgrade"]);
+    assert!(
+        stderr(&output).starts_with("Error: this feld was built from source"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(next_line(&output, 1), expected);
+    let output = fixture.feld(&["--json", "upgrade"]);
+    assert_eq!(json_next(&output, 1), expected);
+}

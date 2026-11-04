@@ -105,11 +105,10 @@ curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh |
 ## 升级
 
 ```sh
-brew upgrade feld   # 或再次运行安装脚本
-feld init
+feld upgrade                        # 通过 Homebrew 安装时：brew upgrade feld && feld init
 ```
 
-`brew upgrade feld` 和安装脚本都会替换可执行文件。再次运行 `feld init` 会把新的 Plugin 放到 `~/.feld/plugins/`，替换 Claude Code 和 Codex 设置中的 Feld skill 与 hook，并重启 daemon。daemon 启动时会自动迁移 store，Session 在重启期间继续运行，因此无需停止 Agent 即可升级。详见 [兼容性](docs/guide/compatibility.md#upgrading)。
+`feld upgrade` 会把可执行文件替换为最新 Release 的版本，并运行 `feld init --yes`。`feld init` 会把新的 Plugin 放到 `~/.feld/plugins/`，替换 Claude Code 和 Codex 设置中的 Feld skill 与 hook，并重启 daemon。daemon 启动时会自动迁移 store，Session 在重启期间继续运行，因此无需停止 Agent 即可升级。详见 [兼容性](docs/guide/compatibility.md#upgrading)。
 
 ## 开始使用
 

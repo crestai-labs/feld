@@ -11,7 +11,7 @@ The Runtime config root refers to `CLAUDE_CONFIG_DIR` (or `~/.claude` if unset) 
 - Feld does not send usage statistics (data the developers collect about usage). Feld's Collector receives Runtime (Claude Code, Codex) telemetry inside the user's machine to display metrics, and is separate from usage statistics.
 - If usage statistics are introduced, they will be opt-in (sent only when the user enables them), and announced as prominently as `### Breaking` in the [Release notes](https://github.com/crestai-labs/feld/releases).
 - The Web UI can be opened from another device when the user configures `tailscale serve` and `feld daemon start --allow-host` ([CLI reference](cli.md#feld-daemon-start)).
-- Communication outside the machine happens through `install.sh` at installation (fetches the GitHub Release) and the Runtime's own communication (according to each Runtime's settings).
+- Communication outside the machine happens through `install.sh` at installation and `feld upgrade` (both fetch the GitHub Release) and the Runtime's own communication (according to each Runtime's settings).
 
 ## What Feld reads
 

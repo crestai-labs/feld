@@ -17,8 +17,9 @@ name="feld-$tag-$target"
 
 # rustc writes the paths of the sources into the binaries, for panic messages. They name
 # the home directory of whoever builds, so they are rewritten: the last match applies.
+# FELD_RELEASE marks the build as a Release's, which `feld upgrade` replaces.
 cargo_home=${CARGO_HOME:-$HOME/.cargo}
-RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$HOME=/home --remap-path-prefix=$cargo_home=/cargo --remap-path-prefix=$root=/feld" \
+FELD_RELEASE=$tag RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$HOME=/home --remap-path-prefix=$cargo_home=/cargo --remap-path-prefix=$root=/feld" \
   make release
 
 # Every bin target of the workspace goes in: feld and the Plugin executables that must sit beside it.

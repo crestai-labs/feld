@@ -6,6 +6,7 @@
 # Downloads the archive of a GitHub Release for this machine, checks it against its
 # .sha256, and puts the executables in one directory. Supported: macOS on Apple Silicon
 # and Linux on x86_64 (glibc 2.35 or later, e.g. Ubuntu 22.04 and Debian 12).
+# `feld upgrade` runs the copy of this script bundled in feld, into the directory of feld.
 #
 # Variables:
 #   FELD_VERSION       the tag to install, e.g. v0.9.0 (default: the latest Release)

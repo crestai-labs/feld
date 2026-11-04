@@ -90,6 +90,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     Init(InitArgs),
+    Upgrade(UpgradeArgs),
     Uninstall(UninstallArgs),
     Doctor(DoctorArgs),
     Daemon(DaemonArgs),
@@ -152,6 +153,26 @@ pub struct InitArgs {
     /// Install the Plugins for what is on PATH without asking, consent to the Runtime settings it changes and to the line added to the shell settings, and start the daemon
     #[arg(long, short = 'y')]
     pub yes: bool,
+}
+
+/// Replace feld and the feld-plugin-* beside it with a Release's, then run `feld init --yes`.
+///
+/// The archive of the latest Release, or of `--version`, is fetched and checked against its
+/// .sha256 as install.sh does, and each executable is renamed into place in the directory of
+/// this feld. The new feld then runs `feld init --yes`, which puts the new Plugins in the
+/// Feld home, rewrites the Runtime settings, and restarts the daemon; Sessions keep running.
+/// FELD_REPO and GITHUB_TOKEN choose the repository and the token as for install.sh. A feld
+/// built from source, or installed with Homebrew, is left as it is and the run ends with exit 1.
+#[derive(Debug, Args)]
+#[command(after_help = help_footer(
+    "Examples:
+  feld upgrade                     upgrade to the latest Release
+  feld upgrade --version v0.3.0    upgrade, or go back, to that Release"
+))]
+pub struct UpgradeArgs {
+    /// The tag of the Release to install, e.g. v0.3.0 [default: the latest Release]
+    #[arg(long, value_name = "TAG")]
+    pub version: Option<String>,
 }
 
 /// Take out what `feld init` and the daemon put in this environment.

@@ -11,6 +11,7 @@ Output examples show the human-readable output in its non-TTY form. `--json` out
 - [feld](#feld)
 - [Common conventions](#common-conventions)
 - [feld init](#feld-init)
+- [feld upgrade](#feld-upgrade)
 - [feld uninstall](#feld-uninstall)
 - [feld doctor](#feld-doctor)
 - [daemon](#daemon): [start](#feld-daemon-start) / [status](#feld-daemon-status) / [stop](#feld-daemon-stop) / [restart](#feld-daemon-restart)
@@ -39,6 +40,7 @@ feld [OPTIONS] <COMMAND>
 **Commands**
 
 - `init`: Create the Feld home, install the bundled Plugins, and start the daemon
+- `upgrade`: Replace `feld` and the bundled Plugin executables with a Release's, then run `feld init --yes`
 - `uninstall`: Remove what `feld init` and the daemon installed
 - `doctor`: Check the environment Feld runs in, one line per check
 - `daemon`: Run and inspect the daemon that holds the store and serves the API
@@ -250,6 +252,42 @@ Under `Feld is ready.`, init lists these lines.
 **Checks on failure**
 
 When init ends in failure (a Provider missing from PATH, a missing Plugin executable, a failed Runtime preparation, a failed daemon start, and so on), it shows the failure, then runs the same checks as [`feld doctor`](#feld-doctor) and shows the results in the same form under a `feld doctor` heading. The exit code is that of the failure. The checks do not run when the user cancels the selection, gives the name of a Plugin that is not bundled, or init ends waiting for consent. `--json` returns the failure on stderr and the check results on stdout in the same form as `feld doctor --json`.
+
+## feld upgrade
+
+Replace `feld` and the `feld-plugin-*` beside it with those of a GitHub Release, then align the Feld home, the Runtime config, and the daemon with the new version.
+
+```text
+feld upgrade [--version <TAG>]
+```
+
+**Options**
+
+- `--version <TAG>`: The tag of the Release to install (e.g. `v0.3.0`). Default: the latest Release
+
+upgrade runs the `install.sh` bundled in `feld` with `FELD_INSTALL_DIR` set to the directory of the running `feld` and `FELD_VERSION` set to `--version`. The script fetches the archive for this machine, checks it against its `.sha256`, and renames each executable into place, so a running executable is replaced rather than rewritten. `FELD_REPO` and `GITHUB_TOKEN` choose the repository and the token as for the install script ([Quickstart](quickstart.md)). The new `feld` then runs [`feld init --yes`](#feld-init) with the same `--home` and `--json`, and its output and exit code are upgrade's. The daemon restarts on the new version, and Sessions keep running ([Compatibility](compatibility.md#upgrading)).
+
+```console
+$ feld upgrade
+Upgraded feld 0.2.0 → 0.2.1 in /Users/alice/.local/bin
+
+Feld v0.2.1
+Feld home:   /Users/alice/.feld
+Plugins:     runtimes: claude-code  providers: tmux
+Claude Code: prepared
+Shell:       eval "$(feld env)" already in /Users/alice/.zshrc
+Daemon:      restarted · pid 48213 · http://127.0.0.1:7381
+Feld is ready.
+  next:  feld ui
+```
+
+`--json` prints only the output of `feld init --json`.
+
+| Case | Result |
+|---|---|
+| `feld` was built from source (not unpacked from a Release archive) | Nothing is fetched; exit code 1 with `next:` to build the new source and run `feld init` |
+| `feld` is in a Homebrew `Cellar` | Nothing is fetched; exit code 1 with `next: brew upgrade feld && feld init` |
+| Fetching or checking fails (network, HTTP status, checksum, unsupported platform) | The reason from the install script and `feld stays at <version>`; exit code 2 |
 
 ## feld uninstall
 

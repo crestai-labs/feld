@@ -16,6 +16,7 @@ pub mod self_session;
 pub mod session;
 pub mod ui;
 pub mod uninstall;
+pub mod upgrade;
 pub mod workspace;
 
 use super::{CliResult, Context};

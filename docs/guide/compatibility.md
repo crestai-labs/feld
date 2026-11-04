@@ -20,19 +20,15 @@ Patch versions (such as 0.1.0 → 0.1.1) contain only compatible changes.
 ## Upgrading
 
 1. If the [Release notes](https://github.com/crestai-labs/feld/releases) of the target version have a `### Breaking` section, follow the migration steps there
-2. Run `brew upgrade feld` for a Homebrew install, or the install script again, to replace `feld` and the bundled Plugin executables with the new version. The script takes the version from `FELD_VERSION` (e.g. `FELD_VERSION=v0.2.0`); if you installed to a different location with `FELD_INSTALL_DIR`, pass the same value
+2. Run [`feld upgrade`](cli.md#feld-upgrade). It replaces `feld` and the bundled Plugin executables with those of the latest Release (`--version v0.2.0` for another), then runs `feld init --yes`, which places the Plugins in `$FELD_HOME/plugins/` again, replaces Feld's skills and hooks in the Runtime config root with the new version's, and restarts the daemon. The new daemon migrates the store on startup
 
    ```sh
-   curl -fsSL https://raw.githubusercontent.com/crestai-labs/feld/main/install.sh | sh
+   feld upgrade
    ```
 
-3. Run `feld init` again and choose the same Plugins as before. `feld init` places the chosen Plugins in `$FELD_HOME/plugins/` again, replaces Feld's skills and hooks in the Runtime config root with the new version's, and restarts the daemon. The new daemon migrates the store on startup
+   For a Homebrew install, run `brew upgrade feld` and then `feld init`, choosing the same Plugins as before
 
-   ```sh
-   feld init
-   ```
-
-Sessions keep running on the Provider while the daemon is stopped, and the new daemon takes them over as they are, so you can upgrade without stopping Agents. Claude Code instances that are already open use the new skills and hooks after `/reload-plugins`. Check the upgraded version with `version` in `feld daemon status`, and how well the environment is aligned with `feld doctor`. After step 2 and until you run `feld init`, the running daemon and the installed Plugins remain at the old version, commands that talk to the daemon print a warning to standard error, and `daemon` and `home` in `feld doctor` show `fail`.
+Sessions keep running on the Provider while the daemon is stopped, and the new daemon takes them over as they are, so you can upgrade without stopping Agents. Claude Code instances that are already open use the new skills and hooks after `/reload-plugins`. Check the upgraded version with `version` in `feld daemon status`, and how well the environment is aligned with `feld doctor`. After `brew upgrade feld` and until you run `feld init`, the running daemon and the installed Plugins remain at the old version, commands that talk to the daemon print a warning to standard error, and `daemon` and `home` in `feld doctor` show `fail`.
 
 When building from source, run `feld init` after rebuilding ([CONTRIBUTING.md](../../CONTRIBUTING.md#development-setup)).
 

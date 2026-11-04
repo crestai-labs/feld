@@ -247,6 +247,7 @@ async fn execute(cli: Cli, command: Command, options: Vec<ProviderOption>) -> Cl
     let ctx = &ctx;
     match command {
         Command::Init(args) => commands::init::run(ctx, args).await,
+        Command::Upgrade(args) => commands::upgrade::run(ctx, args),
         Command::Uninstall(args) => commands::uninstall::run(ctx, args).await,
         Command::Doctor(DoctorArgs) => commands::doctor::run(ctx).await,
         Command::Daemon(args) => commands::daemon::run(ctx, args.command).await,

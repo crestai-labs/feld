@@ -105,11 +105,10 @@ The script downloads the archive for your machine from GitHub Releases, verifies
 ## Upgrade
 
 ```sh
-brew upgrade feld   # or run the install script again
-feld init
+feld upgrade                        # for a Homebrew install: brew upgrade feld && feld init
 ```
 
-`brew upgrade feld` and the install script both replace the executables. Running `feld init` again puts the new Plugins in `~/.feld/plugins/`, replaces the Feld skill and hooks in the Claude Code and Codex settings, and restarts the daemon. The daemon migrates the store when it starts, and Sessions keep running through the restart, so agents need not stop. Details are in [Compatibility](docs/guide/compatibility.md#upgrading).
+`feld upgrade` replaces the executables with those of the latest Release and runs `feld init --yes`, which puts the new Plugins in `~/.feld/plugins/`, replaces the Feld skill and hooks in the Claude Code and Codex settings, and restarts the daemon. The daemon migrates the store when it starts, and Sessions keep running through the restart, so agents need not stop. Details are in [Compatibility](docs/guide/compatibility.md#upgrading).
 
 ## Getting started
 
