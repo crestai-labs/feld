@@ -92,7 +92,7 @@ pairing is the procedure that exchanges a short-lived code issued on the daemon'
 4. Before moving on, the Web UI tries a read to confirm the browser token works. On 401, it shows on the pairing screen that the browser did not save the cookie or the key
 5. Subsequent reads, writes, and SSE pass with the cookie and key
 
-The daemon checks codes one at a time in arrival order and waits 20 ms after a failed check before the next, so guesses are bounded to 15,000 in a code's 5 minutes across the daemon, a success rate of about 1.8×10^-11. Failures leave the pending codes valid, so a code a person enters pairs after the checks queued ahead of it. Holding it past its 5 minutes takes about 15,000 wrong codes waiting at once, which the daemon's open-file limit keeps out of reach.
+The daemon checks codes one at a time in arrival order and waits 20 ms after a failed check before the next, so guesses are bounded to 15,000 in a code's 5 minutes across the daemon, a success rate of about 1.8×10^-11. Failures leave the pending codes valid, so a code a person enters pairs after the checks queued ahead of it. Holding it past its 5 minutes takes about 15,000 wrong codes kept waiting at once.
 
 ## cookie and key
 
