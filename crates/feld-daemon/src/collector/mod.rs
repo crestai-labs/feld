@@ -13,6 +13,7 @@ use feld_core::home::{FeldHome, absent_as_none};
 use feld_core::telemetry::{ENDPOINT_FILE, endpoint_address};
 
 mod child;
+mod connections;
 mod queue;
 mod receiver;
 mod tokens;
