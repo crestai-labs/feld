@@ -2189,11 +2189,12 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
   }
 
   // The Actors the range rule decides on: an archived Actor takes part only over a range
-  // where it has a Session, when pinned, or when the display settings show archived Actors.
+  // where it has a Session, or when the display settings show archived Actors. A pin keeps
+  // no archived Actor, since a Job starts pinned.
   function rangeCandidates(state: BandsState) {
     const range = rangeFor(state);
     return matchingAgents(state)
-      .filter((agent) => !agent.archivedAt || state.showArchivedActors || isPinned(state, agent) || hasSessionInRange(agent.id, range));
+      .filter((agent) => !agent.archivedAt || state.showArchivedActors || hasSessionInRange(agent.id, range));
   }
 
   // Band order: pinned Actors above the rest; within each group the order the reader
