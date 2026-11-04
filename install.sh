@@ -181,12 +181,22 @@ tar -xzf "$tmp/$name.tar.gz" -C "$tmp" || fail "could not extract $name.tar.gz; 
 [ -f "$tmp/$name/feld" ] || fail "$name.tar.gz has no feld executable; nothing was installed."
 
 mkdir -p "$dir" || fail "could not create $dir." "Set FELD_INSTALL_DIR to a directory you can write."
-# Each executable is renamed into place, so that a running one is replaced rather than rewritten.
+# Every executable is copied beside its place first, and then each is renamed into place, so
+# that a running one is replaced rather than rewritten and a failed copy replaces nothing.
+bins=
 for bin in "$tmp/$name/feld" "$tmp/$name"/feld-plugin-*; do
   [ -f "$bin" ] || continue
   base=${bin##*/}
-  if ! { cp "$bin" "$dir/.$base.tmp" && chmod 755 "$dir/.$base.tmp" && mv -f "$dir/.$base.tmp" "$dir/$base"; }; then
-    fail "could not write $dir/$base." "Set FELD_INSTALL_DIR to a directory you can write."
+  bins="$bins $base"
+  if ! { cp "$bin" "$dir/.$base.tmp" && chmod 755 "$dir/.$base.tmp"; }; then
+    for base in $bins; do rm -f "$dir/.$base.tmp"; done
+    fail "could not write $dir/$base; nothing was installed." "Set FELD_INSTALL_DIR to a directory you can write."
+  fi
+done
+for base in $bins; do
+  if ! mv -f "$dir/.$base.tmp" "$dir/$base"; then
+    for staged in $bins; do rm -f "$dir/.$staged.tmp"; done
+    fail "could not replace $dir/$base; the executables in $dir are partly from $version." "Run this script again."
   fi
 done
 

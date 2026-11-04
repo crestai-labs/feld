@@ -265,7 +265,7 @@ feld upgrade [--version <TAG>]
 
 - `--version <TAG>`: The tag of the Release to install (e.g. `v0.3.0`). Default: the latest Release
 
-upgrade runs the `install.sh` bundled in `feld` with `FELD_INSTALL_DIR` set to the directory of the running `feld` and `FELD_VERSION` set to `--version`. The script fetches the archive for this machine, checks it against its `.sha256`, and renames each executable into place, so a running executable is replaced rather than rewritten. `FELD_REPO` and `GITHUB_TOKEN` choose the repository and the token as for the install script ([Quickstart](quickstart.md)). The new `feld` then runs [`feld init --yes`](#feld-init) with the same `--home` and `--json`, and its output and exit code are upgrade's. The daemon restarts on the new version, and Sessions keep running ([Compatibility](compatibility.md#upgrading)).
+upgrade runs the `install.sh` bundled in `feld` with `FELD_INSTALL_DIR` set to the directory of the running `feld` and `FELD_VERSION` set to `--version`. The script fetches the archive for this machine, checks it against its `.sha256`, and renames each executable into place, so a running executable is replaced rather than rewritten. `FELD_REPO` and `GITHUB_TOKEN` choose the repository and the token as for the install script ([Quickstart](quickstart.md)). The new `feld` then runs [`feld init --yes`](#feld-init) with the same `--home`, and its output and exit code are upgrade's. The daemon restarts on the new version, and Sessions keep running ([Compatibility](compatibility.md#upgrading)).
 
 ```console
 $ feld upgrade
@@ -281,13 +281,14 @@ Feld is ready.
   next:  feld ui
 ```
 
-`--json` prints only the output of `feld init --json`.
+With `--json`, the new `feld` runs `feld init --yes --json` and then the `feld daemon restart` (or `start`) its `next` names, and upgrade prints one object: `from` and `to` (the versions), `init` (the output of `init`), and `daemon` (the output of the daemon command, null when `init` names none).
 
 | Case | Result |
 |---|---|
 | `feld` was built from source (not unpacked from a Release archive) | Nothing is fetched; exit code 1 with `next:` to build the new source and run `feld init` |
 | `feld` is in a Homebrew `Cellar` | Nothing is fetched; exit code 1 with `next: brew upgrade feld && feld init` |
-| Fetching or checking fails (network, HTTP status, checksum, unsupported platform) | The reason from the install script and `feld stays at <version>`; exit code 2 |
+| Fetching or checking fails (network, HTTP status, checksum, unsupported platform) | `the upgrade failed, and feld stays at <version>` with the reason from the install script; exit code 2 |
+| Replacing stops after `feld` was replaced | `the upgrade stopped partway` with `next:` to run the install script into the same directory and `feld init`; exit code 2 |
 
 ## feld uninstall
 
