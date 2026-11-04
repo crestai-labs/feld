@@ -32,6 +32,8 @@ jobs:
           brew install tmux
       - run: cargo deny check advisories licenses
       - run: npm --prefix web audit
+      # The Python SDK's generator, type checker, and tests (`make sdk-check`).
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - run: make check
 
   # The archive is named by the host triple of the runner. Ubuntu 22.04 links glibc 2.35, so
@@ -101,6 +103,10 @@ jobs:
           pattern: archive-*
           merge-multiple: true
           path: dist
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+      # The Python SDK's wheel and sdist, attached beside the archives.
+      - name: Build the Python SDK
+        run: uv build sdk/python --out-dir dist/sdk
       - name: Create the Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -108,4 +114,4 @@ jobs:
         run: |
           .claude/skills/release/scripts/notes.sh "$VERSION" > notes.md
           [ -s notes.md ] || { echo "::error::the tag $GITHUB_REF_NAME has no message body; it must be an annotated tag with the Release notes"; exit 1; }
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md dist/feld-v*.tar.gz dist/feld-v*.tar.gz.sha256
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md dist/feld-v*.tar.gz dist/feld-v*.tar.gz.sha256 dist/sdk/feld_sdk-*

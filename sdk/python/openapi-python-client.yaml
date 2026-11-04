@@ -1,0 +1,8 @@
+# The generator writes `api/`, `models/`, `client.py`, `errors.py`, and `types.py` of the
+# package `feld`; `scripts/generate.py` copies them beside the hand-written modules.
+package_name_override: feld
+project_name_override: feld-sdk
+literal_enums: false
+post_hooks:
+  - ruff check . --fix-only --quiet
+  - ruff format . --quiet

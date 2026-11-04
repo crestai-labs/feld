@@ -1,4 +1,4 @@
-.PHONY: build release web web-dist web-types test check
+.PHONY: build release web web-dist web-types sdk sdk-check test check
 # Every crate of the workspace: `feld` and the `feld-plugin-<name>` executables that
 # `feld init` finds beside it.
 build:
@@ -26,6 +26,17 @@ web-types: web/node_modules/.package-lock.json
 	npm --prefix web run --silent types
 	git diff --exit-code -- web/types/feld-api.generated.d.ts
 
+# The Python SDK's types and operations are generated from the same definition and committed,
+# so a definition that changes without them fails here, as do the SDK's types and tests.
+sdk:
+	uv --directory sdk/python run --frozen --quiet python scripts/generate.py
+
+sdk-check: sdk
+	git diff --exit-code -- sdk/python/src
+	! git ls-files --others --exclude-standard -- sdk/python/src | grep .
+	uv --directory sdk/python run --frozen --quiet mypy
+	uv --directory sdk/python run --frozen --quiet pytest -q
+
 web/node_modules/.package-lock.json: web/package-lock.json
 	npm --prefix web ci --silent
 
@@ -38,6 +49,6 @@ test: web build
 	npm --prefix web run --silent test
 	env -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u CODEX_THREAD_ID -u CODEX_SESSION_ID -u TMUX -u TMUX_PANE -u HERDR_ENV -u HERDR_SOCKET_PATH -u HERDR_PANE_ID -u HERDR_SESSION cargo test --workspace
 
-check: web-types web-dist test
+check: web-types web-dist sdk-check test
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
