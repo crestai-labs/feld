@@ -399,6 +399,8 @@ The daemon answers only requests sent to loopback names (`127.0.0.1`, `localhost
 
 The daemon log goes to `$FELD_HOME/daemon.log`. While running, when it reaches 10 MiB, the daemon moves it to `daemon.log.1`, shifts the existing generations up by one, and deletes those older than `daemon.log.4`. Every file is readable and writable only by the owner.
 
+The log starts each run with the version, start time, and pid. The daemon measures its own CPU and memory every minute and writes a line when it starts or stops using half a core or more, and each time its peak RSS passes 256 MiB or doubles from the last line. Each line shows the CPU share, peak RSS, and number of running tasks.
+
 **Opening the Web UI from another device**
 
 Exposure to other devices is left to a relay such as Tailscale. `tailscale serve` relays the daemon's Port to the tailnet.
