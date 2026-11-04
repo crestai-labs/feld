@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 const NAMES: prefs.PreferenceName[] = ["theme", "darkTheme", "language", "timeZone", "hourCycle", "consoleView", "notifications"];
-const LAYOUT = { "feld-mock-actor-width": "320", "feld-mock-actor-column-widths": "{\"status\":240}", "feld-mock-sidebar-width": "260", "feld-mock-sidebar": "expanded", "feld-mock-metrics-window": "24h", "feld-mock-actor-order": "[]" };
+const LAYOUT = { "feld-mock-actor-width": "320", "feld-mock-actor-column-widths": "{\"status\":240}", "feld-mock-sidebar-width": "260", "feld-mock-sidebar": "expanded", "feld-mock-metrics-window": "24h", "feld-mock-actor-order": "[]", "feld-mock-collapsed-workspaces": "[\"home\"]" };
 
 test("every preference has its key and fallback", () => {
   expect(Object.fromEntries(NAMES.map((name) => [name, prefs.get(name)]))).toEqual({
