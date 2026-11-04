@@ -4788,3 +4788,114 @@ span.feld-agents__run-open {
     flex: 1 1 0;
   }
 }
+
+/* The Bulk actions bar: a line of its own across the Actors header, the chosen count and
+   the actions, then each Actor's result of the latest request. */
+.feld-agents__bulk-toggle.is-active {
+  color: var(--accent-text);
+  border-color: var(--accent-strong);
+  background: var(--accent-band);
+}
+
+.feld-agents__bulk {
+  display: grid;
+  flex: 1 0 100%;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.feld-agents__bulk-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.feld-agents__bulk-count {
+  color: var(--ink-faint-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.feld-agents__bulk-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.feld-agents__bulk-actions .feld-agents__button:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.feld-agents__bulk-actions .feld-agents__button.is-confirming {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.feld-agents__bulk-check {
+  flex: none;
+  margin: 0;
+  cursor: pointer;
+}
+
+.feld-agents__bulk-results {
+  max-height: 120px;
+  overflow: auto;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.feld-agents__bulk-summary {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.feld-agents__bulk-results ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feld-agents__bulk-results li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.feld-agents__bulk-results li > span {
+  font-weight: 600;
+}
+
+.feld-agents__bulk-results li > small {
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.feld-agents__bulk-results li.is-accepted > span {
+  color: var(--ok-text);
+}
+
+.feld-agents__bulk-results li.is-refused > span {
+  color: var(--danger-text);
+}
+
+.feld-agents__bulk-results li.is-skipped > span,
+.feld-agents__bulk-results li.is-pending > span {
+  color: var(--ink-faint-text);
+}

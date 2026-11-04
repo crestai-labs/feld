@@ -123,6 +123,9 @@ export function createInitialState(workspace: string | null | undefined, now: In
     // The lifecycle or Schedule request started from an Actor's Actions menu, while it
     // is in flight and while its refusal is shown.
     actionRequest: null,
+    bulkOpen: false,
+    bulkActorIds: new Set(),
+    bulkRequest: null,
     // The New actor form keeps its draft in state so a Kind or Schedule change can
     // re-render the fields without losing what was typed.
     newActor: null,
@@ -289,6 +292,11 @@ export interface ActorsActions {
   setSessionMetric(metric: string): void;
   setQuery(query: string): void;
 
+  // The Bulk actions bar. Closing it drops the choice and the results; neither the choice
+  // nor the bar changes while its request is in flight.
+  toggleBulk(): void;
+  setBulkChosen(agentIds: readonly string[], chosen: boolean): void;
+
   // The Actions menu. Neither toggles nor closes while a request of it is in flight.
   toggleAgentMenu(agentId: string): void;
   dismissAgentMenu(): void;
@@ -373,7 +381,7 @@ export const useActorsStore = create<ActorsStore>()((set, get) => ({
 
   selectWorkspace(workspace) {
     if (workspace === get().workspace) return;
-    set({ workspace, ...CLEARED_INSPECTOR, focusedActorId: null, cardView: null, newActor: null });
+    set({ workspace, ...CLEARED_INSPECTOR, focusedActorId: null, cardView: null, newActor: null, ...(get().bulkRequest?.pending ? {} : { bulkActorIds: new Set<string>(), bulkRequest: null }) });
   },
 
   clearInspector() {
@@ -594,6 +602,20 @@ export const useActorsStore = create<ActorsStore>()((set, get) => ({
 
   setQuery(query) {
     set({ query });
+  },
+
+  toggleBulk() {
+    const state = get();
+    if (state.bulkRequest?.pending) return;
+    set({ bulkOpen: !state.bulkOpen, bulkActorIds: new Set(), bulkRequest: null });
+  },
+
+  setBulkChosen(agentIds, chosen) {
+    const state = get();
+    if (state.bulkRequest?.pending) return;
+    const bulkActorIds = new Set(state.bulkActorIds);
+    agentIds.forEach((agentId) => (chosen ? bulkActorIds.add(agentId) : bulkActorIds.delete(agentId)));
+    set({ bulkActorIds });
   },
 
   toggleAgentMenu(agentId) {

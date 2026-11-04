@@ -17,6 +17,7 @@ import type { ActorRecord, AgentsState, Focus } from "./types.ts";
 import { ClockGlyph, GearGlyph, useActorsTools, usePageActions, useReturnFocus } from "./ui.tsx";
 import { deleteActorFromMenu, killActorSession, refuseMenuAction, setScheduleEnabled, startActorSession, stopActorSession } from "./mutations.ts";
 import { MetricsWindowControl, TimeControls } from "./Heading.tsx";
+import { BulkBar, BulkCheckbox, BulkToggle } from "./BulkBar.tsx";
 import { TimelineSvg } from "./charts/Timeline.tsx";
 import { MetricLabels, MetricsSummary, MetricsSvg } from "./charts/Metrics.tsx";
 import { AxisRow } from "./charts/Axis.tsx";
@@ -30,7 +31,7 @@ type BandsView = Pick<AgentsState,
   | "showAgentsOutsideRange" | "showSubAgents" | "frozenBandIds" | "actorsCollapsed" | "metricsCollapsed"
   | "actorWidth" | "visibleActorDetails" | "actorColumnWidths" | "agentsPaneHeight" | "visibleMetricIds"
   | "timelineGuideOpen" | "agentDisplayMenuOpen" | "metricsMenuOpen" | "actionMenuAgent"
-  | "inspectedSessionId" | "actorCard" | "focusedActorId" | "compactLayout">;
+  | "inspectedSessionId" | "actorCard" | "focusedActorId" | "compactLayout" | "bulkOpen" | "bulkActorIds">;
 
 function selectBandsView(state: AgentsState): BandsView {
   return {
@@ -60,6 +61,8 @@ function selectBandsView(state: AgentsState): BandsView {
     actorCard: state.actorCard,
     focusedActorId: state.focusedActorId,
     compactLayout: state.compactLayout,
+    bulkOpen: state.bulkOpen,
+    bulkActorIds: state.bulkActorIds,
   };
 }
 
@@ -163,8 +166,9 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
 const TOGGLE_GLYPH = <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m4 2.5 4 3.5-4 3.5"></path></svg>;
 
 // The Actors section's own header, above the table and outside its scrolling: the fold,
-// how many Actors the table shows (or, folded, how many are running), and the time
-// controls, which set the range of the Timeline and, through it, of Metrics.
+// how many Actors the table shows (or, folded, how many are running), the Bulk actions
+// switch, and the time controls, which set the range of the Timeline and, through it, of
+// Metrics. The open Bulk actions bar takes a line of its own under them.
 function ActorsHead({ state, agents }: { state: BandsView; agents: ActorRecord[] }) {
   const model = useActorsModel();
   const { focus } = usePageActions();
@@ -192,6 +196,7 @@ function ActorsHead({ state, agents }: { state: BandsView; agents: ActorRecord[]
         <>
           <small className="feld-agents__section-count" title={model.agentCountTitle(state, agents)}>{agents.length} of {all.length} shown</small>
           <HiddenBands state={state} agents={agents} />
+          <BulkToggle open={state.bulkOpen} />
         </>
       )}
       <div className="feld-agents__section-tools">
@@ -200,6 +205,7 @@ function ActorsHead({ state, agents }: { state: BandsView; agents: ActorRecord[]
           <GearGlyph />
         </button>
       </div>
+      {state.bulkOpen && !state.actorsCollapsed ? <BulkBar agents={agents} state={state} /> : null}
     </div>
   );
 }
@@ -379,6 +385,7 @@ function BandLabel({ agent, state, focus, drag, dragging, drop }: { agent: Actor
   return (
     <div className={classes} style={{ height: `${model.laneHeightFor(agent.id, state)}px` }} draggable data-drag-agent={agent.id} data-focus-actor={agent.id} title="Drag to reorder · click to select relationships" onClick={(event) => selectActorFrom(event, agent.id)} onDragStart={(event) => drag.start(event, agent)} onDragOver={(event) => drag.over(event, agent)} onDrop={(event) => drag.drop(event, agent)} onDragEnd={drag.end}>
       <div className="feld-agents__band-identity">
+        {state.bulkOpen ? <BulkCheckbox agent={agent} label={label} chosen={state.bulkActorIds.has(agent.id)} /> : null}
         <ActorStateMark agent={agent} />
         <KindGlyph agent={agent} />
         <span><button type="button" className="feld-agents__actor-name" data-action="open-actor" data-agent-id={agent.id} aria-haspopup="dialog" aria-expanded={state.actorCard?.agentId === agent.id} title={`${label} · ${kindLabel(agent.kind)} (Actor kind declared at creation) · Workspace ${agent.workspace} · opens the Actor card`} onClick={() => openActorCard(agent.id)}>{label}{pinned ? PIN_MARK : null}</button><BandMarks agent={agent} state={state} /></span>

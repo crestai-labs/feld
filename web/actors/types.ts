@@ -344,6 +344,23 @@ export interface CardView {
   busy: boolean;
 }
 
+// The lifecycle primitives the Bulk actions bar sends to each selected Actor.
+export type BulkAction = "start" | "stop" | "kill";
+
+// One selected Actor's part in a bulk request: in flight, accepted, refused with the
+// daemon's message, or skipped (not sent) with the reason it does not apply.
+export interface BulkResult {
+  agentId: string;
+  outcome: "pending" | "accepted" | "refused" | "skipped";
+  detail: string | null;
+}
+
+export interface BulkRequest {
+  action: BulkAction;
+  pending: boolean;
+  results: BulkResult[];
+}
+
 export interface ActionRequest {
   agentId: string;
   action: string;
@@ -436,6 +453,11 @@ export interface AgentsState {
   actorOrder: string[];
   cardView: CardView | null;
   actionRequest: ActionRequest | null;
+  // The Bulk actions bar: whether it is open, the Actors chosen in it by key, and its
+  // latest request with a result per Actor.
+  bulkOpen: boolean;
+  bulkActorIds: Set<string>;
+  bulkRequest: BulkRequest | null;
   newActor: ActorDraft | null;
   newWorkspace: WorkspaceDraft | null;
   // The bands a pointer gesture keeps while it runs, so the lanes under the pointer do not

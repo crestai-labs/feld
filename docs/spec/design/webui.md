@@ -52,6 +52,8 @@ Transcript and output are read with a cursor. Reading starts at the tail, reads 
 
 A write settles its menu or dialog when the daemon accepts it. It does not wait for rereads; only the reads of the resources the write changed are redone, treated the same as for a notification (an in-progress read completes without aborting and is redone once afterward; in Paused and past ranges, a stale mark).
 
+A bulk write ([Bulk actions](../../guide/webui.md#bulk-actions)) sends one request per Actor at once. Each Actor's result settles on its own as the daemon answers it, so a refusal leaves the other requests as they are. Once every request is answered, the reads that the accepted ones changed are redone together.
+
 ## Authentication
 
 Reads, writes, and `GET /v1/events` pass with the browser token's cookie and key ([cookie and key](auth.md#cookie-and-key)). The cookie is HttpOnly, so the page cannot tell whether it has one; when a request returns 401, the page switches to the Sign in screen, and reads and the event stream stop there. A 401 after a successful read shows "access has ended".

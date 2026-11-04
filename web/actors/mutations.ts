@@ -30,7 +30,8 @@ import {
 } from "./model.ts";
 import { draftsWith, useActorsStore, without, type ActorsStore } from "./store.ts";
 import { useToasts, type ToastKind } from "./toasts.ts";
-import type { ActorDraft, ActorRecord, CreatedActor, EditDraft, ScheduleRecord } from "./types.ts";
+import { bulkTargetsFor } from "./bulk.ts";
+import type { ActorDraft, ActorRecord, BulkAction, BulkResult, CreatedActor, EditDraft, ScheduleRecord } from "./types.ts";
 
 function messageOf(failure: unknown) {
   return failure instanceof Error ? failure.message : String(failure);
@@ -89,6 +90,46 @@ export function stopActorSession(client: QueryClient | null, agentId: string, se
 
 export function killActorSession(client: QueryClient | null, agentId: string, sessionId: string) {
   runMenuAction(client, agentId, "kill", () => killSession(sessionId), [...LIFECYCLE_WRITTEN, keys.session(sessionId)]);
+}
+
+// The Bulk actions bar's request: the action sent to each chosen Actor it applies to, all at
+// once, and the rest reported as skipped. Each Actor's result settles on its own as the
+// daemon answers it, so one refusal neither holds nor undoes the others; once all have
+// answered, the reads the accepted ones changed are redone. `refusal` stands in for the
+// daemon in fixture mode's refusing state, with {actor} and {session} filled per Actor.
+export async function runBulkAction(client: QueryClient | null, model: Pick<ActorsModel, "latestSessionFor">, action: BulkAction, agents: readonly ActorRecord[], refusal: string | null = null) {
+  const store = useActorsStore;
+  if (store.getState().bulkRequest?.pending) return;
+  const targets = bulkTargetsFor(model, action, agents);
+  const results: BulkResult[] = targets.map((target) => ({ agentId: target.agent.id, outcome: target.skip ? "skipped" : "pending", detail: target.skip }));
+  store.setState({ bulkRequest: { action, pending: true, results } });
+  const settle = (agentId: string, outcome: BulkResult["outcome"], detail: string | null) => {
+    const request = store.getState().bulkRequest;
+    if (!request) return;
+    store.setState({ bulkRequest: { ...request, results: request.results.map((result) => (result.agentId === agentId ? { agentId, outcome, detail } : result)) } });
+  };
+  const send = (agent: ActorRecord, sessionId: string | null): Promise<unknown> => {
+    if (refusal !== null) {
+      const message = refusal.replace("{actor}", agent.name).replace("{session}", sessionId || "");
+      return new Promise((_, reject) => setTimeout(() => reject(new Error(message)), FIXTURE_ANSWER_DELAY));
+    }
+    if (!client) return Promise.resolve();
+    if (action === "start") return startActor(agent.workspace, agent.name);
+    return action === "stop" ? stopSession(sessionId!) : killSession(sessionId!);
+  };
+  const written: QueryKey[] = [...LIFECYCLE_WRITTEN];
+  await Promise.all(targets.filter((target) => !target.skip).map(async ({ agent, sessionId }) => {
+    try {
+      await send(agent, sessionId);
+      written.push(action === "start" ? keys.actorListingsOf(agent.name) : keys.session(sessionId!));
+      settle(agent.id, "accepted", client || refusal !== null ? MENU_ACTION_NOTES[action] : "Fixture mode: nothing is written.");
+    } catch (failure) {
+      settle(agent.id, "refused", messageOf(failure));
+    }
+  }));
+  const request = store.getState().bulkRequest;
+  if (request) store.setState({ bulkRequest: { ...request, pending: false } });
+  if (client && written.length > LIFECYCLE_WRITTEN.length) invalidateWritten(client, written);
 }
 
 // `feld actor delete`: the Actor leaves the live listing, so its band goes once the Actors
