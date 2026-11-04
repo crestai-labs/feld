@@ -1116,7 +1116,7 @@ pub struct MessageTarget {
 
 #[derive(Debug, Args)]
 pub struct MessageListArgs {
-    /// Show only the Messages this Actor sent
+    /// Show only the Messages this Actor sent; `workspace/actor` for an Actor of another Workspace
     #[arg(long, value_name = "ACTOR")]
     pub from: Option<String>,
     /// Show only the Messages addressed to this Actor

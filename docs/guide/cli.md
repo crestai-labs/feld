@@ -1279,7 +1279,7 @@ feld message list [OPTIONS]
 
 **Options**
 
-- `--from <ACTOR>`: Limit to Messages sent by this Actor
+- `--from <ACTOR>`: Limit to Messages sent by this Actor; `workspace/actor` for an Actor of another Workspace
 - `--to <ACTOR>`: Limit to Messages addressed to this Actor
 - `--label <LABEL>`: Limit to Messages with this label
 - `--waiting`: Limit to Messages without a read

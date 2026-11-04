@@ -18,7 +18,8 @@ use super::workspace::workspace_accepts;
 #[derive(Default)]
 pub struct MessageFilter<'a> {
     pub workspace: Option<&'a str>,
-    /// The name of a live Actor that sent the Message.
+    /// The name of a live Actor that sent the Message, in `workspace` when given, and
+    /// `workspace/actor` for one of another Workspace.
     pub from: Option<&'a str>,
     /// The name of a live Actor the Message is addressed to.
     pub to: Option<&'a str>,
@@ -180,13 +181,17 @@ impl Store {
 
     /// The Messages that are not deleted, oldest first.
     pub fn list_messages(&self, filter: &MessageFilter<'_>) -> Result<Vec<Message>> {
+        let (from_workspace, from_name) = match filter.from.map(|from| from.split_once('/')) {
+            Some(Some((workspace, name))) => (Some(workspace), Some(name)),
+            _ => (None, filter.from),
+        };
         self.read(|connection| {
             list_message_rows(
                 connection,
                 "WHERE m.deleted_at IS NULL
                    AND (?1 IS NULL OR ta.workspace_id = (SELECT id FROM workspaces WHERE key = ?1 AND deleted_at IS NULL))
                    AND (?2 IS NULL OR (fa.name = ?2 AND fa.deleted_at IS NULL
-                                       AND (?1 IS NULL OR fa.workspace_key = ?1)))
+                                       AND fa.workspace_key = COALESCE(?8, ?1, fa.workspace_key)))
                    AND (?3 IS NULL OR (ta.name = ?3 AND ta.deleted_at IS NULL))
                    AND (?4 = 0 OR m.read_id IS NULL)
                    AND (?5 IS NULL OR m.accepted >= ?5)
@@ -195,12 +200,13 @@ impl Store {
                  ORDER BY m.accepted, m.id",
                 params![
                     filter.workspace,
-                    filter.from,
+                    from_name,
                     filter.to,
                     filter.waiting,
                     filter.start,
                     filter.end,
-                    filter.label
+                    filter.label,
+                    from_workspace
                 ],
             )
         })

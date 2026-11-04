@@ -957,7 +957,7 @@ paths:
         - $ref: "#/components/parameters/WorkspaceFilter"
         - name: from
           in: query
-          description: The `name` of the sender Actor
+          description: The `name` of the sender Actor, in the `workspace` when it is given; `workspace/actor` for a sender in another Workspace
           schema: { type: string }
         - name: to
           in: query

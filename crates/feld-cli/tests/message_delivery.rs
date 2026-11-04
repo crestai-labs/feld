@@ -2555,6 +2555,23 @@ fn a_session_sends_to_another_workspace_that_accepts_it() {
     let shown = String::from_utf8(fixture.feld(&["message", "get", id]).stdout).unwrap();
     assert!(shown.contains("from:         default/team-lead"), "{shown}");
     assert!(shown.contains("to:           other/other-lead"), "{shown}");
+    // The recipient's Workspace finds it by the sender's qualified name.
+    let found = |from: &str| {
+        fixture.json(&[
+            "--workspace",
+            "other",
+            "message",
+            "list",
+            "--from",
+            from,
+            "--json",
+        ])["messages"]
+            .as_array()
+            .unwrap()
+            .len()
+    };
+    assert_eq!(found("default/team-lead"), 1);
+    assert_eq!(found("team-lead"), 0);
     refused(
         &dev,
         &send("other-lead"),

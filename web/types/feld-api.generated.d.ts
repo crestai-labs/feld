@@ -2967,7 +2967,7 @@ export interface operations {
             query?: {
                 /** @description Filters the target by Workspace key. Omitted, targets all Workspaces. */
                 workspace?: components["parameters"]["WorkspaceFilter"];
-                /** @description The `name` of the sender Actor */
+                /** @description The `name` of the sender Actor, in the `workspace` when it is given; `workspace/actor` for a sender in another Workspace */
                 from?: string;
                 /** @description The `name` of the recipient Actor */
                 to?: string;

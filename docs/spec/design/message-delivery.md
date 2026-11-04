@@ -23,7 +23,7 @@ Sending starts with `feld message send <actor> <body>`, or with `POST /v1/worksp
 
 1. Determine `from` and `fromSessionId` from the request's token. For a Session token, they are that Session's Actor and Session ID. Token verification follows [auth.md](auth.md)
 2. Take the Actor in the path as `to`, and copy that Actor's current Session at the time of acceptance into `toSessionId`
-3. A send with a Session token is accepted only when `to` is in the same Workspace as `from` and the [acceptFrom](../concepts/glossary.md#acceptfrom) of `to` accepts `from`; otherwise it returns 403
+3. A send with a Session token is accepted only when the [acceptFrom](../concepts/glossary.md#acceptfrom) of `to` accepts `from`, and, when `to` is in another Workspace than `from`, the [acceptFrom](../concepts/glossary.md#workspace) of that Workspace accepts `from` too; otherwise it returns 403
 4. Put the Message at the end of the destination Actor's mailbox, record `accepted`, and then respond to the sender
 
 The response contains the Message ID and an `anchor` that is the Message ID prefixed with `feld:`. `feld message send` prints this `anchor`, and the sender's transcript file quotes it, which serves as the key for the insertion described below.
