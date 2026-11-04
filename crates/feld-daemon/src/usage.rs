@@ -23,14 +23,18 @@ pub fn watch(runtime: Handle) -> Result<()> {
         .spawn(move || {
             let started = Instant::now();
             let mut assessment = Assessment::new(cpu_time());
+            let mut sampled = started;
             loop {
                 std::thread::sleep(INTERVAL);
+                // A thread woken late measures the time that really passed.
+                let elapsed = sampled.elapsed();
+                sampled = Instant::now();
                 let sample = Sample {
                     cpu: cpu_time(),
                     peak_memory: peak_memory(),
                     tasks: runtime.metrics().num_alive_tasks(),
                 };
-                if let Some(line) = assessment.assess(&sample, INTERVAL) {
+                if let Some(line) = assessment.assess(&sample, elapsed) {
                     eprintln!("Feld daemon: {line} (up {}s)", started.elapsed().as_secs());
                 }
             }
