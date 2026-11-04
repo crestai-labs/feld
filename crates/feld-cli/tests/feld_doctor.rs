@@ -662,6 +662,14 @@ fn the_release_check_tells_a_newer_release_in_one_line() {
         detail(&checks, "release"),
         format!("feld {version} is the latest Release")
     );
+
+    let url = release_server("https://github.com/crestai-labs/feld/releases/tag/v0.0.1".to_owned());
+    let (checks, _) = fixture.doctor_with(&[("FELD_RELEASE_URL", &url)]);
+    assert_eq!(result(&checks, "release"), "ok");
+    assert_eq!(
+        detail(&checks, "release"),
+        format!("feld {version} \u{b7} the latest Release is 0.0.1")
+    );
 }
 
 #[test]

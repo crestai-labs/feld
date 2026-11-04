@@ -836,8 +836,13 @@ async fn release() -> Check {
             format!("feld {latest} is released \u{b7} this is {current}"),
             "brew upgrade feld (or run the install script again), then feld init",
         )
-    } else {
+    } else if latest == current {
         Check::ok(NAME, format!("feld {current} is the latest Release"))
+    } else {
+        Check::ok(
+            NAME,
+            format!("feld {current} \u{b7} the latest Release is {latest}"),
+        )
     }
 }
 
