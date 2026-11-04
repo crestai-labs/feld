@@ -61,8 +61,9 @@ export function readMessage(messageId: string, signal?: AbortSignal) {
 }
 
 // `includeDeleted` lists the deleted Actors as well.
+// The archived Actors are always listed: the Timeline draws one over a range where it has a Session.
 export function listActors(workspace: string, includeDeleted = false, signal?: AbortSignal) {
-  return api<{ workspace: FeldApi.Workspace; actors: FeldApi.Actor[] }>(`${workspacePath(workspace)}/actors${includeDeleted ? "?includeDeleted" : ""}`, { signal });
+  return api<{ workspace: FeldApi.Workspace; actors: FeldApi.Actor[] }>(`${workspacePath(workspace)}/actors?includeArchived${includeDeleted ? "&includeDeleted" : ""}`, { signal });
 }
 
 // `cursor` is one of the three the daemon accepts: none for the newest page, `before` for

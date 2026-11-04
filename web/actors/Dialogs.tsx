@@ -60,7 +60,7 @@ function DisplayModal({ modifier = "", closeAction, closeLabel, onClose, titleId
 // What Timeline display reads from the page state.
 type AgentDisplayView = Pick<AgentsState,
   | "agentDisplayMenuOpen" | "inspectedSessionId" | "visibleActorDetails" | "sessionMetric"
-  | "showSpawnLinks" | "showMessageLinks" | "showSubAgents" | "showScheduleSkips" | "showAgentsOutsideRange" | "showDeletedActors"
+  | "showSpawnLinks" | "showMessageLinks" | "showSubAgents" | "showScheduleSkips" | "showAgentsOutsideRange" | "showArchivedActors" | "showDeletedActors"
   | "compactLayout">;
 
 function selectAgentDisplayView(state: AgentsState): AgentDisplayView {
@@ -74,6 +74,7 @@ function selectAgentDisplayView(state: AgentsState): AgentDisplayView {
     showSubAgents: state.showSubAgents,
     showScheduleSkips: state.showScheduleSkips,
     showAgentsOutsideRange: state.showAgentsOutsideRange,
+    showArchivedActors: state.showArchivedActors,
     showDeletedActors: state.showDeletedActors,
     compactLayout: state.compactLayout,
   };
@@ -135,6 +136,10 @@ export function AgentDisplayMenu() {
         <label>
           <input type="checkbox" data-agent-visibility="showAgentsOutsideRange" checked={state.showAgentsOutsideRange} onChange={(event) => store().setVisibility("showAgentsOutsideRange", event.target.checked)} />
           <span><strong>Actors without Sessions in range</strong><small>Keep bands whose Sessions fall outside the visible range</small></span>
+        </label>
+        <label>
+          <input type="checkbox" data-agent-visibility="showArchivedActors" checked={state.showArchivedActors} onChange={(event) => store().setVisibility("showArchivedActors", event.target.checked)} />
+          <span><strong>Archived Actors</strong><small>Keep the archived Actors with the others; one with a Session in range is drawn anyway</small></span>
         </label>
         <label>
           <input type="checkbox" data-agent-visibility="showDeletedActors" checked={state.showDeletedActors} onChange={(event) => store().setVisibility("showDeletedActors", event.target.checked)} />

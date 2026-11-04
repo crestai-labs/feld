@@ -2,7 +2,7 @@
 // epoch milliseconds and an Actor is referred to by its `workspace/name` key.
 
 export type Instant = number;
-export type VisibilityKey = "showSpawnLinks" | "showMessageLinks" | "showSubAgents" | "showScheduleSkips" | "showAgentsOutsideRange" | "showDeletedActors";
+export type VisibilityKey = "showSpawnLinks" | "showMessageLinks" | "showSubAgents" | "showScheduleSkips" | "showAgentsOutsideRange" | "showArchivedActors" | "showDeletedActors";
 
 export interface ActorLaunchSpec {
   runtime?: string;
@@ -29,6 +29,8 @@ export interface ActorRecord {
   grants?: FeldApi.Actor["grants"];
   // The daemon's `id` of the Actor, which its deleted history is read by.
   actorId?: string;
+  // When the Actor was archived; absent while it is live.
+  archivedAt?: Instant | null;
   // When the Actor was deleted; absent while it is live.
   deletedAt?: Instant | null;
   // The Actor's current Session whatever the range, as its listing answers it.
@@ -426,6 +428,8 @@ export interface AgentsState {
   showSubAgents: boolean;
   showScheduleSkips: boolean;
   showAgentsOutsideRange: boolean;
+  // Whether the archived Actors are drawn whatever the range, not only over their Sessions.
+  showArchivedActors: boolean;
   // Whether the deleted Actors are read and drawn with the live ones.
   showDeletedActors: boolean;
   // The reader's changes to the default pins, by Actor key: a Job starts pinned and an

@@ -235,23 +235,71 @@ export interface paths {
         patch: operations["updateActor"];
         trace?: never;
     };
+    "/v1/workspaces/{workspace}/actors/{actor}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The `name` of the Actor */
+                actor: components["parameters"]["Actor"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archives an Actor
+         * @description Records `archivedAt`, which frees the name. An archived Actor is reached with `GET /v1/actors/{actor}`.
+         */
+        post: operations["archiveActor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/actors/{actor}": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description The `id` of the Actor */
-                actor: string;
+                actor: components["parameters"]["ActorId"];
             };
             cookie?: never;
         };
         /**
          * Returns an Actor by `id`
-         * @description Also returns deleted Actors.
+         * @description Also returns archived and deleted Actors.
          */
         get: operations["getActorById"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/actors/{actor}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The `id` of the Actor */
+                actor: components["parameters"]["ActorId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unarchives an Actor
+         * @description Clears `archivedAt` of an archived Actor of a live Workspace.
+         */
+        post: operations["unarchiveActor"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1236,6 +1284,8 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             /** Format: date-time */
+            archivedAt: string | null;
+            /** Format: date-time */
             deletedAt: string | null;
             /** @description Session without `end` */
             currentSession: components["schemas"]["Session"] | null;
@@ -1846,6 +1896,8 @@ export interface components {
         Actor: string;
         /** @description Filters the target by Actor `name` */
         ActorFilter: string;
+        /** @description The `id` of the Actor */
+        ActorId: string;
         Session: string;
         /** @description Includes deleted ones */
         IncludeDeleted: boolean;
@@ -2178,6 +2230,8 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: components["schemas"]["ActorKind"];
+                /** @description Includes archived ones */
+                includeArchived?: boolean;
                 /** @description Includes deleted ones */
                 includeDeleted?: components["parameters"]["IncludeDeleted"];
             };
@@ -2376,13 +2430,51 @@ export interface operations {
             500: components["responses"]["Error"];
         };
     };
+    archiveActor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The `name` of the Actor */
+                actor: components["parameters"]["Actor"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archived Actor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActorResponse"];
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            /** @description The current Session is running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Error"];
+        };
+    };
     getActorById: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description The `id` of the Actor */
-                actor: string;
+                actor: components["parameters"]["ActorId"];
             };
             cookie?: never;
         };
@@ -2400,6 +2492,42 @@ export interface operations {
             401: components["responses"]["Error"];
             403: components["responses"]["Error"];
             404: components["responses"]["Error"];
+            500: components["responses"]["Error"];
+        };
+    };
+    unarchiveActor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The `id` of the Actor */
+                actor: components["parameters"]["ActorId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The unarchived Actor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActorResponse"];
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            /** @description A live Actor holds the name */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Error"];
         };
     };

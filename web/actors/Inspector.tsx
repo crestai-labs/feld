@@ -135,7 +135,7 @@ function ActorOverview({ agent }: { agent: ActorRecord }) {
       <div className="feld-agents__inspector-title">
         <div>
           <h2 id="feld-agents-actor-card-title">{model.actorLabel(agent.id, { workspace })}</h2>
-          <span className="feld-agents__inspector-agent">{kindLabel(agent.kind)} · Workspace {agent.workspace}{agent.deletedAt ? ` · deleted ${model.nearTime(agent.deletedAt)}` : ""}</span>
+          <span className="feld-agents__inspector-agent">{kindLabel(agent.kind)} · Workspace {agent.workspace}{agent.deletedAt ? ` · deleted ${model.nearTime(agent.deletedAt)}` : agent.archivedAt ? ` · archived ${model.nearTime(agent.archivedAt)}` : ""}</span>
         </div>
         <span className={`feld-agents__session-state is-${actorState.key}`} title={actorState.title}>{actorState.label}</span>
       </div>
@@ -148,7 +148,7 @@ function ActorOverview({ agent }: { agent: ActorRecord }) {
       </dl>
       <div className="feld-agents__card-actions">
         {session ? <button className="feld-agents__button" type="button" data-action="open-console" data-session-id={session.id} onClick={() => openConsole(session.id)}>Open latest Console</button> : null}
-        {agent.deletedAt ? null : <button className="feld-agents__button" type="button" data-action="send-message" data-agent-id={agent.id} onClick={() => openComposer(agent.id)}>Send message</button>}
+        {agent.deletedAt || agent.archivedAt ? null : <button className="feld-agents__button" type="button" data-action="send-message" data-agent-id={agent.id} onClick={() => openComposer(agent.id)}>Send message</button>}
       </div>
       {agent.kind === "job" ? <JobSection agent={agent} schedule={schedule} /> : <AgentSection agent={agent} />}
       <h3 className="feld-agents__inspector-section">{schedule ? "Sessions and skipped ticks" : "Sessions"} · Control Plane fact</h3>
@@ -192,8 +192,8 @@ function JobSection({ agent, schedule }: { agent: ActorRecord; schedule: Schedul
   const cardView = useActorsStore((state) => (state.cardView?.agentId === agent.id ? state.cardView : null));
   const edit = useEditAction(agent, schedule);
   if (cardView?.editing && cardView.draft) return <ActorEditForm agent={agent} schedule={schedule} cardView={cardView} />;
-  // A deleted Actor keeps its history and takes no more changes.
-  const deleted = Boolean(agent.deletedAt);
+  // An archived or deleted Actor keeps its history and takes no more changes.
+  const deleted = Boolean(agent.deletedAt || agent.archivedAt);
   if (!schedule) {
     return (
       <>
@@ -259,7 +259,7 @@ function AgentSection({ agent }: { agent: ActorRecord }) {
       {cardView?.error ? <FormError message={cardView.error} /> : null}
       {cardView?.result ? <p className="feld-agents__composer-result" role="status">{cardView.result}</p> : null}
       <div className="feld-agents__card-actions">
-        <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={Boolean(agent.deletedAt)} onClick={edit}>Edit…</button>
+        <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={Boolean(agent.deletedAt || agent.archivedAt)} onClick={edit}>Edit…</button>
       </div>
       <p className="feld-agents__form-note">A change to the launch spec takes effect at the next start; the current Session keeps what it was started with.</p>
     </>
