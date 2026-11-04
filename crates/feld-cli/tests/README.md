@@ -25,13 +25,13 @@ The tests write nothing to the environment of the person running them, and read 
 |---|---|
 | `~/.feld` | Each test gives its own home with `--home` or `FELD_HOME` |
 | `~/.claude`, `~/.codex` | `support::feld()` drops `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, and so on, and the fixture points `HOME` to its own location. Tests that run a real Runtime pass their own root |
-| The tmux server of the person running the tests | Fixtures use their own socket with `-S`. Named servers with `-L` (including the Provider's default `feld`) are placed under `target/` by `TMUX_TMPDIR` in `.cargo/config.toml` |
+| The tmux server of the person running the tests | Fixtures use their own socket with `-S`. Named servers with `-L` (including the Provider's default `feld`) are placed under `target/` by `TMUX_TMPDIR` in `.cargo/config.toml`, or under `/tmp/feld-tmux-<checksum>` when `target/` is too deep for a socket path (`.cargo/test-runner.sh`) |
 | Outside Feld Sessions, tmux and herdr panes | `support::feld()` drops `FELD_*`, `HERDR_*`, `TMUX`, and `TMUX_PANE`. Tests that run the daemon inside the test process (such as `scheduler.rs`) inherit the process environment, so `make test` drops the same variables |
 | herdr settings | `support::HerdrServer` starts a headless server with its own root directly under `/tmp` and its own session, and removes it at the end |
 
 Read only: one test each in `claude_code_session.rs`, `codex_session.rs`, and `herdr_provider.rs` takes the modification times of the real `~/.claude/settings.json` and `~/.codex`, and checks after the test that they have not changed.
 
-The tmux servers under `target/` remain after the tests. `tmux -L <name> kill-server` or `cargo clean` removes them.
+The tmux servers under `target/` (or `/tmp/feld-tmux-<checksum>`) remain after the tests. `TMUX_TMPDIR=<that directory> tmux -L <name> kill-server` stops one, and removing the directory (`cargo clean` for `target/`) removes them.
 
 ## Running the real Claude Code and Codex
 

@@ -2,3 +2,7 @@
 # them, live under target/ rather than beside the servers of the person running the tests.
 [env]
 TMUX_TMPDIR = { value = "target", relative = true, force = true }
+
+# Moves them under /tmp where target/ is too deep for a socket path.
+[target.'cfg(unix)']
+runner = ".cargo/test-runner.sh"
