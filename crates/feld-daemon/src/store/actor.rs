@@ -359,8 +359,8 @@ impl Store {
         })
     }
 
-    /// Clears `archivedAt` by `writer` on the archived Actor `id` of a live Workspace, while
-    /// no live Actor holds its name.
+    /// Clears `archivedAt` by `writer` on the archived Actor `id` while the Workspace it was
+    /// created in is live and no live Actor holds its name.
     pub fn unarchive_actor_as(
         &self,
         id: &str,
@@ -375,7 +375,15 @@ impl Store {
             .into_iter()
             .next()
             .ok_or_else(|| ActorWriteError::ArchivedNotFound(id.to_owned()))?;
-            if live_workspace_id(transaction, &row.workspace)?.is_none() {
+            let workspace_live: bool = transaction
+                .query_row(
+                    "SELECT EXISTS (SELECT 1 FROM actors a JOIN workspaces w ON w.id = a.workspace_id
+                                    WHERE a.id = ?1 AND w.deleted_at IS NULL)",
+                    [id],
+                    |row| row.get(0),
+                )
+                .context("read the Workspace of the archived Actor")?;
+            if !workspace_live {
                 return Err(ActorWriteError::WorkspaceNotFound(row.workspace));
             }
             writer.check(transaction, Some(id), row.kind, &row.name)?;

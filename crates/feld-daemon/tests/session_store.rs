@@ -1581,6 +1581,40 @@ fn an_archived_actor_frees_its_name_and_comes_back_while_the_name_is_free() {
 }
 
 #[test]
+fn an_archived_actor_of_a_deleted_workspace_stays_archived_when_the_key_is_reused() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store = Store::open(&temporary.path().join("feld.db")).unwrap();
+    let launch = launch("/tmp/archive");
+    store.create_workspace("research").unwrap();
+    let old = store
+        .create_actor("research", "worker", ActorKind::Job, &launch, None, None)
+        .unwrap();
+    store
+        .archive_actor_as("research", "worker", Writer::Admin)
+        .unwrap();
+    store.delete_workspace("research").unwrap();
+    store.create_workspace("research").unwrap();
+
+    assert!(matches!(
+        store.unarchive_actor_as(&old.id, Writer::Admin),
+        Err(ActorWriteError::WorkspaceNotFound(_))
+    ));
+    assert!(store.get_actor("research", "worker").unwrap().is_none());
+    let new = store
+        .create_actor("research", "worker", ActorKind::Job, &launch, None, None)
+        .unwrap();
+    assert_ne!(new.id, old.id);
+    assert!(
+        store
+            .get_actor_by_id(&old.id)
+            .unwrap()
+            .unwrap()
+            .archived_at
+            .is_some()
+    );
+}
+
+#[test]
 fn a_store_of_schema_5_keeps_its_session_tokens() {
     let temporary = tempfile::tempdir().unwrap();
     let path = temporary.path().join("feld.db");

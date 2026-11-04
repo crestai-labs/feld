@@ -185,7 +185,7 @@ export interface paths {
         put?: never;
         /**
          * Creates an Actor
-         * @description If an Actor with the same name that is not deleted exists, replaces its `launchSpec` and Schedule with the request contents, keeping the same `id`.
+         * @description If an Actor with the same name that is neither archived nor deleted exists, replaces its `launchSpec` and Schedule with the request contents, keeping the same `id`.
          *     The Schedule is replaced, keeping `enabled`, when `schedule` is present, and removed when it is absent. Only a Job accepts `schedule`; an Agent gets `400`. A different kind gets `409`, and a `launchSpec` other than `runtime` for kind `agent` or other than `command` for `job` gets `400`, without writing anything.
          *     Omitting `schedule.timezone` uses the daemon's timezone.
          *     Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A replacement that omits `grants` keeps the Actor's grants.
@@ -2214,7 +2214,7 @@ export interface operations {
             401: components["responses"]["Error"];
             403: components["responses"]["Error"];
             404: components["responses"]["Error"];
-            /** @description It is the default Workspace, or it has an Actor that is not deleted */
+            /** @description It is the default Workspace, or it has an Actor that is neither archived nor deleted */
             409: {
                 headers: {
                     [name: string]: unknown;

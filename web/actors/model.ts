@@ -2209,7 +2209,7 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
       return index < 0 ? Infinity : index;
     };
     return rangeCandidates(state)
-      .filter((agent) => state.showAgentsOutsideRange || isPinned(state, agent) || hasSessionInRange(agent.id, range) || keptBySchedule(agent.id, state))
+      .filter((agent) => state.showAgentsOutsideRange || (state.showArchivedActors && Boolean(agent.archivedAt)) || isPinned(state, agent) || hasSessionInRange(agent.id, range) || keptBySchedule(agent.id, state))
       .sort((left, right) => Number(isPinned(state, right)) - Number(isPinned(state, left))
         || (orderOf(left) === orderOf(right) ? 0 : orderOf(left) - orderOf(right))
         || bandRank(left.id) - bandRank(right.id)
@@ -2233,7 +2233,7 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     const range = rangeFor(state);
     const plural = (count: number) => `${count} Actor${count === 1 ? "" : "s"}`;
     if (state.showAgentsOutsideRange) {
-      const outside = agents.filter((agent) => !isPinned(state, agent) && !hasSessionInRange(agent.id, range) && !keptBySchedule(agent.id, state)).length;
+      const outside = agents.filter((agent) => !isPinned(state, agent) && !(state.showArchivedActors && agent.archivedAt) && !hasSessionInRange(agent.id, range) && !keptBySchedule(agent.id, state)).length;
       if (!outside) return null;
       return { shown: true, label: `Hide ${plural(outside)} with no Sessions in range`, title: `Hide the ${plural(outside)} with no Session in ${formatRange(range)}` };
     }

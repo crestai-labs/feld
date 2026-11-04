@@ -1099,6 +1099,7 @@ test("an archived Actor is drawn over a range where it has a Session, and otherw
   const hidden = state();
   expect(model.hiddenBandsFor(hidden, model.bandAgents(hidden))?.label).toBe("Show 1 Actor with no Sessions in range");
   expect(ids({ showAgentsOutsideRange: true }).sort()).toEqual(["default/idle", recent.id].sort());
+  expect(ids({ showArchivedActors: true }).sort()).toEqual([old.id, recent.id].sort());
   expect(ids({ showAgentsOutsideRange: true, showArchivedActors: true }).sort()).toEqual(["default/idle", old.id, recent.id].sort());
   expect(model.agentMenuFor(recent, state()).items).toContainEqual(expect.objectContaining({ action: "archived", disabled: true }));
 });
