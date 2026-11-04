@@ -436,8 +436,13 @@ impl SessionController {
 /// the Session runs with.
 fn product_on_path(kind: PluginKind, name: &str) -> Result<(), ControlError> {
     match bundled::find(kind, name) {
-        Some(plugin) if !plugin.is_on_path() => Err(ControlError::ProductMissing {
-            command: plugin.command.to_owned(),
+        Some(
+            plugin @ bundled::BundledPlugin {
+                product: Some(product),
+                ..
+            },
+        ) if !plugin.is_on_path() => Err(ControlError::ProductMissing {
+            command: product.command.to_owned(),
             next: match kind {
                 PluginKind::Provider => format!(
                     "{}, or give the Actor another Provider with --provider",

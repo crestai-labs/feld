@@ -15,6 +15,7 @@ use feld_core::plugin::protocol::{
 use feld_core::plugin::{
     ExecutionProvider, Plugins, ProviderChoiceError, Registry, RuntimeAdapter,
     provider_not_installed, runtime_not_installed, runtime_self_index_key, self_index_key,
+    terminal_providers,
 };
 use feld_core::process::{self, ProcessSnapshot};
 use feld_core::session_token::{
@@ -70,17 +71,27 @@ pub async fn run(
     let adapter = registry
         .runtime(&args.runtime)
         .ok_or_else(|| CliError::Rejected(runtime_not_installed(&registry, &args.runtime)))?;
-    let provider_name =
-        provider_here(None, options, &daemon.providers, &registry).map_err(|error| {
-            let refused = CliError::Rejected(error.to_string());
-            match error {
-                ProviderChoiceError::Ambiguous => refused.with_next(run_in_pane(
-                    &daemon.providers.join(" or "),
-                    &adapter.manifest().label,
-                )),
-                _ => refused,
-            }
-        })?;
+    let provider_name = provider_here(
+        None,
+        options,
+        &daemon.providers,
+        &registry,
+        ActorKind::Agent,
+    )
+    .map_err(|error| {
+        let refused = CliError::Rejected(error.to_string());
+        match error {
+            ProviderChoiceError::Ambiguous => refused.with_next(run_in_pane(
+                &terminal_providers(&daemon.providers)
+                    .iter()
+                    .map(|name| name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" or "),
+                &adapter.manifest().label,
+            )),
+            _ => refused,
+        }
+    })?;
     let provider = registry
         .provider(&provider_name)
         .ok_or_else(|| CliError::Rejected(provider_not_installed(&registry, &provider_name)))?;

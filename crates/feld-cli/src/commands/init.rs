@@ -209,24 +209,6 @@ async fn init(ctx: &Context, args: InitArgs) -> Result<ExitCode, Stop> {
     // A re-run opens the list on the answer the last `feld init` left.
     let before = Registry::load(home, None);
     let already: HashSet<String> = installed_names(&before).into_iter().collect();
-    // A Provider is what every Session runs on, and Feld ships none that works without
-    // its product.
-    if args.provider.is_empty()
-        && before.providers().is_empty()
-        && bundled::on_path_of_kind(PluginKind::Provider)
-            .next()
-            .is_none()
-    {
-        return Err(rejected!("no Execution Provider is on PATH")
-            .with_next(format!(
-                "install {} so that it is on PATH, and run `feld init` again",
-                bundled::of_kind(PluginKind::Provider)
-                    .map(|plugin| plugin.name)
-                    .collect::<Vec<_>>()
-                    .join(" or ")
-            ))
-            .into());
-    }
     home.create()?;
     // The lock marks the directory as a Feld home even before a daemon starts on it.
     open_lock_file(&home.lock_path(), "daemon lock")?;
@@ -244,7 +226,9 @@ async fn init(ctx: &Context, args: InitArgs) -> Result<ExitCode, Stop> {
             PluginKind::Runtime => &args.runtime,
             PluginKind::Provider => &args.provider,
         };
-        let shipped: Vec<_> = bundled::of_kind(kind).collect();
+        let shipped: Vec<_> = bundled::of_kind(kind)
+            .filter(|plugin| plugin.product.is_some())
+            .collect();
         let installed: Vec<_> = shipped
             .iter()
             .copied()
@@ -270,12 +254,17 @@ async fn init(ctx: &Context, args: InitArgs) -> Result<ExitCode, Stop> {
         });
     }
     ask_for_plugins(&mut kinds, &screen.style).map_err(Stop::Refused)?;
-    let chosen: Vec<&'static bundled::BundledPlugin> = kinds
+    let mut chosen: Vec<&'static bundled::BundledPlugin> = kinds
         .iter()
         .flat_map(|one| one.shipped.iter().zip(&one.checked))
         .filter(|(_, checked)| **checked)
         .map(|(plugin, _)| *plugin)
         .collect();
+    for plugin in bundled::without_product() {
+        if !chosen.iter().any(|one| one.name == plugin.name) {
+            chosen.push(plugin);
+        }
+    }
     for plugin in &chosen {
         let executable = plugin.executable(&beside);
         if !executable.is_file() {
@@ -298,13 +287,13 @@ async fn init(ctx: &Context, args: InitArgs) -> Result<ExitCode, Stop> {
         .filter(|plugin| {
             plugin.kind == PluginKind::Runtime && args.runtime.is_empty() && !runtime_on_path
         })
-        .map(|plugin| {
-            format!(
+        .filter_map(|plugin| {
+            Some(format!(
                 "{}: `{}` is not on PATH; install {} to run it",
                 plugin.label(),
-                plugin.command,
+                plugin.product.as_ref()?.command,
                 plugin.label()
-            )
+            ))
         })
         .collect();
     let warnings: Vec<String> = installed
@@ -319,7 +308,9 @@ async fn init(ctx: &Context, args: InitArgs) -> Result<ExitCode, Stop> {
         )
         .filter_map(|(kind, installed)| {
             let plugin = bundled::find(kind, &installed.name)?;
-            let line = super::doctor::version_line(Path::new(plugin.command), plugin.version_args)?;
+            let product = plugin.product.as_ref()?;
+            let line =
+                super::doctor::version_line(Path::new(product.command), product.version_args)?;
             plugin.unsupported(&line)
         })
         .collect();

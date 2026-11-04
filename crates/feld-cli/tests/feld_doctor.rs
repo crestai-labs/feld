@@ -271,7 +271,7 @@ fn doctor_after_init_yes_shows_each_check_on_a_line_and_writes_nothing() {
     assert_eq!(result(&checks, "runtime-settings"), "ok");
     assert_eq!(result(&checks, "collector"), "ok");
     assert_eq!(result(&checks, "browser"), "ok");
-    assert_eq!(detail(&checks, "provider"), "tmux 3.6a");
+    assert_eq!(detail(&checks, "provider"), "process \u{b7} tmux 3.6a");
     assert_eq!(detail(&checks, "runtime"), "claude 2.1.200 (Claude Code)");
     assert_eq!(detail(&checks, "store"), "open in the running daemon");
     assert!(detail(&checks, "daemon").starts_with("running"));
@@ -385,7 +385,10 @@ fn a_provider_missing_from_path_fails_and_an_old_tmux_too() {
     let (checks, code) = fixture.doctor();
     assert_eq!(code, 1);
     assert_eq!(result(&checks, "provider"), "fail");
-    assert_eq!(detail(&checks, "provider"), "tmux is not on PATH");
+    assert_eq!(
+        detail(&checks, "provider"),
+        "process \u{b7} tmux is not on PATH"
+    );
     fixture.with_on_path(&[
         ("claude", "echo 2.1.200"),
         ("tmux", "echo 'tmux 3.1c'"),
@@ -401,7 +404,10 @@ fn a_provider_missing_from_path_fails_and_an_old_tmux_too() {
     ]);
     let (checks, _) = fixture.doctor();
     assert_eq!(result(&checks, "provider"), "warn");
-    assert_eq!(detail(&checks, "provider"), "tmux answers no version");
+    assert_eq!(
+        detail(&checks, "provider"),
+        "process \u{b7} tmux answers no version"
+    );
 }
 
 /// A Provider older than its oldest supported version fails, as one that cannot run a
@@ -560,7 +566,7 @@ fn an_installed_plugin_without_its_executable_beside_feld_fails() {
         executables["detail"]
             .as_str()
             .unwrap()
-            .contains("feld-plugin-claude-code, codex, tmux, herdr missing"),
+            .contains("feld-plugin-claude-code, codex, tmux, herdr, process missing"),
         "{executables}"
     );
     assert_eq!(output.status.code(), Some(1));
@@ -626,26 +632,6 @@ fn init_runs_no_checks_for_a_plugin_feld_does_not_ship() {
         "{}",
         String::from_utf8_lossy(&output.stdout)
     );
-}
-
-#[test]
-fn init_runs_the_checks_when_no_provider_is_on_path() {
-    let fixture = Fixture::new();
-    fixture.with_on_path(&[("claude", "echo 2.1.200")]);
-    let output = fixture.feld(&["init", "--yes"]);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("no Execution Provider is on PATH"));
-    let printed = String::from_utf8_lossy(&output.stdout);
-    assert!(printed.contains("feld doctor\n"), "{printed}");
-    assert!(
-        printed
-            .lines()
-            .any(|line| line.starts_with("fail  provider")),
-        "{printed}"
-    );
-    let output = fixture.feld(&["init", "--yes", "--json"]);
-    let answer: Value = serde_json::from_slice(&output.stdout).expect("the checks as JSON");
-    assert_eq!(answer["checks"].as_array().unwrap().len(), CHECKS.len());
 }
 
 #[test]

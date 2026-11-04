@@ -213,7 +213,16 @@ fn an_unresolved_provider_names_the_provider_or_the_pane() {
 
     let both = Fixture::new(&["tmux", "herdr"]);
     both.start_daemon_with_only(&["tmux", "herdr"]);
-    let output = both.feld(&["actor", "create", "job", "--kind", "job", "--", "true"]);
+    let output = both.feld(&[
+        "actor",
+        "create",
+        "agent",
+        "--kind",
+        "agent",
+        "--runtime",
+        "claude-code",
+        "--no-start",
+    ]);
     assert_eq!(
         next_line(&output, 1),
         "add `--provider herdr` or `--provider tmux`"

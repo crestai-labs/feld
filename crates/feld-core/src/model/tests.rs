@@ -339,6 +339,18 @@ fn a_launch_spec_supports_the_kind_that_it_runs() {
     assert!(job.validate_kind(ActorKind::Agent).is_err());
     assert!(agent.validate_kind(ActorKind::Agent).is_ok());
     assert!(agent.validate_kind(ActorKind::Job).is_err());
+    // An agent needs a terminal, which the process Provider does not give.
+    let on_process = |launch: &LaunchSpec| LaunchSpec {
+        provider: Some("process".to_owned()),
+        ..launch.clone()
+    };
+    assert!(on_process(&job).validate_kind(ActorKind::Job).is_ok());
+    assert!(
+        on_process(&agent)
+            .validate_kind(ActorKind::Agent)
+            .unwrap_err()
+            .contains("without a terminal")
+    );
 }
 
 #[test]

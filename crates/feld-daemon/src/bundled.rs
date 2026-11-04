@@ -26,18 +26,24 @@ pub struct BundledFile {
     pub runnable: bool,
 }
 
-/// One Plugin Feld ships.
-pub struct BundledPlugin {
-    pub name: &'static str,
-    pub kind: PluginKind,
-    /// The executable of the product the Plugin connects, which `feld init` looks for on
-    /// `PATH`.
+/// The product a shipped Plugin connects.
+pub struct Product {
+    /// The executable of the product, which `feld init` looks for on `PATH`.
     pub command: &'static str,
     /// The arguments `command` prints its version to, which `feld doctor` shows.
     pub version_args: &'static [&'static str],
     /// The oldest version of the product the Plugin supports, the table of supported
     /// versions in `docs/spec/design/plugin.md`.
     pub oldest: &'static str,
+}
+
+/// One Plugin Feld ships.
+pub struct BundledPlugin {
+    pub name: &'static str,
+    pub kind: PluginKind,
+    /// The product the Plugin connects, or None for a Plugin that needs nothing beside
+    /// Feld, such as the `process` Provider.
+    pub product: Option<Product>,
     pub files: &'static [BundledFile],
 }
 
@@ -58,7 +64,9 @@ impl BundledPlugin {
         let install = format!(
             "install {} so that `{}` is on PATH",
             self.label(),
-            self.command
+            self.product
+                .as_ref()
+                .map_or(self.name, |product| product.command)
         );
         match self.kind {
             PluginKind::Provider => install,
@@ -70,11 +78,12 @@ impl BundledPlugin {
     /// [`oldest`](Self::oldest). An answer without a word that begins with a digit, such as
     /// `tmux next-3.7` or `tmux openbsd-7.5`, passes.
     pub fn unsupported(&self, answer: &str) -> Option<String> {
+        let oldest = self.product.as_ref()?.oldest;
         let version = answer
             .split_whitespace()
             .find(|word| word.starts_with(|character: char| character.is_ascii_digit()))?;
-        older(version, self.oldest).then(|| {
-            let (label, oldest) = (self.label(), self.oldest);
+        older(version, oldest).then(|| {
+            let label = self.label();
             let kind = match self.kind {
                 PluginKind::Provider => "Provider",
                 PluginKind::Runtime => "Runtime Adapter",
@@ -94,8 +103,12 @@ impl BundledPlugin {
     }
 
     /// Whether the product's executable is on `PATH`, read as a shell reads it: a relative
-    /// directory from the working directory, and an empty one as the working directory.
+    /// directory from the working directory, and an empty one as the working directory. A
+    /// Plugin without a product is always ready.
     pub fn is_on_path(&self) -> bool {
+        let Some(product) = &self.product else {
+            return true;
+        };
         std::env::var_os("PATH").is_some_and(|path| {
             std::env::split_paths(&path).any(|directory| {
                 let directory = if directory.as_os_str().is_empty() {
@@ -103,7 +116,7 @@ impl BundledPlugin {
                 } else {
                     directory
                 };
-                is_executable(&directory.join(self.command))
+                is_executable(&directory.join(product.command))
             })
         })
     }
@@ -207,11 +220,13 @@ impl BundledPlugin {
 
 /// Replaces the installed shipped Plugins with this version's, which the daemon does when
 /// it starts: the daemon and a Plugin talk in the shape of one version. Only the Plugins
-/// `feld init` installed are replaced. Returns what the daemon logs.
+/// `feld init` installed are replaced, and the ones that need no product are put in place
+/// where nothing sits under their name. Returns what the daemon logs.
 pub fn update_installed(home: &FeldHome, beside: &Path) -> Vec<String> {
     let mut log = Vec::new();
     for plugin in BUNDLED {
-        if !plugin.is_installed(home) || plugin.is_current(home, beside) {
+        let absent = plugin.product.is_none() && !plugin.directory(home).exists();
+        if !absent && (!plugin.is_installed(home) || plugin.is_current(home, beside)) {
             continue;
         }
         let executable = plugin.executable(beside);
@@ -224,6 +239,7 @@ pub fn update_installed(home: &FeldHome, beside: &Path) -> Vec<String> {
             continue;
         }
         match plugin.install(home, beside) {
+            Ok(directory) if absent => log.push(format!("installed {}", directory.display())),
             Ok(directory) => log.push(format!(
                 "updated {} to this version of feld",
                 directory.display()
@@ -261,6 +277,12 @@ pub fn executables_directory() -> Result<PathBuf> {
 /// The shipped Plugins of one kind, in the order `feld init` shows them.
 pub fn of_kind(kind: PluginKind) -> impl Iterator<Item = &'static BundledPlugin> {
     BUNDLED.iter().filter(move |plugin| plugin.kind == kind)
+}
+
+/// The shipped Plugins that need no product, which every `feld init` installs without
+/// asking.
+pub fn without_product() -> impl Iterator<Item = &'static BundledPlugin> {
+    BUNDLED.iter().filter(|plugin| plugin.product.is_none())
 }
 
 /// The default shipped Plugins of one kind, which `feld init` takes for a kind with
@@ -348,9 +370,11 @@ pub static BUNDLED: &[BundledPlugin] = &[
     BundledPlugin {
         name: "claude-code",
         kind: PluginKind::Runtime,
-        command: "claude",
-        version_args: &["--version"],
-        oldest: "2.1.181",
+        product: Some(Product {
+            command: "claude",
+            version_args: &["--version"],
+            oldest: "2.1.181",
+        }),
         files: &[
             file!("runtime/claude-code", "plugin.json", false),
             file!("runtime/claude-code", ".claude-plugin/plugin.json", false),
@@ -366,9 +390,11 @@ pub static BUNDLED: &[BundledPlugin] = &[
     BundledPlugin {
         name: "codex",
         kind: PluginKind::Runtime,
-        command: "codex",
-        version_args: &["--version"],
-        oldest: "0.156.0",
+        product: Some(Product {
+            command: "codex",
+            version_args: &["--version"],
+            oldest: "0.156.0",
+        }),
         files: &[
             file!("runtime/codex", "plugin.json", false),
             file!("runtime/codex", "skills/feld/SKILL.md", false),
@@ -379,18 +405,28 @@ pub static BUNDLED: &[BundledPlugin] = &[
     BundledPlugin {
         name: "tmux",
         kind: PluginKind::Provider,
-        command: "tmux",
-        version_args: &["-V"],
-        oldest: "3.2",
+        product: Some(Product {
+            command: "tmux",
+            version_args: &["-V"],
+            oldest: "3.2",
+        }),
         files: &[file!("provider/tmux", "plugin.json", false)],
     },
     BundledPlugin {
         name: "herdr",
         kind: PluginKind::Provider,
-        command: "herdr",
-        version_args: &["--version"],
-        oldest: "0.9.0",
+        product: Some(Product {
+            command: "herdr",
+            version_args: &["--version"],
+            oldest: "0.9.0",
+        }),
         files: &[file!("provider/herdr", "plugin.json", false)],
+    },
+    BundledPlugin {
+        name: "process",
+        kind: PluginKind::Provider,
+        product: None,
+        files: &[file!("provider/process", "plugin.json", false)],
     },
 ];
 
@@ -464,7 +500,10 @@ mod tests {
         let table = std::fs::read_to_string(root.join("docs/spec/design/plugin.md")).unwrap();
         let ci = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).unwrap();
         for plugin in BUNDLED {
-            let row = format!("| {} | {} |", plugin.label(), plugin.oldest);
+            let Some(product) = &plugin.product else {
+                continue;
+            };
+            let row = format!("| {} | {} |", plugin.label(), product.oldest);
             assert!(table.contains(&row), "the table has no row {row}");
         }
         // The minimum tmux is the one of Ubuntu 22.04, which the workflow names in a comment.
@@ -477,10 +516,13 @@ mod tests {
                         .find_map(|line| line.trim().strip_prefix("default: "))
                 })
                 .unwrap_or_else(|| panic!("ci.yml has no input {name}"));
-            assert_eq!(input, plugin.oldest, "{name}");
+            assert_eq!(input, plugin.product.as_ref().unwrap().oldest, "{name}");
         }
         let tmux = BUNDLED.iter().find(|plugin| plugin.name == "tmux").unwrap();
-        assert!(ci.contains(&format!("tmux of Ubuntu 22.04 ({}a)", tmux.oldest)));
+        assert!(ci.contains(&format!(
+            "tmux of Ubuntu 22.04 ({}a)",
+            tmux.product.as_ref().unwrap().oldest
+        )));
     }
 
     #[test]
@@ -538,8 +580,8 @@ mod tests {
         }
     }
 
-    /// The daemon brings the Plugins `feld init` installed to its own version, and leaves
-    /// the rest as they are.
+    /// The daemon brings the Plugins `feld init` installed to its own version, puts in place
+    /// the ones that need no product, and leaves the rest as they are.
     #[test]
     fn the_installed_shipped_plugins_are_brought_to_this_version() {
         let temporary = tempfile::tempdir().unwrap();
@@ -568,8 +610,10 @@ mod tests {
         let hook_before = std::fs::metadata(&hook).unwrap();
         let log = update_installed(&home, &beside);
 
-        assert_eq!(log.len(), 2, "{log:?}");
-        for plugin in [claude, tmux] {
+        assert_eq!(log.len(), 3, "{log:?}");
+        let process = find(PluginKind::Provider, "process").unwrap();
+        assert!(log.contains(&format!("installed {}", process.directory(&home).display())));
+        for plugin in [claude, tmux, process] {
             assert_eq!(
                 std::fs::read_to_string(plugin.directory(&home).join("plugin")).unwrap(),
                 "this version"

@@ -214,6 +214,14 @@ impl LaunchSpec {
     /// Refuses the launchSpec an Actor of `kind` could not start from, so that the
     /// declaration is refused before it is written.
     pub fn validate_kind(&self, kind: ActorKind) -> Result<(), String> {
+        if kind == ActorKind::Agent
+            && self.provider.as_deref() == Some(crate::plugin::PROCESS_PROVIDER)
+        {
+            return Err(format!(
+                "the {} Provider runs a command without a terminal; an agent needs a Provider such as tmux",
+                crate::plugin::PROCESS_PROVIDER
+            ));
+        }
         if self.supports(kind) {
             return Ok(());
         }

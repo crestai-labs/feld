@@ -130,7 +130,7 @@ fn installed_plugins_are_listed_and_unusable_directories_are_left_out_with_a_log
     let runtimes = names(&status["runtimes"]);
     let providers = names(&status["providers"]);
     assert_eq!(runtimes, ["claude-code", "fixture-runtime"]);
-    assert_eq!(providers, ["fixture-provider", "tmux"]);
+    assert_eq!(providers, ["fixture-provider", "process", "tmux"]);
     assert_eq!(
         status["runtimes"][1]["label"], "Fixture Runtime",
         "the label of a Plugin is its manifest's"
