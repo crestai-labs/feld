@@ -489,6 +489,8 @@ dependencies = [
  "fs2",
  "futures-core",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "libc",
  "notify",
  "prost",
