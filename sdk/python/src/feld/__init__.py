@@ -2,7 +2,8 @@
 
 The operations are the modules of `feld.api.<tag>` (`sync` / `asyncio`), generated from the
 OpenAPI definition along with the models of `feld.models`. `connect` builds the client they
-take, and `feld.records` reads records page by page or as they are appended.
+take, `feld.records` reads records page by page or as they are appended, and
+`feld.events` reads the change notifications as they arrive.
 """
 
 from .client import AuthenticatedClient, Client

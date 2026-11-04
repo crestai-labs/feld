@@ -11,6 +11,7 @@ import pytest
 import feld
 from feld import records
 from feld.api.actor import create_actor, list_actors
+from feld.api.daemon import get_daemon_status
 from feld.api.message import list_messages, send_message
 from feld.api.session import get_output, stop_session
 from feld.models import (
@@ -255,3 +256,18 @@ def test_records_follow_waits_for_appended_records() -> None:
     ]
     assert seen == [5, 6]
     assert [r.url.params["after"] for r in fake.requests] == ["4", "5", "5"]
+
+
+def test_an_undocumented_error_status_is_rejected_even_when_raised_as_unexpected() -> (
+    None
+):
+    fake = FakeDaemon().reject("GET", "/v1/daemon/status", 404, "gone")
+    client = feld.AuthenticatedClient(
+        base_url="http://feld.test",
+        token="t",
+        raise_on_unexpected_status=True,
+        httpx_args={"transport": httpx.MockTransport(fake._handle)},
+    )
+    with pytest.raises(feld.FeldRejected) as rejected:
+        get_daemon_status.sync(client=client)
+    assert (rejected.value.status, rejected.value.message) == (404, "gone")

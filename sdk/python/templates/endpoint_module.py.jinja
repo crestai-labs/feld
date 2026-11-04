@@ -16,6 +16,14 @@ from ...exceptions import expect, operational
 {% from "endpoint_macros.py.jinja" import header_params, cookie_params, query_params,
     arguments, client, kwargs, parse_response, docstring, body_to_kwarg %}
 
+{# Feld: an endpoint that answers with an event stream gets `_get_kwargs` alone; the stream is
+   read as it arrives by `feld.events`. #}
+{% set ns = namespace(streaming=false) %}
+{% for response in endpoint.responses.patterns %}
+{% if response.data.content and "text/event-stream" in response.data.content %}
+{% set ns.streaming = true %}
+{% endif %}
+{% endfor %}
 {% set return_string = endpoint.response_type() %}
 {% set parsed_responses = (endpoint.responses | length > 0) and return_string != PythonCode("Any") %}
 
@@ -71,6 +79,8 @@ def _get_kwargs(
     _kwargs["headers"] = headers
 {% endif %}
     return _kwargs
+
+{% if not ns.streaming %}
 
 {% if endpoint.responses.default %}
     {% set return_type = return_string | as_unembedded_code %}
@@ -167,3 +177,4 @@ async def asyncio(
             {{ kwargs(endpoint) }}
         )
     return cast("{{ ok_type }}", expect(response))
+{% endif %}

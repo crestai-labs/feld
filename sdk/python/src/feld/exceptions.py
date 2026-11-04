@@ -10,6 +10,7 @@ from typing import Any
 
 import httpx
 
+from .errors import UnexpectedStatus
 from .types import Response
 
 
@@ -40,11 +41,14 @@ class FeldOperational(FeldError):
 
 @contextmanager
 def operational() -> Iterator[None]:
-    """Raises the failures of the transport and of reading an answer as `FeldOperational`."""
+    """Raises an error status as `FeldRejected`, and the failures of the transport and of
+    reading an answer as `FeldOperational`."""
     try:
         yield
     except FeldError:
         raise
+    except UnexpectedStatus as error:
+        raise rejection(error.status_code, error.content) from error
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
         raise FeldOperational(str(error) or type(error).__name__) from error
 
@@ -54,10 +58,15 @@ def expect(response: Response[Any]) -> Any:
     status = int(response.status_code)
     if status < 400:
         return response.parsed
-    message = response.content.decode(errors="replace")
+    raise rejection(status, response.content)
+
+
+def rejection(status: int, content: bytes) -> FeldRejected:
+    """The daemon's error answer: its `Error` body, or the text of any other body."""
+    message = content.decode(errors="replace")
     next_step = None
     try:
-        body = json.loads(response.content)
+        body = json.loads(content)
     except ValueError:
         body = None
     if isinstance(body, dict):
@@ -65,4 +74,4 @@ def expect(response: Response[Any]) -> Any:
             message = body["message"]
         if isinstance(body.get("next"), str):
             next_step = body["next"]
-    raise FeldRejected(status, message, next_step)
+    return FeldRejected(status, message, next_step)

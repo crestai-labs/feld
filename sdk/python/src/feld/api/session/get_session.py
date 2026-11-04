@@ -104,6 +104,7 @@ def sync_detailed(
         session (str):
 
     Raises:
+        errors.UnexpectedStatus: If the daemon answers with an undocumented status and Client.raise_on_unexpected_status is True.
         httpx.HTTPError: If the request does not reach an answer.
 
     Returns:
@@ -164,6 +165,7 @@ async def asyncio_detailed(
         session (str):
 
     Raises:
+        errors.UnexpectedStatus: If the daemon answers with an undocumented status and Client.raise_on_unexpected_status is True.
         httpx.HTTPError: If the request does not reach an answer.
 
     Returns:

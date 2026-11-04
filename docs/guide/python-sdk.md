@@ -66,7 +66,7 @@ transcript = get_transcript.sync(client=client, session=session_id, tail=True, l
 stop_session.sync(client=client, session=session_id)
 ```
 
-`asyncio()` takes the same arguments and is awaited. `sync_detailed()` and `asyncio_detailed()` return the status, headers, and body as they came.
+`asyncio()` takes the same arguments and is awaited. `sync_detailed()` and `asyncio_detailed()` return the status, headers, and body as they came. `GET /v1/events` is read with [`feld.events`](#following-changes).
 
 ## Errors
 
@@ -97,6 +97,18 @@ for record in records.follow(client, workspace="feld-dev", kind=RecordKind.SESSI
 ```
 
 To pick up where a program left off, pass the `sequence` of the last record it handled as `after`.
+
+## Following changes
+
+`feld.events.stream()` reads the notifications of [`GET /v1/events`](daemon-api.md#real-time-updates) as they arrive, each an `Event` with the kind of the changed resource and its ID, until the daemon closes the stream. An event carries no values; redo the read it names.
+
+```python
+from feld import events
+
+for event in events.stream(client, workspace="feld-dev"):
+    if event.resource == "message":
+        print("new Message", event.id)
+```
 
 ## Testing
 
