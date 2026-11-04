@@ -104,7 +104,7 @@ function useMetricsView() {
   return { model, view, range: model.metricsRangeFor(view), lanes: model.metricLanesFor(view, compact) };
 }
 
-// The label column: the contents of `.feld-agents__metric-labels`.
+// The label column: the contents of `.feld-agents__metric-labels-pinned`.
 export const MetricLabels = memo(function MetricLabels() {
   const { model, range, lanes } = useMetricsView();
   return (

@@ -1442,9 +1442,13 @@ feld-agents {
   stroke-width: 1.5;
 }
 
+/* The label column keeps the width of the Actor name and the Actor table columns, so the
+   chart starts where the Timeline does, and pins like them as far as
+   --agents-pinned-width allows. Its contents stay at that pinned width from the left edge,
+   so the lane names stay in view. */
 .feld-agents__metric-labels {
   position: sticky;
-  left: 0;
+  left: calc(var(--agents-pinned-width) - var(--agents-identity-width) - var(--agents-details-width));
   z-index: 9;
   width: calc(var(--agents-identity-width) + var(--agents-details-width));
   flex: 0 0 calc(var(--agents-identity-width) + var(--agents-details-width));
@@ -1545,11 +1549,13 @@ feld-agents {
   text-transform: none;
 }
 
-/* The lane name and caption on top, one reading row per Runtime under them. */
-/* A lane label is the lane's name over its readings; where the column has the Actor
-   table's width, the name keeps the Actor name's width and the readings form a table
-   beside it (see the container query below). */
-.feld-agents__metric-labels {
+/* A lane label is the lane's name over its readings; where the pinned labels have the
+   room, the name keeps the Actor name's width and the readings form a table beside it
+   (see the container query below). */
+.feld-agents__metric-labels-pinned {
+  position: sticky;
+  left: 0;
+  width: var(--agents-pinned-width);
   container-type: inline-size;
 }
 
@@ -1662,8 +1668,9 @@ feld-agents {
 }
 
 @container (min-width: 560px) {
+  /* The name gives way before the readings, which keep their table's minimum width. */
   .feld-agents__metric-label {
-    grid-template-columns: calc(var(--agents-identity-width) - 26px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, calc(var(--agents-identity-width) - 26px)) minmax(min-content, 1fr);
     align-items: center;
   }
 
