@@ -15,7 +15,7 @@ Output examples show the human-readable output in its non-TTY form. `--json` out
 - [feld doctor](#feld-doctor)
 - [daemon](#daemon): [start](#feld-daemon-start) / [status](#feld-daemon-status) / [stop](#feld-daemon-stop) / [restart](#feld-daemon-restart)
 - [workspace](#workspace): [list](#feld-workspace-list) / [create](#feld-workspace-create) / [delete](#feld-workspace-delete) / [get](#feld-workspace-get)
-- [actor](#actor): [create](#feld-actor-create) / [update](#feld-actor-update) / [delete](#feld-actor-delete) / [get](#feld-actor-get) / [list](#feld-actor-list) / [start](#feld-actor-start) / [attach](#feld-actor-attach) / [restart](#feld-actor-restart) / [pause](#feld-actor-pause) / [resume](#feld-actor-resume)
+- [actor](#actor): [create](#feld-actor-create) / [update](#feld-actor-update) / [archive](#feld-actor-archive) / [unarchive](#feld-actor-unarchive) / [delete](#feld-actor-delete) / [get](#feld-actor-get) / [list](#feld-actor-list) / [start](#feld-actor-start) / [attach](#feld-actor-attach) / [restart](#feld-actor-restart) / [pause](#feld-actor-pause) / [resume](#feld-actor-resume)
 - [session](#session): [get](#feld-session-get) / [list](#feld-session-list) / [stop](#feld-session-stop) / [kill](#feld-session-kill) / [observe](#feld-session-observe) / [log](#feld-session-log) / [metrics](#feld-session-metrics)
 - [record](#record): [list](#feld-record-list)
 - [message](#message): [send](#feld-message-send) / [delete](#feld-message-delete) / [get](#feld-message-get) / [list](#feld-message-list)
@@ -687,6 +687,46 @@ Actor updated.
   renamed:      reviewer -> reviewer-14
 ```
 
+### feld actor archive
+
+Archives an Actor, keeping its history in view. Rejected if the current Session is running. The name is immediately available for a new Actor, and the Schedule of an archived Job does not fire. The archived Actor can be read with `feld actor get <ID>` and `feld actor list -a --include-archived`, and the Web UI draws it over a range where it has a Session.
+
+```text
+feld actor archive <ACTOR>
+```
+
+**Arguments**
+
+- `<ACTOR>`: Actor name in the Workspace
+
+```console
+$ feld actor archive dev-issue-14
+Actor archived.
+  actor:        dev-issue-14 (agent)
+  id:           actor_51d0a8
+  archived_at:  2026-09-13T12:31:40+09:00
+```
+
+### feld actor unarchive
+
+Makes an archived Actor live again under its name. Rejected while a live Actor holds the name. The Schedule of a Job fires again as declared.
+
+```text
+feld actor unarchive <ID>
+```
+
+**Arguments**
+
+- `<ID>`: Actor ID (`actor_...`)
+
+```console
+$ feld actor unarchive actor_51d0a8
+Actor unarchived.
+  actor:        dev-issue-14 (agent)
+  id:           actor_51d0a8
+  workspace:    default
+```
+
 ### feld actor delete
 
 Soft-deletes an Actor, keeping its history. Rejected if the current Session is running. The name is immediately available for a new Actor, and the deleted Actor can be read with `feld actor get <ID>` and `feld actor list -a --include-deleted`.
@@ -709,7 +749,7 @@ Actor deleted.
 
 ### feld actor get
 
-Shows an Actor's ID, launchSpec, Schedule, and Sessions. A name reads a live Actor; an ID reads any Actor, including deleted ones. Sessions are listed newest first, and the current Session is marked with `*`.
+Shows an Actor's ID, launchSpec, Schedule, and Sessions. A name reads a live Actor; an ID reads any Actor, including archived and deleted ones. Sessions are listed newest first, and the current Session is marked with `*`.
 
 ```text
 feld actor get <ACTOR>
@@ -735,6 +775,7 @@ Actor
   skipped_ticks:    1
   grants:           read,control
   accept_from:      *
+  archived_at:      -
   deleted_at:       -
 Sessions (38)
    GEN  SESSION         START                      START_KIND  OUTCOME
@@ -756,6 +797,7 @@ feld actor list [OPTIONS]
 - `-a`, `--all`: List all Actors
 - `--kind <KIND>`: Limit to `agent` or `job` Actors
 - `--refresh`: Observe each current Session through its Execution Provider before showing
+- `--include-archived`: With `-a`, also list archived Actors and add an `ARCHIVED` column
 - `--include-deleted`: With `-a`, also list deleted Actors and add a `DELETED` column
 
 Each row has the kind; the generation, start kind, outcome, and observation of the current Session, or of the latest Session if there is none; the number of unread Messages (`WAITING`); marks (`mail`, `skip`, `overdue`, `unlinked`); the next run time; grants; and acceptFrom (`*` if omitted, `-` if empty). The order is the same as the Web UI bands (current → attention → others). In `--json`, the current Session of an agent-runtime Session carries the [turn](../spec/concepts/glossary.md#turn) and the last activity time (`turn`, `lastEntryAt`).

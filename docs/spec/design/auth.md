@@ -169,7 +169,7 @@ Operations on other Actors in the same Workspace opened by grants:
 
 - `read`: transcript, output, metrics, records, Message bodies
 - `control`: start, restart, stop, kill
-- `manage-agent` / `manage-job`: creating (including replacing a declaration with the same name), updating (including acceptFrom), and deleting Agents / Jobs that have no grants and no `trustWorkdir`. Operations on Actors that have grants or `trustWorkdir` return 403, preventing escalation by rewriting the launchSpec. That the target's kind is one the grant handles, and that the target has no grants and no `trustWorkdir`, are checked in the same transaction as the write
+- `manage-agent` / `manage-job`: creating (including replacing a declaration with the same name), updating (including acceptFrom), archiving, unarchiving, and deleting Agents / Jobs that have no grants and no `trustWorkdir`. Operations on Actors that have grants or `trustWorkdir` return 403, preventing escalation by rewriting the launchSpec. That the target's kind is one the grant handles, and that the target has no grants and no `trustWorkdir`, are checked in the same transaction as the write
 
 Operations only the Admin token can call (403 for a Session token):
 

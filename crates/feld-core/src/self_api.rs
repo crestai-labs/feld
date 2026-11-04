@@ -347,7 +347,6 @@ mod tests {
             preview: String::new(),
             anchor: "feld:message_f2a9d0".into(),
             waiting: true,
-            archived_at: None,
             deleted_at: None,
         }
     }

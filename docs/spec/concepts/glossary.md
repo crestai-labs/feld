@@ -166,12 +166,15 @@ The default Workspace always exists. `delete` of a Workspace is accepted only fo
 A durable identity that Feld handles. It has `id`, `name`, `kind`, an optional `launchSpec`, for a Job an optional [Schedule](#schedule), [grants](#grants), and an optional [acceptFrom](#acceptfrom); it holds no execution state.
 
 - `id`: An opaque, immutable ID assigned by Feld. Sessions, Messages, and records reference Actors by `id`, and display resolves it to `name`
-- `name`: A name unique among live Actors in the Workspace. Matches `^[a-z0-9][a-z0-9-]*$`. It can be changed with `update`, and history and the mailbox referenced by `id` appear under the new name
+- `name`: A name unique among live Actors (neither archived nor deleted) in the Workspace. Matches `^[a-z0-9][a-z0-9-]*$`. It can be changed with `update`, and history and the mailbox referenced by `id` appear under the new name
+- `archivedAt`: The time of archive. Cleared by `unarchive`
 - `deletedAt`: The time of soft delete
 
 [Sessions](#session) carry the actual execution, and the Actor is the permanent principal that groups them. Every Actor has a [mailbox](#mailbox) and exactly one current Session slot.
 
 `create` against a live Actor of the same name replaces the declaration while keeping the same `id`, and keeps grants and, if not given, acceptFrom. Changing an Actor's `name` and `delete` are accepted only when the current Session is not running. A deleted Actor leaves the targets of `start` and of Message recipients, and also leaves the `name` uniqueness constraint. `create` with the same `name` makes a separate Actor with a new `id`, and a deleted Actor's history is traced with `get` by its `id`.
+
+`archive` puts away an Actor while keeping its history in view. It is accepted only when the current Session is not running. An archived Actor leaves the targets of `start`, of Message recipients, and of Schedule ticks, and leaves the `name` uniqueness constraint, as a deleted one does. `list` includes archived Actors on request, and the Timeline draws an archived Actor over a range where it has a Session. `unarchive` makes an archived Actor of a live Workspace live again by its `id`, while no live Actor holds its `name`; its Schedule fires again as declared.
 
 #### kind
 

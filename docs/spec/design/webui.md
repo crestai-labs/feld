@@ -19,7 +19,7 @@ The daemon serves the Actors page at `/ui/`, the Settings page at `/ui/settings`
 
 ## Reading a range
 
-For the displayed range, the Actors page separately reads the Actor list per Workspace, `GET /v1/sessions`, `GET /v1/sessions/{sessionId}` and metrics per Session, the Timeline records, and Messages, and draws each as it arrives. It reads the Actor list first and draws the bands, then adds each Session's Sub Agent Sessions and metrics as they arrive. A Sub Agent Session is drawn when the part from the parent Session's start onward overlaps the range ([Timeline](../../guide/webui.md#timeline)).
+For the displayed range, the Actors page separately reads the Actor list per Workspace, `GET /v1/sessions`, `GET /v1/sessions/{sessionId}` and metrics per Session, the Timeline records, and Messages, and draws each as it arrives. The Actor list includes the archived Actors, and an archived Actor's band is drawn when one of its Sessions overlaps the range. It reads the Actor list first and draws the bands, then adds each Session's Sub Agent Sessions and metrics as they arrive. A Sub Agent Session is drawn when the part from the parent Session's start onward overlaps the range ([Timeline](../../guide/webui.md#timeline)).
 
 When the Console draws a Message record, it reads that Message once with `GET /v1/messages/{message}` and shows the full body. Until that arrives, it shows the list's `preview`.
 
