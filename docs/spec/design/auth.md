@@ -168,7 +168,7 @@ Lists and SSE of Workspaces, Sessions, and records are narrowed to the Session's
 Operations on other Actors in the same Workspace opened by grants:
 
 - `read`: transcript, output, metrics, records, Message bodies
-- `control`: start, restart, stop, kill
+- `control`: start, restart, stop, kill, and pausing / resuming a Job's Schedule (an update that changes only `schedule.enabled`). Pausing and resuming leave the launchSpec as it is, so they are allowed on Jobs with grants or `trustWorkdir` too
 - `manage-agent` / `manage-job`: creating (including replacing a declaration with the same name), updating (including acceptFrom), and deleting Agents / Jobs that have no grants and no `trustWorkdir`. Operations on Actors that have grants or `trustWorkdir` return 403, preventing escalation by rewriting the launchSpec. That the target's kind is one the grant handles, and that the target has no grants and no `trustWorkdir`, are checked in the same transaction as the write
 
 Operations only the Admin token can call (403 for a Session token):

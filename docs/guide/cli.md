@@ -881,7 +881,7 @@ Restart accepted and committed.
 
 ### feld actor pause
 
-Sets `enabled` of a Job's Schedule to `false` to stop its ticks. No tick fires until `feld actor resume`, and the running Session is left untouched. A Job without a Schedule is rejected with ``Actor '<job>' has no Schedule; add one with `feld actor update <job> --cron ...` ``.
+Sets `enabled` of a Job's Schedule to `false` to stop its ticks. No tick fires until `feld actor resume`, and the running Session is left untouched. A Job without a Schedule is rejected with ``Actor '<job>' has no Schedule; add one with `feld actor update <job> --cron ...` ``. A Session whose Actor has the `control` grant can pause any Job in its Workspace, including one with grants.
 
 ```text
 feld actor pause <ACTOR>

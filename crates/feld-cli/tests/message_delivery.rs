@@ -403,6 +403,110 @@ fn trust_workdir_is_given_by_the_admin_alone() {
     assert_eq!(trusts("trusted"), true);
 }
 
+/// `control` pauses and resumes the Schedule of a Job, even one with grants, while every other
+/// change to such a Job stays the Admin's.
+#[test]
+fn control_pauses_and_resumes_a_job_with_grants() {
+    let fixture = Fixture::new();
+    fixture.start();
+    fixture.create_job("lead", true);
+    let socket = fixture.socket.to_str().unwrap().to_owned();
+    fixture.json(&[
+        "actor",
+        "create",
+        "dispatcher",
+        "--kind",
+        "job",
+        "--cron",
+        "0 9 * * *",
+        "--grant",
+        "read",
+        "--tmux-socket",
+        &socket,
+        "--json",
+        "--",
+        "sleep",
+        "60",
+    ]);
+    let (_, token) = fixture.current_token("lead");
+    let as_session = |arguments: &[&str]| {
+        fixture
+            .command()
+            .env("FELD_SESSION_TOKEN", &token)
+            .args(arguments)
+            .output()
+            .unwrap()
+    };
+    let refused = |arguments: &[&str], expected: &str| {
+        let output = as_session(arguments);
+        assert_eq!(output.status.code(), Some(1), "{arguments:?}");
+        let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+        assert_eq!(error["error"]["kind"], "rejected");
+        let message = error["error"]["message"].as_str().unwrap().to_owned();
+        assert!(message.contains(expected), "{message}");
+    };
+    let enabled = || {
+        fixture.json(&["actor", "get", "dispatcher", "--json"])["actor"]["schedule"]["enabled"]
+            .clone()
+    };
+    let pause = ["actor", "pause", "dispatcher", "--json"];
+    let resume = ["actor", "resume", "dispatcher", "--json"];
+
+    refused(&pause, "`control`");
+    fixture.json(&["actor", "update", "lead", "--grant", "control", "--json"]);
+    let paused = successful_json(&pause, as_session(&pause));
+    assert_eq!(paused["actor"]["schedule"]["enabled"], false);
+    assert_eq!(enabled(), false);
+    let resumed = successful_json(&resume, as_session(&resume));
+    assert_eq!(resumed["actor"]["schedule"]["enabled"], true);
+
+    // The cron, the timezone and the launchSpec stay the Admin's, alone or with `enabled`.
+    refused(
+        &[
+            "actor",
+            "update",
+            "dispatcher",
+            "--cron",
+            "0 10 * * *",
+            "--json",
+        ],
+        "manage-job",
+    );
+    let (api, _) = fixture.api();
+    let patched = Client::new()
+        .patch(format!("{api}/v1/workspaces/default/actors/dispatcher"))
+        .bearer_auth(&token)
+        .json(&json!({"schedule": {"enabled": false, "cron": "0 10 * * *"}}))
+        .send()
+        .unwrap();
+    assert_eq!(patched.status(), reqwest::StatusCode::FORBIDDEN);
+    refused(&["actor", "delete", "dispatcher", "--json"], "manage-job");
+    fixture.json(&[
+        "actor",
+        "update",
+        "lead",
+        "--grant",
+        "control",
+        "--grant",
+        "manage-job",
+        "--json",
+    ]);
+    refused(
+        &[
+            "actor",
+            "update",
+            "dispatcher",
+            "--cron",
+            "0 10 * * *",
+            "--json",
+        ],
+        "only with the local token or a browser token",
+    );
+    let schedule = &fixture.json(&["actor", "get", "dispatcher", "--json"])["actor"]["schedule"];
+    assert_eq!(schedule["cron"], "0 9 * * *");
+    assert_eq!(schedule["enabled"], true);
+}
+
 /// Errors answer as `Error`: a Session token on a local-token operation is the wrong kind of
 /// token, the caller is told apart before the request is read, and a boolean query parameter
 /// without a value is true.

@@ -188,7 +188,8 @@ impl Store {
     }
 
     /// [`Self::update_actor`] by `writer`, which also takes the rename of the patch. A Session
-    /// changes no Actor with grants or `trustWorkdir`.
+    /// changes no Actor with grants or `trustWorkdir`, except that [`Writer::Control`] pauses
+    /// and resumes the Schedule of any Job.
     pub fn update_actor_as(
         &self,
         workspace: &str,
@@ -211,7 +212,9 @@ impl Store {
                     actor: name.to_owned(),
                 }
             })?;
-            writer.check(transaction, Some(&current.id), current.kind, name)?;
+            if !(writer == Writer::Control && patch.toggles_only()) {
+                writer.check(transaction, Some(&current.id), current.kind, name)?;
+            }
             let at = now();
             let rename = rename.filter(|rename| *rename != name);
             if let Some(rename) = rename {
@@ -338,6 +341,9 @@ pub enum Writer {
         agents: bool,
         jobs: bool,
     },
+    /// A Session with `control`, which only pauses and resumes the Schedule of a Job, whatever
+    /// grants or `trustWorkdir` the Job has: the launchSpec it runs stays as it is.
+    Control,
 }
 
 impl Writer {
@@ -349,6 +355,7 @@ impl Writer {
                 ActorKind::Agent => agents,
                 ActorKind::Job => jobs,
             },
+            Writer::Control => false,
         }
     }
 
@@ -367,7 +374,7 @@ impl Writer {
                 kind,
             });
         }
-        let (Writer::Session { .. }, Some(id)) = (self, id) else {
+        let (Writer::Session { .. } | Writer::Control, Some(id)) = (self, id) else {
             return Ok(());
         };
         let (grants, launch_spec): (String, Option<String>) = transaction
@@ -403,6 +410,17 @@ pub struct ActorPatch<'a> {
     pub schedule: Option<&'a SchedulePatch>,
     pub grants: Option<&'a BTreeSet<Grant>>,
     pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+}
+
+impl ActorPatch<'_> {
+    /// Whether the patch changes only the `enabled` of the Schedule: a pause or a resume.
+    pub fn toggles_only(&self) -> bool {
+        self.rename.is_none()
+            && self.launch.is_none()
+            && self.grants.is_none()
+            && self.accept_from.is_none()
+            && self.schedule.is_some_and(SchedulePatch::toggles_only)
+    }
 }
 
 /// A launchSpec an update writes: the one resolved from the patch, and the one it was
