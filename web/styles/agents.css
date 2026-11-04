@@ -1668,8 +1668,9 @@ feld-agents {
 }
 
 @container (min-width: 560px) {
+  /* The name gives way before the readings, which keep their table's minimum width. */
   .feld-agents__metric-label {
-    grid-template-columns: calc(var(--agents-identity-width) - 26px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, calc(var(--agents-identity-width) - 26px)) minmax(min-content, 1fr);
     align-items: center;
   }
 
