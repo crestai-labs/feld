@@ -117,8 +117,8 @@ pub enum Command {
 /// A terminal is asked which of the bundled Plugins to install, and `--runtime`, `--provider`,
 /// and `--yes` answer in its place. Without an answer, the Plugins checked are the installed
 /// ones, else those whose products (claude, codex, tmux, herdr) are on PATH, with claude-code
-/// when no Runtime is there. With no Provider on PATH, none named, and none installed, nothing
-/// is installed and the run ends with exit 1. The list confirms with a check in each kind.
+/// when no Runtime is there. The process Provider needs no product, so every run installs it
+/// without listing it. The list confirms with a check in each kind.
 /// The directory of every chosen Plugin is written again, and an installed Plugin left out
 /// stays as it is. A daemon reads its Plugins at start, so
 /// `feld daemon restart` puts the new ones to work.
@@ -944,7 +944,7 @@ pub struct LaunchArgs {
     /// Environment variable the Session starts in, as KEY=VALUE; repeat for more. On update, the given ones replace every declared variable
     #[arg(long = "env", value_name = "KEY=VALUE", value_parser = parse_env_variable)]
     pub env: Vec<(String, String)>,
-    /// Execution Provider that places the Session, tmux or herdr [default: the Provider an option names, else the one this CLI runs in, else the only installed one]
+    /// Execution Provider that places the Session, tmux, herdr, or process (Jobs only) [default: the Provider an option names, else process for a Job, else the one this CLI runs in, else the only installed one besides process]
     #[arg(long, value_name = "PROVIDER")]
     pub provider: Option<String>,
     /// Node the Session runs on [default: local]

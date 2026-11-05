@@ -38,7 +38,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub use choice::{ProviderChoiceError, choose_provider};
+pub use choice::{ProviderChoiceError, choose_provider, terminal_providers};
 pub use manifest::{Manifest, PluginKind};
 pub use refusal::{
     default_init, none_installed, not_installed, provider_not_installed, runtime_not_installed,
@@ -59,6 +59,10 @@ use protocol::{
 /// The Nodes a Placement can name. Every installed Provider places on the local Node until
 /// a Provider reports the Nodes it reaches.
 pub const NODES: &[&str] = &["local"];
+
+/// The Execution Provider that runs a command as an OS process without a terminal, which a Job
+/// takes when it names none.
+pub const PROCESS_PROVIDER: &str = "process";
 
 /// The default shipped Plugins of each kind, which the `feld init` a missing kind is
 /// pointed to places.

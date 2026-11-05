@@ -60,7 +60,13 @@ async fn create(
         ActorKind::Agent => !args.no_start,
         ActorKind::Job => args.start,
     };
-    let (launch, caller) = resolve_launch(args.launch, options, &daemon.providers, &registry)?;
+    let (launch, caller) = resolve_launch(
+        args.launch,
+        args.kind,
+        options,
+        &daemon.providers,
+        &registry,
+    )?;
     let created: ActorResponse = daemon
         .post_json(
             &actors_path(workspace),

@@ -545,6 +545,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "feld-plugin-process"
+version = "0.2.1"
+dependencies = [
+ "feld-core",
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "feld-plugin-tmux"
 version = "0.2.1"
 dependencies = [

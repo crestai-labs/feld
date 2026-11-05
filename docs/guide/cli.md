@@ -107,7 +107,6 @@ Errors print `Error: <cause>` to standard error, and when a next step can be giv
 |---|---|
 | The daemon is not running (including `feld ui`) | `feld daemon start` (`feld init` if there is no Feld home) |
 | In `feld init`, a bundled Plugin's executable is not next to `feld` | Reinstall Feld, putting `feld` and `feld-plugin-<name>` in the same directory |
-| In `feld init`, neither tmux nor herdr is on PATH | Install tmux or herdr |
 | When starting a Session, the Provider (`tmux`, `herdr`) or Runtime (`claude`, `codex`) executable is not on the daemon's PATH (the daemon rejects with 409) | Install it (and log in, for a Runtime), or use another Provider |
 | The Workspace does not exist | `feld workspace create <key>` (list with `feld workspace list`) |
 | `feld actor attach --self` cannot find the pane running the Runtime (outside a pane, the foreground is not the Runtime, the Provider cannot be narrowed to one) | Run it inside the pane running the Runtime, and `feld doctor` |
@@ -125,7 +124,7 @@ feld init [OPTIONS]
 **Options**
 
 - `--runtime <NAME>`: Runtime Adapter to install. `claude-code` or `codex`. Can be given multiple times
-- `--provider <NAME>`: Execution Provider to install. `tmux` or `herdr`. Can be given multiple times
+- `--provider <NAME>`: Execution Provider to install. `tmux` or `herdr`. Can be given multiple times. `process` needs no product and every `feld init` installs it
 - `-y, --yes`: Without asking, install the Plugins found on PATH, consent to changing the Runtime config and appending to the shell config file, and start the daemon
 
 On a TTY, it prints the `∿ Feld v0.2.1` wordmark first and stacks the steps along a `│` rule. Only the step being answered is open with `◆`; answered steps collapse to a single `◇ heading  answer` line. Steps that need no question appear collapsed from the start. The final `└` line shows whether Feld is ready (`✓` / `✗`) and the next step.
@@ -154,7 +153,7 @@ When not on a TTY, it prints the collapsed form as plain `key: value`.
 $ feld init --yes | cat
 Feld v0.2.1
 Feld home:   /Users/alice/.feld
-Plugins:     runtimes: claude-code  providers: tmux
+Plugins:     runtimes: claude-code  providers: process, tmux
 Claude Code: prepared · otelHeadersHelper replaced · statusLine chained
 Shell:       added eval "$(feld env)" to /Users/alice/.zshrc
 Daemon:      started · pid 48213 · http://127.0.0.1:7381
@@ -172,7 +171,7 @@ Feld is ready.
 The **detected set** is the bundled Plugins whose corresponding executable is found on the machine's PATH. The executables are `claude` for `claude-code`, `codex` for `codex`, `tmux` for `tmux`, and `herdr` for `herdr`.
 
 - When no Runtime is found, the detected Runtime is `claude-code`, and a `note:` line under `Feld is ready.` says that `claude` was not found on PATH
-- When no Provider is found and there is neither `--provider` nor an installed Provider, init installs nothing and ends with exit code 1 and an error guiding the user to install tmux or herdr. This is decided before asking, so it is the same on a TTY and with `--yes`
+- `process` connects no product, so it is out of the list and every init installs it. On a machine without tmux or herdr, Jobs run on it
 
 On a TTY, it asks with a list headed per kind. `↑` `↓` move between items, `Space` toggles a check, and `Enter` confirms. The initial checks are the installed Plugins, or the detected set if none are installed yet. `Enter` confirms when each kind being asked has at least one check; when a kind has none, a line under its heading asks to choose at least one and the list stays open. `Ctrl-C`, `Ctrl-D`, `Esc`, and `q` close the list and end with exit code 1 without installing anything.
 
@@ -320,12 +319,12 @@ Each line shows the result (`ok` / `warn` / `fail`), the check name, and the det
 
 ```console
 $ feld doctor
-ok    executables       feld 0.2.1 · feld-plugin-claude-code, codex, tmux, herdr 0.2.1 · /Users/alice/.local/bin
-ok    home              /Users/alice/.feld · runtimes: claude-code · providers: tmux
+ok    executables       feld 0.2.1 · feld-plugin-claude-code, codex, tmux, herdr, process 0.2.1 · /Users/alice/.local/bin
+ok    home              /Users/alice/.feld · runtimes: claude-code · providers: process, tmux
 ok    store             schema 15
 fail  daemon            not running · port 7381 is in use on 127.0.0.1
         next:  stop the process that holds port 7381 (`lsof -nP -iTCP:7381 -sTCP:LISTEN` names it), or run `feld daemon start --port <N>`
-ok    provider          tmux 3.6a
+ok    provider          process · tmux 3.6a
 ok    runtime           claude 2.1.289 (Claude Code)
 ok    runtime-settings  claude-code: prepared
 ok    sandbox           codex is not installed
@@ -343,7 +342,7 @@ warn  release           feld 0.3.0 is released · this is 0.2.1
 | `home` | `FELD_HOME` exists and is writable, at least one Runtime Adapter and one Execution Provider are installed, and the installed bundled Plugins have the same version as `feld` (`--version` is asked only when the contents differ from the executable next to `feld`) | — | `FELD_HOME` is missing or not writable, a kind has no installed Plugin, an installed bundled Plugin's version differs from `feld`, or the version is not reported (`next:` is `feld init`) |
 | `store` | If the daemon answers status, the store is left to the daemon that opened it on startup and is not read. If the daemon is stopped, the store is opened read-only as immutable (without creating `-wal` and `-shm`) to see whether the schema is readable and its version. If there is no store, the daemon creates it on startup, and the daemon migrates older versions on startup | The process holding the daemon lock does not answer (not checked), or the daemon is stopped and `-wal` holds writes the daemon has not read back (reading would write `-shm`, so it is not checked; `next:` is `feld daemon start`) | Unreadable, or a version the daemon cannot migrate (`next:` is to move the store aside and start fresh) |
 | `daemon` | Whether the daemon is running and its version matches `feld`. If stopped, whether the Port startup would use (the Port determined by steps 1–3 of [`feld daemon start`](#feld-daemon-start)) is free | Stopped (`next:` is `feld daemon start`) | The Port startup would use is in use, the daemon does not respond, or the daemon's version differs from `feld` (`next:` is `feld init`) |
-| `provider` | The executables of the installed bundled Execution Providers (`tmux`, `herdr`) are on PATH and report a version | The version is not reported | The executable is not on PATH, or the version is older than the lower bound of the [supported versions](../spec/design/plugin.md#supported-versions) (`next:` is to install a version at or above the lower bound) |
+| `provider` | The executables of the installed bundled Execution Providers (`tmux`, `herdr`) are on PATH and report a version. `process` needs none | The version is not reported | The executable is not on PATH, or the version is older than the lower bound of the [supported versions](../spec/design/plugin.md#supported-versions) (`next:` is to install a version at or above the lower bound) |
 | `runtime` | The executables of the installed bundled Runtime Adapters (`claude`, `codex`) are on PATH and report a version | The executable is not on PATH, the version is not reported, or the version is older than the lower bound of the [supported versions](../spec/design/plugin.md#supported-versions) (`next:` is to install a version at or above the lower bound) | — |
 | `runtime-settings` | Calls `prepare` of the installed Runtime Adapters with `apply: false` to see whether the Runtime config root has `feld init`'s preparation (skill, hooks, and so on) complete and at the current version | Incomplete (`next:` is `feld init --runtime <name>`), or `prepare` does not answer | — |
 | `sandbox` | When the Codex Runtime Adapter and a tmux or herdr Provider are installed, `sandbox_workspace_write.network_access` in Codex's `config.toml` ([the sandbox hole](../spec/design/spool.md#the-sandbox-hole)) | It is `true` (`next:` is to set it to `false`), or `config.toml` cannot be read | — |
@@ -438,7 +437,7 @@ Daemon
   otlp:       http://127.0.0.1:4318
   timezone:   Asia/Tokyo
   runtimes:   claude-code
-  providers:  tmux, herdr
+  providers:  herdr, process, tmux
   nodes:      local
   scheduler:  woke 2026-09-13T11:43:00+09:00 · restarts 0
   ticks:      default/dispatcher 2026-09-13T12:13:00+09:00
@@ -1363,9 +1362,10 @@ feld provider list
 
 ```console
 $ feld provider list
-NAME   LABEL  NODES  RUNNING_SESSIONS
-tmux   tmux   local  3
-herdr  herdr  local  1
+NAME     LABEL    NODES  RUNNING_SESSIONS
+herdr    herdr    local  1
+process  process  local  2
+tmux     tmux     local  3
 ```
 
 ## self
@@ -1552,7 +1552,7 @@ Accepted by `actor create` and `actor update`. What runs is either `--runtime` (
 - `--no-trust-workdir`: Remove `trustWorkdir` in `actor update`
 - `--workdir <PATH>`: The Session's working directory. A relative path resolves from the current directory. Default the current directory. Validated before declaring; if it is not an existing, enterable directory on the `local` node, it is rejected without declaring anything
 - `--env <KEY=VALUE>`: An environment variable added to the Session's launch environment. Repeat to give several. In `actor update`, the given set of variables replaces the whole set. Variables Feld sets (such as `FELD_*`) and the Runtime's settings (Claude Code's `runtimeSettings.env`, Codex's `runtimeSettings.shell_environment_policy.set`) take precedence over values with the same name. Output such as `actor get` shows only variable names; `--json` shows the values
-- `--provider <PROVIDER>`: The [Execution Provider](../spec/concepts/glossary.md#execution-provider) that hosts the Session. `tmux` or `herdr`. Default the one the Provider options point to, else the Provider the CLI runs in, else the only installed Provider
+- `--provider <PROVIDER>`: The [Execution Provider](../spec/concepts/glossary.md#execution-provider) that hosts the Session. `tmux`, `herdr`, or `process`. Default the one the Provider options point to, else `process` for a Job, else the Provider the CLI runs in, else the only installed Provider other than `process`. `process` runs the command without a terminal ([process](../spec/design/provider/process.md)), so an Agent is rejected on it
 - `--node <NODE>`: The Node that runs the Session. Default `local`
 - `--<provider>-<key> <VALUE>`: Provider-specific choices. The CLI passes the key without the prefix and the value to the Provider as is, as `providerOptions`. The Provider defines the choices and their defaults, and omitted choices are filled from the caller's environment at declaration time ([tmux](../spec/design/provider/tmux.md#resolving-the-three-axes), [herdr](../spec/design/provider/herdr.md#resolving-the-three-axes)). Feld decides the Session's Placement from these at launch
 
@@ -1570,6 +1570,10 @@ Accepted by `actor create` and `actor update`. What runs is either `--runtime` (
 - `--herdr-workspace <ID>`: The existing workspace in which `--herdr-unit tab` creates a tab
 - `--herdr-pane <ID>`: The existing pane that `--herdr-unit pane` splits
 - `--herdr-split <right|down>`: The split direction of `--herdr-unit pane`. Default `right`
+
+**process**
+
+Takes no options.
 
 ## Internal commands
 

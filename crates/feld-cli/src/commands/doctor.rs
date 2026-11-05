@@ -529,26 +529,30 @@ fn products(home: &FeldHome, kind: PluginKind, installed: &Registry) -> Check {
             ));
             continue;
         };
-        let Some(path) = on_path(plugin.command) else {
+        let Some(product) = &plugin.product else {
+            items.push(plugin.name.to_owned());
+            continue;
+        };
+        let Some(path) = on_path(product.command) else {
             verdict = verdict.max(missing_verdict);
-            items.push(format!("{} is not on PATH", plugin.command));
+            items.push(format!("{} is not on PATH", product.command));
             next.push(plugin.install_next());
             continue;
         };
-        let Some(line) = version_line(&path, plugin.version_args) else {
+        let Some(line) = version_line(&path, product.version_args) else {
             verdict = verdict.max(Verdict::Warn);
-            items.push(format!("{} answers no version", plugin.command));
+            items.push(format!("{} answers no version", product.command));
             next.push(format!(
                 "check that `{} {}` runs",
-                plugin.command,
-                plugin.version_args.join(" ")
+                product.command,
+                product.version_args.join(" ")
             ));
             continue;
         };
-        let shown = if line.starts_with(plugin.command) {
+        let shown = if line.starts_with(product.command) {
             line.clone()
         } else {
-            format!("{} {line}", plugin.command)
+            format!("{} {line}", product.command)
         };
         if let Some(problem) = plugin.unsupported(&line) {
             verdict = verdict.max(missing_verdict);
@@ -556,7 +560,7 @@ fn products(home: &FeldHome, kind: PluginKind, installed: &Registry) -> Check {
             next.push(format!(
                 "install {} {} or later",
                 plugin.label(),
-                plugin.oldest
+                product.oldest
             ));
             continue;
         }

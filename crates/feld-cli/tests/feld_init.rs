@@ -362,7 +362,7 @@ fn init_installs_what_feld_ships_and_the_daemon_lists_it() {
     let printed = fixture.succeeds(&["init", "--yes"]);
     assert!(
         printed.starts_with(&format!(
-            "Feld v{}\nFeld home:   {}\nPlugins:     runtimes: claude-code  providers: tmux\nClaude Code: prepared\nShell:       added eval \"$(feld env)\" to {}\nDaemon:      started \u{b7} pid ",
+            "Feld v{}\nFeld home:   {}\nPlugins:     runtimes: claude-code  providers: process, tmux\nClaude Code: prepared\nShell:       added eval \"$(feld env)\" to {}\nDaemon:      started \u{b7} pid ",
             env!("CARGO_PKG_VERSION"),
             fixture.home().display(),
             zshrc.display()
@@ -428,10 +428,10 @@ fn init_installs_what_feld_ships_and_the_daemon_lists_it() {
     assert!(!shown.contains("code"), "{shown}");
     let status = fixture.json(&["--json", "daemon", "status"]);
     assert_eq!(names(&status["runtimes"]), ["claude-code"]);
-    assert_eq!(names(&status["providers"]), ["tmux"]);
+    assert_eq!(names(&status["providers"]), ["process", "tmux"]);
     let human = fixture.succeeds(&["daemon", "status"]);
     assert!(human.contains("runtimes:   claude-code"), "{human}");
-    assert!(human.contains("providers:  tmux"), "{human}");
+    assert!(human.contains("providers:  process, tmux"), "{human}");
 
     // With a daemon running, the Plugin directories take effect on a restart, which
     // `--yes` makes; `--json` leaves the daemon alone and names the restart.
@@ -754,24 +754,42 @@ fn a_plugin_outside_the_default_is_installed_when_the_answer_names_it() {
     ]);
     assert_eq!(
         chosen["chosen"],
-        serde_json::json!(["claude-code", "tmux", "herdr"])
+        serde_json::json!(["claude-code", "tmux", "herdr", "process"])
     );
     assert!(is_complete(&fixture.plugin_dir("provider", "herdr")));
-    assert_eq!(names(&chosen["providers"]), ["herdr", "tmux"]);
+    assert_eq!(names(&chosen["providers"]), ["herdr", "process", "tmux"]);
 
     let started = fixture.json(&["--json", "daemon", "start"]);
     assert_eq!(started["daemon"]["state"], "running");
     let status = fixture.json(&["--json", "daemon", "status"]);
-    assert_eq!(names(&status["providers"]), ["herdr", "tmux"]);
+    assert_eq!(names(&status["providers"]), ["herdr", "process", "tmux"]);
     let human = fixture.succeeds(&["daemon", "status"]);
-    assert!(human.contains("providers:  herdr, tmux"), "{human}");
+    assert!(
+        human.contains("providers:  herdr, process, tmux"),
+        "{human}"
+    );
 
-    // With two Providers installed and nothing to tell them apart, a creation is refused.
-    let refused = fixture.feld(&["actor", "create", "one", "--kind", "job", "--", "true"]);
+    // A Job takes the process Provider. With two Providers that give a terminal and nothing
+    // to tell them apart, an Agent is refused, and the next step names those two.
+    let job = fixture.json(&[
+        "--json", "actor", "create", "one", "--kind", "job", "--", "true",
+    ]);
+    assert_eq!(job["actor"]["launchSpec"]["provider"], "process");
+    let refused = fixture.feld(&[
+        "actor",
+        "create",
+        "agent",
+        "--kind",
+        "agent",
+        "--runtime",
+        "claude-code",
+        "--no-start",
+    ]);
     assert!(!refused.status.success());
     let reason = String::from_utf8_lossy(&refused.stderr);
     assert!(
-        reason.contains("which Execution Provider"),
+        reason.contains("which Execution Provider")
+            && reason.contains("add `--provider herdr` or `--provider tmux`"),
         "{reason}{}",
         String::from_utf8_lossy(&refused.stdout)
     );
@@ -809,21 +827,28 @@ fn a_plugin_outside_the_default_is_installed_when_the_answer_names_it() {
 fn each_kind_takes_its_own_answer_and_keeps_what_the_answer_leaves_out() {
     let fixture = Fixture::new();
 
-    // A flag is the answer for its kind, and the kind it says nothing about stays empty.
+    // A flag is the answer for its kind, and of the kind it says nothing about only what
+    // needs no product is installed.
     let runtime_only = fixture.json(&["--json", "init", "--runtime", "claude-code"]);
-    assert_eq!(runtime_only["chosen"], serde_json::json!(["claude-code"]));
+    assert_eq!(
+        runtime_only["chosen"],
+        serde_json::json!(["claude-code", "process"])
+    );
     assert_eq!(names(&runtime_only["runtimes"]), ["claude-code"]);
-    assert!(names(&runtime_only["providers"]).is_empty());
+    assert_eq!(names(&runtime_only["providers"]), ["process"]);
     assert!(!fixture.plugin_dir("provider", "tmux").exists());
-    assert_eq!(runtime_only["next"], "feld init --provider tmux");
+    assert_eq!(runtime_only["next"], "feld daemon start");
 
     // The next answer installs the other kind, and leaves the installed one alone.
     let stale = fixture.plugin_dir("runtime", "claude-code").join("stale");
     fs::write(&stale, "from an older Feld").unwrap();
     let provider_only = fixture.json(&["--json", "init", "--provider", "tmux"]);
-    assert_eq!(provider_only["chosen"], serde_json::json!(["tmux"]));
+    assert_eq!(
+        provider_only["chosen"],
+        serde_json::json!(["tmux", "process"])
+    );
     assert_eq!(names(&provider_only["runtimes"]), ["claude-code"]);
-    assert_eq!(names(&provider_only["providers"]), ["tmux"]);
+    assert_eq!(names(&provider_only["providers"]), ["process", "tmux"]);
     assert!(
         stale.is_file(),
         "a Plugin the answer left out is kept as it is"
@@ -846,56 +871,79 @@ fn each_kind_takes_its_own_answer_and_keeps_what_the_answer_leaves_out() {
 }
 
 /// A kind with nothing installed reads as `(none)`, and each step names the `feld init`
-/// that places the kind's default.
+/// that places the kind's default. The process Provider needs no product, so the Providers
+/// always hold it, and an Agent that needs a terminal names the `feld init` of one.
 #[test]
 fn a_kind_with_nothing_installed_names_the_init_that_places_it() {
     let fixture = Fixture::new();
     let printed = fixture.succeeds(&["init", "--runtime", "codex"]);
     assert!(
-        printed.ends_with(
-            "Plugins:     runtimes: codex  providers: (none)\nCodex:       prepared\nFeld is not ready.\n  next:  feld init --provider tmux\n"
-        ),
+        printed.contains("Plugins:     runtimes: codex  providers: process\n"),
         "{printed}"
     );
-    let started = fixture.succeeds(&["daemon", "start"]);
-    assert!(started.contains("  providers:  (none)"), "{started}");
-    assert!(!started.contains("  runtimes:"), "{started}");
+    fixture.succeeds(&["daemon", "start"]);
     let status = fixture.succeeds(&["daemon", "status"]);
     assert!(
-        status.contains("  runtimes:   codex\n  providers:  (none)"),
+        status.contains("  runtimes:   codex\n  providers:  process"),
         "{status}"
     );
 
-    // The CLI refuses a creation or an attach it cannot place, and the daemon refuses a named
-    // Provider.
-    let guidance = "No Execution Providers are installed; run `feld init --provider tmux`";
-    for arguments in [
-        &["actor", "create", "one", "--kind", "job", "--", "true"][..],
-        &[
-            "actor",
-            "create",
-            "one",
-            "--kind",
-            "job",
-            "--provider",
-            "tmux",
-            "--",
-            "true",
-        ][..],
-        &[
-            "actor",
-            "attach",
-            "a1",
-            "--runtime",
-            "codex",
-            "--tmux-pane",
-            "%0",
-        ][..],
+    // A Job runs on the process Provider; an Agent and an attach need a terminal, and a
+    // named Provider must be installed.
+    let job = fixture.json(&[
+        "--json", "actor", "create", "one", "--kind", "job", "--", "true",
+    ]);
+    assert_eq!(job["actor"]["launchSpec"]["provider"], "process", "{job}");
+    for (arguments, guidance) in [
+        (
+            &[
+                "actor",
+                "create",
+                "two",
+                "--kind",
+                "agent",
+                "--runtime",
+                "codex",
+            ][..],
+            "no Execution Provider that gives an Agent a terminal is installed; run `feld init --provider tmux`",
+        ),
+        (
+            &[
+                "actor",
+                "create",
+                "two",
+                "--kind",
+                "agent",
+                "--runtime",
+                "codex",
+                "--provider",
+                "process",
+            ][..],
+            "the process Provider runs a command without a terminal",
+        ),
+        (
+            &[
+                "actor",
+                "create",
+                "two",
+                "--kind",
+                "job",
+                "--provider",
+                "tmux",
+                "--",
+                "true",
+            ][..],
+            "provider 'tmux' is not installed",
+        ),
+        (
+            &["actor", "attach", "a1", "--runtime", "codex"][..],
+            "no Execution Provider that gives an Agent a terminal is installed",
+        ),
     ] {
         let refused = fixture.feld(arguments);
-        assert_eq!(refused.status.code(), Some(1));
+        assert_eq!(refused.status.code(), Some(1), "{arguments:?}");
         let reason = String::from_utf8_lossy(&refused.stderr);
-        assert!(reason.contains(guidance), "{reason}");
+        assert!(reason.contains(guidance), "{arguments:?}: {reason}");
     }
 
     let providers_only = Fixture::new();
@@ -962,7 +1010,9 @@ fn a_re_run_marks_what_it_left_installed_as_kept() {
 
     let printed = fixture.succeeds(&["init", "--runtime", "codex", "--provider", "tmux"]);
     assert!(
-        printed.contains("Plugins:     runtimes: claude-code (kept), codex  providers: tmux\n"),
+        printed.contains(
+            "Plugins:     runtimes: claude-code (kept), codex  providers: process, tmux\n"
+        ),
         "{printed}"
     );
     // The daemon `--yes` started takes the Plugins on a restart, which nobody asked for.
@@ -972,7 +1022,10 @@ fn a_re_run_marks_what_it_left_installed_as_kept() {
     );
 
     let json = fixture.json(&["--json", "init", "--runtime", "codex", "--provider", "tmux"]);
-    assert_eq!(json["chosen"], serde_json::json!(["codex", "tmux"]));
+    assert_eq!(
+        json["chosen"],
+        serde_json::json!(["codex", "tmux", "process"])
+    );
     assert_eq!(json["kept"], serde_json::json!(["claude-code"]));
 
     // A run that selects everything installed keeps nothing, so the mark is gone.
@@ -1045,7 +1098,7 @@ fn codex_is_installed_beside_claude_code_when_the_answer_names_it() {
     ]);
     assert_eq!(
         chosen["chosen"],
-        serde_json::json!(["claude-code", "codex", "tmux"])
+        serde_json::json!(["claude-code", "codex", "tmux", "process"])
     );
     let codex = fixture.plugin_dir("runtime", "codex");
     assert!(is_complete(&codex));
@@ -1091,7 +1144,9 @@ fn a_terminal_checks_the_plugins_with_the_cursor_and_space() {
     // The list leaves the screen, and the step folds into the Plugins it installed.
     let text = terminal.text();
     assert!(
-        text.contains("\u{25c7} Plugins  runtimes: claude-code, codex  providers: herdr, tmux"),
+        text.contains(
+            "\u{25c7} Plugins  runtimes: claude-code, codex  providers: herdr, process, tmux"
+        ),
         "{text}"
     );
     assert!(text.contains("\u{25c7} Daemon  not started"), "{text}");
@@ -1133,7 +1188,9 @@ fn a_flag_answers_its_kind_and_the_list_asks_about_the_other() {
     terminal.presses(b"n");
     assert_eq!(terminal.ends(), Some(0));
     assert!(
-        terminal.text().contains("runtimes: codex  providers: tmux"),
+        terminal
+            .text()
+            .contains("runtimes: codex  providers: process, tmux"),
         "{}",
         terminal.text()
     );
@@ -1234,7 +1291,7 @@ fn no_color_draws_plain_text_on_a_terminal() {
     }
     let text = terminal.text();
     assert!(
-        text.contains("Plugins:     runtimes: claude-code  providers: tmux\r\n"),
+        text.contains("Plugins:     runtimes: claude-code  providers: process, tmux\r\n"),
         "{text}"
     );
     assert!(text.contains("Daemon:      not started\r\n"), "{text}");
@@ -1245,11 +1302,15 @@ fn no_color_draws_plain_text_on_a_terminal() {
 #[test]
 fn yes_installs_the_plugins_whose_products_are_on_path() {
     for (on_path, runtimes, providers) in [
-        (&["codex", "herdr"][..], &["codex"][..], &["herdr"][..]),
+        (
+            &["codex", "herdr"][..],
+            &["codex"][..],
+            &["herdr", "process"][..],
+        ),
         (
             &["claude", "codex", "tmux", "herdr"][..],
             &["claude-code", "codex"][..],
-            &["herdr", "tmux"][..],
+            &["herdr", "process", "tmux"][..],
         ),
     ] {
         let fixture = Fixture::new();
@@ -1272,7 +1333,7 @@ fn claude_code_stands_in_for_a_runtime_missing_from_path() {
 
     let printed = fixture.succeeds(&["init", "--yes"]);
     assert!(
-        printed.contains("Plugins:     runtimes: claude-code  providers: tmux"),
+        printed.contains("Plugins:     runtimes: claude-code  providers: process, tmux"),
         "{printed}"
     );
     let (_, end) = printed.split_once("Feld is ready.\n").expect("ready");
@@ -1287,7 +1348,7 @@ fn claude_code_stands_in_for_a_runtime_missing_from_path() {
     let result = other.json(&["init", "--json"]);
     assert_eq!(
         result["chosen"],
-        json!(["claude-code", "herdr"]),
+        json!(["claude-code", "herdr", "process"]),
         "{result}"
     );
     assert_eq!(
@@ -1300,40 +1361,24 @@ fn claude_code_stands_in_for_a_runtime_missing_from_path() {
     );
 }
 
-/// With no Provider on PATH, none named and none installed, `feld init` places nothing and
-/// says to install one, whether or not it would ask.
+/// With no tmux or herdr on PATH, `feld init` installs the process Provider, which needs
+/// nothing beside Feld, so that Jobs run where no terminal multiplexer is installed.
 #[test]
-fn init_stops_when_no_provider_is_on_path() {
+fn init_installs_the_process_provider_when_no_other_provider_is_on_path() {
     let fixture = Fixture::new();
     fixture.with_on_path(&["claude"]);
 
-    for arguments in [&["init", "--yes"][..], &["init", "--json"][..]] {
-        let output = fixture.feld(arguments);
-        assert_eq!(output.status.code(), Some(1), "{arguments:?}");
-        let said = String::from_utf8_lossy(&output.stderr);
-        assert!(said.contains("install tmux or herdr"), "{said}");
-        let next = "install tmux or herdr so that it is on PATH, and run `feld init` again";
-        if arguments.contains(&"--json") {
-            let error: serde_json::Value =
-                serde_json::from_str(said.lines().next().unwrap()).unwrap();
-            assert_eq!(error["error"]["next"], next, "{said}");
-        } else {
-            assert!(
-                said.contains(&format!(
-                    "Error: no Execution Provider is on PATH\nnext: {next}\n"
-                )),
-                "{said}"
-            );
-        }
-    }
-    let mut terminal = fixture.on_a_terminal(&["init"]);
-    assert_eq!(terminal.ends(), Some(1));
-    let text = terminal.text();
-    assert!(text.contains("install tmux or herdr"), "{text}");
-    assert!(!text.contains("Choose the Plugins"), "{text}");
-    assert!(!fixture.home().join("plugins").exists());
+    let result = fixture.json(&["init", "--yes", "--json"]);
+    assert_eq!(names(&result["providers"]), ["process"], "{result}");
+    assert!(
+        fixture
+            .home()
+            .join("plugins/provider/process/plugin")
+            .is_file()
+    );
 
-    // A Provider named on the command line, or one already installed, is answer enough.
+    // A Provider named on the command line is installed as it is named.
+    let fixture = Fixture::new();
     fixture.with_on_path(&[]);
     let flagged = fixture.json(&[
         "init",
@@ -1343,13 +1388,17 @@ fn init_stops_when_no_provider_is_on_path() {
         "herdr",
         "--json",
     ]);
-    assert_eq!(flagged["chosen"], json!(["codex", "herdr"]), "{flagged}");
+    assert_eq!(
+        flagged["chosen"],
+        json!(["codex", "herdr", "process"]),
+        "{flagged}"
+    );
     assert!(
         !flagged["notes"].to_string().contains("is not on PATH"),
         "{flagged}"
     );
     let again = fixture.json(&["init", "--json"]);
-    assert_eq!(names(&again["providers"]), ["herdr"], "{again}");
+    assert_eq!(names(&again["providers"]), ["herdr", "process"], "{again}");
 }
 
 /// A relative directory on PATH, an empty one among them, reads from the working directory,
@@ -1385,7 +1434,7 @@ fn a_relative_directory_on_path_reads_from_the_working_directory() {
         let result: Value = serde_json::from_slice(&output.stdout).expect("parse feld JSON");
         assert_eq!(
             result["chosen"],
-            json!(["codex", "herdr"]),
+            json!(["codex", "herdr", "process"]),
             "PATH={path}: {result}"
         );
     }
@@ -1424,7 +1473,7 @@ fn the_list_wants_a_check_in_each_kind() {
     assert_eq!(terminal.ends(), Some(0));
     let text = terminal.text();
     assert!(
-        text.contains("\u{25c7} Plugins  runtimes: claude-code  providers: herdr"),
+        text.contains("\u{25c7} Plugins  runtimes: claude-code  providers: herdr, process"),
         "{text}"
     );
 }
@@ -1720,7 +1769,7 @@ fn init_in_a_narrow_tmux_pane_ends_on_one_line_for_each_step() {
             wordmark.as_str(),
             "",
             "\u{25c7} Feld home  <home>",
-            "\u{25c7} Plugins  runtimes: claude-code  providers: tmux",
+            "\u{25c7} Plugins  runtimes: claude-code  providers: process, tmux",
             "\u{25c7} Claude Code  prepared",
             "\u{25c7} Shell  added eval \"$(feld env)\" to <home>/.zshrc",
             "\u{25c7} Daemon  started \u{b7} pid <pid> \u{b7} http://127.0.0.1:<port>",

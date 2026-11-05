@@ -1,6 +1,6 @@
 # Plugin
 
-This document collects the contract under which Feld core installs, discovers, and invokes Plugins. A Plugin is a component that connects a supported product to Feld core, and there are two kinds: [Runtime Adapter](../concepts/glossary.md#runtime-adapter) (`runtime`) and [Execution Provider](../concepts/glossary.md#execution-provider) (`provider`). The bundled implementations are described in [adapter/claude-code.md](adapter/claude-code.md), [adapter/codex.md](adapter/codex.md), [provider/tmux.md](provider/tmux.md), and [provider/herdr.md](provider/herdr.md).
+This document collects the contract under which Feld core installs, discovers, and invokes Plugins. A Plugin is a component that connects a supported product to Feld core, and there are two kinds: [Runtime Adapter](../concepts/glossary.md#runtime-adapter) (`runtime`) and [Execution Provider](../concepts/glossary.md#execution-provider) (`provider`). The bundled implementations are described in [adapter/claude-code.md](adapter/claude-code.md), [adapter/codex.md](adapter/codex.md), [provider/tmux.md](provider/tmux.md), [provider/herdr.md](provider/herdr.md), and [provider/process.md](provider/process.md).
 
 ## Contents
 
@@ -67,8 +67,8 @@ The request and response fields for each operation are listed in the tables belo
 ### Installation and discovery
 
 - `feld init` extracts the plugins chosen from the bundled ones into `$FELD_HOME/plugins/`. A non-bundled plugin places a directory of the same shape there
-- The bundled Runtime Adapters are `claude-code` and `codex`, and the bundled Execution Providers are `tmux` and `herdr`. What `feld init` selects without asking (`--yes`) is the bundled plugins whose executables are found on that machine's PATH (`claude-code` if no Runtime Adapter is found), and it presents the rest as options ([cli.md](../../guide/cli.md#feld-init))
-- At startup, the daemon replaces installed bundled plugins (those whose directory and manifest `name` and `kind` match a bundled one) with the contents of its own version. Files are written to a temporary file and swapped in by rename, so the hooks and monitors of running Sessions launch either the pre- or post-replacement executable as is
+- The bundled Runtime Adapters are `claude-code` and `codex`, and the bundled Execution Providers are `tmux`, `herdr`, and `process`. What `feld init` selects without asking (`--yes`) is the bundled plugins whose executables are found on that machine's PATH (`claude-code` if no Runtime Adapter is found), and it presents the rest as options ([cli.md](../../guide/cli.md#feld-init)). `process` connects no product, so every `feld init` installs it without presenting it
+- At startup, the daemon replaces installed bundled plugins (those whose directory and manifest `name` and `kind` match a bundled one) with the contents of its own version, and installs `process` when nothing is in its directory. Files are written to a temporary file and swapped in by rename, so the hooks and monitors of running Sessions launch either the pre- or post-replacement executable as is
 - At startup, the daemon reads `$FELD_HOME/plugins/` and lists installed plugins in `GET /v1/runtimes` and `GET /v1/providers`. Adding and updating plugins takes effect with `feld daemon restart`
 - Directories whose manifest cannot be read and directories without an executable are excluded from installed and recorded in the daemon's log
 
@@ -90,7 +90,8 @@ The version is read as the first word in the command's answer that starts with a
 - `runtime` is the `name` of an installed Runtime Adapter, and `provider` is the `name` of an installed Execution Provider. Names not installed at the time an Actor is created or updated are rejected
 - `runtimeSettings` is passed to the Runtime Adapter and `providerOptions` to the Execution Provider, as JSON. core does not read their contents; the plugin defines their meaning. `providerOptions` is an object the CLI builds from `--<provider>-<key> <value>`, so `--tmux-socket feld` becomes `{"socket": "feld"}`
 - `env` is added to the Session's launch environment. For a Job, core passes it to the Provider; for an Agent, the Runtime Adapter's `launch` includes it in the response's `env` and passes it to the Provider. For the same name, variables Feld sets ([What core provides](#what-core-provides) and those the Runtime Adapter sets) take precedence, and fields through which the Runtime defines the environment of its child processes in its own settings (Claude Code's `runtimeSettings.env`, Codex's `runtimeSettings.shell_environment_policy`) are layered on top of `env`
-- When `--provider` is omitted, the provider named by the prefix of the option is selected. If there is no such option, the provider whose `self` answers a selector from the caller's environment is selected; failing that, if exactly one is installed, that one is selected. If none of these determine it, the request is rejected
+- When `--provider` is omitted, the provider named by the prefix of the option is selected. If there is no such option, a Job selects `process` when it is installed. Otherwise the provider whose `self` answers a selector from the caller's environment is selected; failing that, if exactly one provider other than `process` is installed, that one is selected. If none of these determine it, the request is rejected
+- `process` gives the program no terminal, so an Agent whose launchSpec names it is rejected
 - A Session's `execution.label` is the `label` in the Runtime Adapter's manifest
 
 ## What core provides
@@ -231,7 +232,7 @@ At daemon startup and in periodic observation every 250 ms thereafter, core grou
 
 ### Passing the launch environment
 
-`launch` passes `env` only to the pane's launch script, over a Unix domain socket ([token exposure prevention](auth.md#preventing-token-exposure)).
+`launch` passes `env` only to the pane's launch script, over a Unix domain socket ([token exposure prevention](auth.md#preventing-token-exposure)). `process`, which has no pane, passes it over the stdin pipe of its supervisor ([provider/process.md](provider/process.md#launch)).
 
 1. For each launch, the Provider creates an owner-only directory under a temporary directory (`/tmp` if the socket path does not fit in 103 bytes) and listens on a socket inside it
 2. The launch script runs the Provider's executable as `<plugin> launch-env <socket> <Provider pid>` and `eval`s the `export` statements on its standard output. If it cannot receive them, the shell exits there and the program does not launch

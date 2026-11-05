@@ -6,6 +6,7 @@ Collects, unit by unit, internal behavior that is hard to picture from the [CLI]
 - [plugin.md](plugin.md): the Plugin directory and manifest, invoking operations, the contracts of Runtime Adapter and Execution Provider, and the division of work on attach
 - [provider/tmux.md](provider/tmux.md): deciding the Placement on tmux, launch, judging observation, attach, stopping, and cleanup
 - [provider/herdr.md](provider/herdr.md): the same flow on herdr, and the contrast with tmux
+- [provider/process.md](provider/process.md): running a Job as an OS process under a supervisor, observation, stopping, and cleanup
 - [message-delivery.md](message-delivery.md): from sending a Message to read, deriving waiting, and insertion into the Console
 - [auth.md](auth.md): the four token kinds, browser token pairing with its cookie and key, distributing and resolving the Session token, authorization decisions, and revocation
 - [spool.md](spool.md): the path by which the CLI inside a Runtime's sandbox passes requests to the daemon through files, verifying the caller, Codex preparation, and guidance when it cannot write

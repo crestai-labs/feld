@@ -4,8 +4,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
-use feld_core::model::{LaunchSpec, LaunchSpecPatch, PatchValue};
-use feld_core::plugin::{Plugins, ProviderChoiceError, Registry, choose_provider};
+use feld_core::model::{ActorKind, LaunchSpec, LaunchSpecPatch, PatchValue};
+use feld_core::plugin::{
+    Plugins, ProviderChoiceError, Registry, choose_provider, terminal_providers,
+};
 use serde_json::Value;
 
 use super::args::LaunchArgs;
@@ -20,12 +22,13 @@ pub fn resolve_provider(
     options: &[ProviderOption],
     installed: &[String],
     registry: &Registry,
+    kind: ActorKind,
 ) -> CliResult<String> {
-    provider_here(explicit, options, installed, registry).map_err(|error| {
+    provider_here(explicit, options, installed, registry, kind).map_err(|error| {
         let refused = CliError::Rejected(error.to_string());
         match error {
             ProviderChoiceError::Ambiguous => {
-                let flags: Vec<String> = installed
+                let flags: Vec<String> = terminal_providers(installed)
                     .iter()
                     .map(|provider| format!("`--provider {provider}`"))
                     .collect();
@@ -42,6 +45,7 @@ pub fn provider_here(
     options: &[ProviderOption],
     installed: &[String],
     registry: &Registry,
+    kind: ActorKind,
 ) -> Result<String, ProviderChoiceError> {
     let flags: Vec<String> = options.iter().map(|option| option.flag.clone()).collect();
     let here = installed.iter().find(|provider| {
@@ -55,6 +59,7 @@ pub fn provider_here(
         &flags,
         installed,
         here.map(String::as_str),
+        kind,
     )
 }
 
@@ -66,6 +71,7 @@ fn caller_selector(registry: &Registry, provider: &str) -> Option<Value> {
 /// The launchSpec a declaration carries, with where the caller sits on its Provider.
 pub fn resolve_launch(
     args: LaunchArgs,
+    kind: ActorKind,
     options: &[ProviderOption],
     installed: &[String],
     registry: &Registry,
@@ -85,7 +91,7 @@ pub fn resolve_launch(
             serde_json::from_str::<Value>(&settings).context("parse --runtime-settings")
         })
         .transpose()?;
-    let provider = resolve_provider(args.provider, options, installed, registry)?;
+    let provider = resolve_provider(args.provider, options, installed, registry, kind)?;
     let caller = caller_selector(registry, &provider);
     Ok((
         LaunchSpec {
@@ -144,7 +150,15 @@ pub fn launch_patch(
         .transpose()?;
     let provider = match (args.provider, options.is_empty()) {
         (None, true) => None,
-        (explicit, _) => Some(resolve_provider(explicit, options, installed, registry)?),
+        // A patch resolves a Provider only from its name or its options, which decide before
+        // the kind of the Actor would.
+        (explicit, _) => Some(resolve_provider(
+            explicit,
+            options,
+            installed,
+            registry,
+            ActorKind::Agent,
+        )?),
     };
     let caller = provider
         .as_deref()

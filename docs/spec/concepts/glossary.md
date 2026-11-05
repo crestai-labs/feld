@@ -445,7 +445,7 @@ A derived value attributed to a [Runtime](#runtime). Derived at read time from t
 
 ## Supported products
 
-Feld connects to supported products with a [Runtime Adapter](#runtime-adapter) and an [Execution Provider](#execution-provider). Each is installed as one Plugin per product, and launchSpec's `runtime` and `provider` select them by name. The core holds the rules for record, admission, token, and metrics; the Plugin holds product-specific knowledge. Plugin layout and contracts are described in [plugin.md](../design/plugin.md), and per-product details in [adapter/claude-code.md](../design/adapter/claude-code.md), [adapter/codex.md](../design/adapter/codex.md), [provider/tmux.md](../design/provider/tmux.md), and [provider/herdr.md](../design/provider/herdr.md).
+Feld connects to supported products with a [Runtime Adapter](#runtime-adapter) and an [Execution Provider](#execution-provider). Each is installed as a Plugin, one per product, and the process Provider, which runs a command as an OS process, connects none. launchSpec's `runtime` and `provider` select them by name. The core holds the rules for record, admission, token, and metrics; the Plugin holds product-specific knowledge. Plugin layout and contracts are described in [plugin.md](../design/plugin.md), and per-product details in [adapter/claude-code.md](../design/adapter/claude-code.md), [adapter/codex.md](../design/adapter/codex.md), [provider/tmux.md](../design/provider/tmux.md), [provider/herdr.md](../design/provider/herdr.md), and [provider/process.md](../design/provider/process.md).
 
 ### Runtime Adapter
 
