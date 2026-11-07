@@ -15,6 +15,7 @@ import {
   ACTOR_WIDTH,
   ACTOR_WIDTH_LIMITS,
   ACTOR_WIDTH_STORAGE_KEY,
+  COLLAPSED_WORKSPACES_STORAGE_KEY,
   DEFAULT_ACTOR_DETAILS,
   DEFAULT_WINDOW,
   METRIC_LANES,
@@ -83,6 +84,11 @@ export function storedActorOrder(): string[] {
   return Array.isArray(stored) ? stored.filter((key) => typeof key === "string") : [];
 }
 
+export function storedCollapsedWorkspaces(): string[] {
+  const stored = storedJson(COLLAPSED_WORKSPACES_STORAGE_KEY);
+  return Array.isArray(stored) ? stored.filter((key) => typeof key === "string") : [];
+}
+
 // The range ends at now at the latest: every anchor change goes through this. It is the
 // model's anchorUpToNow for the instant an action is taken at.
 function anchorUpToNow(anchor: Instant, duration: number, now: Instant) {
@@ -128,6 +134,7 @@ export function createInitialState(workspace: string | null | undefined, now: In
     newActor: null,
     newWorkspace: null,
     frozenBandIds: null,
+    collapsedWorkspaces: storedCollapsedWorkspaces(),
     visibleActorDetails: new Set(DEFAULT_ACTOR_DETAILS),
     actorWidth: storedActorWidth(),
     actorColumnWidths: storedActorColumnWidths(),
@@ -268,6 +275,7 @@ export interface ActorsActions {
   closeMetricsMenu(): void;
   // DOM: focus `[data-action="toggle-actors"]`.
   toggleActorsCollapsed(): void;
+  toggleWorkspaceCollapsed(workspace: string): void;
   // DOM: focus `[data-action="toggle-metrics"]`.
   toggleMetricsCollapsed(): void;
   // A display setting. Hiding Sub Agents closes the Console when it shows one
@@ -535,6 +543,13 @@ export const useActorsStore = create<ActorsStore>()((set, get) => ({
 
   toggleActorsCollapsed() {
     set({ actorsCollapsed: !get().actorsCollapsed });
+  },
+
+  toggleWorkspaceCollapsed(workspace) {
+    const current = get().collapsedWorkspaces;
+    const collapsedWorkspaces = current.includes(workspace) ? current.filter((key) => key !== workspace) : [...current, workspace];
+    storeValue(COLLAPSED_WORKSPACES_STORAGE_KEY, JSON.stringify(collapsedWorkspaces));
+    set({ collapsedWorkspaces });
   },
 
   toggleMetricsCollapsed() {

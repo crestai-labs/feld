@@ -10,6 +10,7 @@ import {
   COMPACT_LAYOUT_QUERY,
   LANE,
   PLOT_PAD_LEFT,
+  WORKSPACE_HEADING_HEIGHT,
   PLOT_PAD_RIGHT,
   arrowheadPath,
   formatDuration,
@@ -24,7 +25,7 @@ import {
   type ActorsModel,
 } from "../model.ts";
 import { useActorsStore } from "../store.ts";
-import type { ActorRecord, AgentSession, AgentsState, Focus, Instant, Lane, MessageRecord } from "../types.ts";
+import type { ActorRecord, AgentSession, BandLane, AgentsState, Focus, Instant, Lane, MessageRecord } from "../types.ts";
 import { histogramTooltip, markTooltip, useChartTooltip, viewPointFor, type HistogramHit } from "./hover.tsx";
 import { useParentBox, usePlotHandlers, type PointerAt } from "./interaction.ts";
 import { laneKeyTarget } from "./laneKeys.ts";
@@ -121,14 +122,15 @@ export interface TimelineLayers {
   sessions: SessionTarget[];
 }
 
-// The drawing of the bands `agents` at `width`. With no band it extends down to
-// `parentHeight`, which keeps a surface to pan on.
-export function timelineLayers(model: ActorsModel, view: TimelineView, agents: ActorRecord[], width: number, parentHeight: number): TimelineLayers {
+// The drawing of the bands `agents` at `width`, under their Workspace headings when
+// `workspaceLanes` holds them. With no row it extends down to `parentHeight`, which keeps
+// a surface to pan on.
+export function timelineLayers(model: ActorsModel, view: TimelineView, agents: ActorRecord[], width: number, parentHeight: number, workspaceLanes: BandLane[] | null = null): TimelineLayers {
   const range = model.rangeFor(view);
-  const lanes = model.laneLayoutFor(agents, view);
+  const lanes = model.laneLayoutFor(agents, view, workspaceLanes);
   const plotHeight = lanes.height;
   // The lanes keep their natural height, so the axis row sits right under the last one.
-  const height = agents.length ? plotHeight : Math.max(plotHeight, parentHeight || plotHeight);
+  const height = plotHeight || parentHeight;
   const usable = width - PLOT_PAD_LEFT - PLOT_PAD_RIGHT;
   const binDuration = tokenBinDuration(view.duration, usable);
   const x = (time: Instant) => plotX(range, width, time);
@@ -149,11 +151,15 @@ export function timelineLayers(model: ActorsModel, view: TimelineView, agents: A
   const bins: HistogramHit[] = [];
   const sessionTargets: SessionTarget[] = [];
 
-  agents.forEach((agent, index) => {
-    if (index > 0) {
-      const laneTop = lanes.agents.get(agent.id)!.top;
-      marks.push(<line className="feld-agents__lane-separator" x1="0" y1={laneTop} x2={width} y2={laneTop} key={`separator:${agent.id}`} />);
-    }
+  // A Workspace heading is a shaded row across the Timeline, level with its heading in
+  // the label column; the time axis stays one for every lane.
+  lanes.headings.forEach((top, workspace) => {
+    marks.push(<rect className="feld-agents__lane-heading-band" x="0" y={top} width={width} height={WORKSPACE_HEADING_HEIGHT} key={`heading:${workspace}`} />);
+    if (top > 0) marks.push(<line className="feld-agents__lane-separator" x1="0" y1={top} x2={width} y2={top} key={`heading-separator:${workspace}`} />);
+  });
+  agents.forEach((agent) => {
+    const laneTop = lanes.agents.get(agent.id)!.top;
+    if (laneTop > 0) marks.push(<line className="feld-agents__lane-separator" x1="0" y1={laneTop} x2={width} y2={laneTop} key={`separator:${agent.id}`} />);
   });
   const selectedLane = view.focusedActorId ? lanes.agents.get(view.focusedActorId) : null;
   if (selectedLane) marks.push(<rect className="feld-agents__actor-focus-band" x="0" y={selectedLane.top} width={width} height={selectedLane.height} key="actor-focus" />);
@@ -544,19 +550,34 @@ function sameRing(a: FocusRing | null, b: FocusRing | null) {
   return a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height);
 }
 
-// `agents` are the bands the page draws, in its order.
-// The page may hand a new array of the same bands; the drawing follows the bands.
-function sameBands(previous: { agents: ActorRecord[] }, next: { agents: ActorRecord[] }) {
-  return previous.agents.length === next.agents.length && previous.agents.every((agent, index) => agent === next.agents[index]);
+// `agents` are the bands the page draws, in its order, and `lanes` the Workspace lanes they
+// sit in when all Workspaces are shown. The page may hand new arrays of the same bands and
+// lanes; the drawing follows the bands and the lanes.
+interface TimelineBands {
+  agents: ActorRecord[];
+  lanes: BandLane[] | null;
 }
 
-export const TimelineSvg = memo(function TimelineSvg({ agents }: { agents: ActorRecord[] }) {
+function sameList<T>(previous: T[], next: T[]) {
+  return previous.length === next.length && previous.every((item, index) => item === next[index]);
+}
+
+function sameBands(previous: TimelineBands, next: TimelineBands) {
+  if (!sameList(previous.agents, next.agents)) return false;
+  if (!previous.lanes || !next.lanes) return previous.lanes === next.lanes;
+  return previous.lanes.length === next.lanes.length && previous.lanes.every((lane, index) => {
+    const other = next.lanes![index];
+    return lane.workspace === other.workspace && lane.collapsed === other.collapsed && sameList(lane.agents, other.agents);
+  });
+}
+
+export const TimelineSvg = memo(function TimelineSvg({ agents, lanes }: TimelineBands) {
   const model = useActorsModel();
   const view = useActorsStore(useShallow(selectTimelineView));
   const svgRef = useRef<SVGSVGElement>(null);
   const box = useParentBox(svgRef);
   const width = Math.max(box.minWidth, box.clientWidth || box.minWidth);
-  const layers = useMemo(() => timelineLayers(model, view, agents, width, box.clientHeight), [model, view, agents, width, box.clientHeight]);
+  const layers = useMemo(() => timelineLayers(model, view, agents, width, box.clientHeight, lanes), [model, view, agents, width, box.clientHeight, lanes]);
   const { range, height } = layers;
   const viewport = useTimelineViewport(svgRef, height);
   const relations = useMemo(() => relationLayers(model, view, agents, layers, viewport), [model, view, agents, layers, viewport]);

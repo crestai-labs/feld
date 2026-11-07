@@ -60,4 +60,4 @@ The pairing procedure follows [auth.md](auth.md#pairing). `/ui/pair#code=` shows
 
 ## Viewer settings
 
-Language, time zone and format, theme, the Console's default view, notifications, and layout are kept in the browser's `localStorage`, and each page reads them when drawing. The default zone is the daemon's `timezone`.
+Language, time zone and format, theme, the Console's default view, notifications, and layout (including the Workspace lanes folded in All workspaces) are kept in the browser's `localStorage`, and each page reads them when drawing. The default zone is the daemon's `timezone`.

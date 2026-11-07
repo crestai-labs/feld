@@ -20,6 +20,8 @@ A per-Actor view opened from the Actor name, `Agent…` in the Agent's `⋮` men
 
 A view on the Actors page that draws Sessions on a time axis in a band per Actor. It draws the time during which Feld holds the Session, and a Sub Agent Session draws its part from the parent Session's start onward in the parent's band. Live and past ranges follow the same rules. Transcript entries of a Sub Agent Session before attach remain in the parent's Console.
 
+All workspaces splits the bands into one lane per Workspace: the default Workspace first, then by key, with a Workspace that has no band shown left out. A lane starts with a heading row holding the Workspace key, which selects that Workspace, the lane's counts of Actors, current Sessions, and Actors needing attention, and New actor in that Workspace. The heading row folds the lane to itself, and Reset layout unfolds it. Inside a lane a band is named by its bare Actor name, and a row is dragged only within its lane. Every lane shares one time axis.
+
 Spawns and Messages are drawn as lines between Actors. Spawns and Messages with the same source Session and time bin (width depends on zoom) share one dotted trunk, with an end mark per counterpart (an arrow for delivered, a tray for a Message not yet read). Hovering or focusing the trunk lists the Spawns and Messages in it with their times.
 
 ## Now
