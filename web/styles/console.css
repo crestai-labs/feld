@@ -1,3 +1,9 @@
+/* No specificity, so the Console's control rules win over it and over the Actors reset. */
+:where(.feld-console__terminal) :where(button, input, select) {
+  font: inherit;
+  color: inherit;
+}
+
 .feld-console__live-dot {
   width: 8px;
   height: 8px;
@@ -758,7 +764,7 @@
   grid-template-columns: 28px 58px 54px minmax(0, 1fr) 12px;
   align-items: center;
   gap: 8px;
-  color: #6f7a86;
+  color: #808a96;
   font: 9.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 

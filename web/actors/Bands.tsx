@@ -146,7 +146,7 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
               <div className={`feld-agents__metrics-body${hasMetricLanes ? "" : " is-empty"}`}>
                 {hasMetricLanes ? (
                   <>
-                    <div className="feld-agents__metric-labels"><MetricLabels /></div>
+                    <div className="feld-agents__metric-labels"><div className="feld-agents__metric-labels-pinned"><MetricLabels /></div></div>
                     <div className="feld-agents__metrics-chart">
                       <MetricsSvg />
                     </div>

@@ -216,6 +216,7 @@ impl ActorService {
         accept_from: Option<Option<&BTreeSet<String>>>,
         caller: Option<&serde_json::Value>,
         writer: Writer,
+        requester_session_id: Option<&str>,
     ) -> Result<Actor, ActorError> {
         let launch = launch.filter(|patch| !patch.is_empty());
         let schedule = schedule.filter(|patch| {
@@ -281,6 +282,7 @@ impl ActorService {
                     schedule: schedule.as_ref(),
                     grants,
                     accept_from,
+                    requester_session_id,
                 },
                 &self.timezone,
                 writer,

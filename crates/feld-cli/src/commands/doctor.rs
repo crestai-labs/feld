@@ -139,6 +139,7 @@ pub async fn checks(home: &FeldHome) -> Vec<Check> {
         shell(home),
         collector(home, &presence, status),
         browser(),
+        release().await,
     ]
 }
 
@@ -810,6 +811,70 @@ fn browser() -> Check {
     }
 }
 
+/// Where github.com answers with the tag of the latest Release of Feld.
+const LATEST_RELEASE: &str = "https://github.com/crestai-labs/feld/releases/latest";
+
+/// How long `feld doctor` waits for github.com.
+const RELEASE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Check 12: No newer Release of Feld is out. One GET of [`LATEST_RELEASE`], whose redirect
+/// names the tag; when that does not answer, the check passes and says so.
+async fn release() -> Check {
+    const NAME: &str = "release";
+    let current = env!("CARGO_PKG_VERSION");
+    let url = std::env::var("FELD_RELEASE_URL").unwrap_or_else(|_| LATEST_RELEASE.to_owned());
+    let Some(tag) = latest_tag(&url).await else {
+        return Check::ok(
+            NAME,
+            format!("feld {current} \u{b7} the latest Release was not checked"),
+        );
+    };
+    let latest = tag.strip_prefix('v').unwrap_or(&tag);
+    if newer(latest, current) {
+        Check::warn(
+            NAME,
+            format!("feld {latest} is released \u{b7} this is {current}"),
+            "brew upgrade feld (or run the install script again), then feld init",
+        )
+    } else if latest == current {
+        Check::ok(NAME, format!("feld {current} is the latest Release"))
+    } else {
+        Check::ok(
+            NAME,
+            format!("feld {current} \u{b7} the latest Release is {latest}"),
+        )
+    }
+}
+
+/// The tag the redirect of `url` names: `v0.2.1` from `…/releases/tag/v0.2.1`.
+async fn latest_tag(url: &str) -> Option<String> {
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(RELEASE_TIMEOUT)
+        .user_agent("feld")
+        .build()
+        .ok()?;
+    let response = client.get(url).send().await.ok()?;
+    let location = response
+        .headers()
+        .get(reqwest::header::LOCATION)?
+        .to_str()
+        .ok()?;
+    let (_, tag) = location.rsplit_once("/releases/tag/")?;
+    (!tag.is_empty() && !tag.contains('/')).then(|| tag.to_owned())
+}
+
+/// Whether the version `latest` comes after `current`, comparing the numbers of `x.y.z`.
+fn newer(latest: &str, current: &str) -> bool {
+    let numbers = |version: &str| -> Option<Vec<u64>> {
+        version.split('.').map(|part| part.parse().ok()).collect()
+    };
+    match (numbers(latest), numbers(current)) {
+        (Some(latest), Some(current)) => latest > current,
+        _ => false,
+    }
+}
+
 /// Where `command` runs from: itself when it names a path, else the first directory on
 /// `PATH` that holds it as an executable.
 fn on_path(command: &str) -> Option<PathBuf> {
@@ -870,4 +935,19 @@ pub(super) fn version_line(program: &Path, arguments: &[&str]) -> Option<String>
         .map(str::trim)
         .find(|line| !line.is_empty())
         .map(str::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::newer;
+
+    #[test]
+    fn newer_compares_the_numbers() {
+        assert!(newer("0.2.2", "0.2.1"));
+        assert!(newer("0.10.0", "0.9.9"));
+        assert!(newer("1.0.0", "0.99.0"));
+        assert!(!newer("0.2.1", "0.2.1"));
+        assert!(!newer("0.2.0", "0.2.1"));
+        assert!(!newer("0.3.0-rc.1", "0.2.1"));
+    }
 }

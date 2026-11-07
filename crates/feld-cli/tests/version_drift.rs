@@ -58,6 +58,8 @@ impl StandIn {
 
     fn feld(&self, arguments: &[&str]) -> Output {
         Command::new(FELD)
+            // `feld doctor` asks for the latest Release here, not on github.com.
+            .env("FELD_RELEASE_URL", "http://127.0.0.1:9/")
             .arg("--home")
             .arg(self.temp.path().join("fh"))
             .env("HOME", self.temp.path())

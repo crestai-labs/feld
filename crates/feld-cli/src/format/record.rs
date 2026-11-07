@@ -58,7 +58,10 @@ pub fn record_description(ctx: &Context, record: &Record) -> String {
                 .unwrap_or("-")
         ),
         RecordKind::MessageRead => text("messageId").unwrap_or("-").to_owned(),
-        RecordKind::StopRequested | RecordKind::KillRequested => {
+        RecordKind::StopRequested
+        | RecordKind::KillRequested
+        | RecordKind::SchedulePaused
+        | RecordKind::ScheduleResumed => {
             format!("by {}", text("requesterSessionId").unwrap_or("Admin"))
         }
         RecordKind::ScheduleSkipped => format!(
