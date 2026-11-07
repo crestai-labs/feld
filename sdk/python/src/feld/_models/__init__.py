@@ -2,6 +2,8 @@
 
 from .actor import Actor
 from .actor_kind import ActorKind
+from .actor_label import ActorLabel
+from .actor_label_by import ActorLabelBy
 from .actor_reference import ActorReference
 from .actor_requester import ActorRequester
 from .actor_response import ActorResponse
@@ -14,9 +16,13 @@ from .create_workspace_body import CreateWorkspaceBody
 from .daemon_status import DaemonStatus
 from .daemon_status_restored import DaemonStatusRestored
 from .daemon_status_scheduler import DaemonStatusScheduler
+from .declare_actor_body import DeclareActorBody
+from .declare_response import DeclareResponse
+from .declare_response_action import DeclareResponseAction
 from .error import Error
 from .execution import Execution
 from .execution_type import ExecutionType
+from .field_change import FieldChange
 from .grant import Grant
 from .launch_spec import LaunchSpec
 from .launch_spec_node import LaunchSpecNode
@@ -60,6 +66,7 @@ from .session_lifecycle import SessionLifecycle
 from .session_ownership import SessionOwnership
 from .session_response import SessionResponse
 from .session_spawned_by import SessionSpawnedBy
+from .set_actor_label_body import SetActorLabelBody
 from .start_kind import StartKind
 from .start_response import StartResponse
 from .sub_agent_session import SubAgentSession
@@ -77,6 +84,8 @@ from .workspace_response import WorkspaceResponse
 __all__ = (
     "Actor",
     "ActorKind",
+    "ActorLabel",
+    "ActorLabelBy",
     "ActorReference",
     "ActorRequester",
     "ActorResponse",
@@ -89,9 +98,13 @@ __all__ = (
     "DaemonStatus",
     "DaemonStatusRestored",
     "DaemonStatusScheduler",
+    "DeclareActorBody",
+    "DeclareResponse",
+    "DeclareResponseAction",
     "Error",
     "Execution",
     "ExecutionType",
+    "FieldChange",
     "Grant",
     "LaunchSpec",
     "LaunchSpecNode",
@@ -135,6 +148,7 @@ __all__ = (
     "SessionOwnership",
     "SessionResponse",
     "SessionSpawnedBy",
+    "SetActorLabelBody",
     "StartKind",
     "StartResponse",
     "SubAgentSession",

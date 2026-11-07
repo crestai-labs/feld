@@ -74,6 +74,7 @@ DESCRIPTIONS = [
 # Request body properties given a name: (operationId, property, component name).
 NAMED_BODY_PROPERTIES = [
     ("createActor", "schedule", "ScheduleSpec"),
+    ("declareActor", "schedule", "ScheduleSpec"),
     ("updateActor", "schedule", "SchedulePatch"),
 ]
 

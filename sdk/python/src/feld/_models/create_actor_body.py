@@ -33,6 +33,7 @@ class CreateActorBody:
             Session
         accept_from (list[str] | Unset): Names of Actors in the same Workspace from which the Actor receives Messages in
             addition to Admin
+        declared_in (str | Unset):
         caller (dict[str, Any] | Unset): The caller's own location, obtained by the creating or updating CLI from the
             Provider's `self`. The Provider's `resolve` fills omitted `providerOptions` from it.
         schedule (None | ScheduleSpec | Unset):
@@ -43,6 +44,7 @@ class CreateActorBody:
     launch_spec: LaunchSpec
     grants: list[Grant] | Unset = UNSET
     accept_from: list[str] | Unset = UNSET
+    declared_in: str | Unset = UNSET
     caller: dict[str, Any] | Unset = UNSET
     schedule: None | ScheduleSpec | Unset = UNSET
 
@@ -65,6 +67,8 @@ class CreateActorBody:
         accept_from: list[str] | Unset = UNSET
         if not isinstance(self.accept_from, Unset):
             accept_from = self.accept_from
+
+        declared_in = self.declared_in
 
         caller = self.caller
 
@@ -89,6 +93,8 @@ class CreateActorBody:
             field_dict["grants"] = grants
         if accept_from is not UNSET:
             field_dict["acceptFrom"] = accept_from
+        if declared_in is not UNSET:
+            field_dict["declaredIn"] = declared_in
         if caller is not UNSET:
             field_dict["caller"] = caller
         if schedule is not UNSET:
@@ -121,6 +127,8 @@ class CreateActorBody:
 
         accept_from = cast(list[str], d.pop("acceptFrom", UNSET))
 
+        declared_in = d.pop("declaredIn", UNSET)
+
         caller = d.pop("caller", UNSET)
 
         def _parse_schedule(data: object) -> None | ScheduleSpec | Unset:
@@ -146,6 +154,7 @@ class CreateActorBody:
             launch_spec=launch_spec,
             grants=grants,
             accept_from=accept_from,
+            declared_in=declared_in,
             caller=caller,
             schedule=schedule,
         )

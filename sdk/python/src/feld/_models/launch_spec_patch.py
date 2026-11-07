@@ -21,6 +21,7 @@ class LaunchSpecPatch:
         command (list[str] | None | Unset):
         workdir (None | str | Unset):
         env (dict[str, Any] | None | Unset): Replaced as a whole
+        env_file (None | str | Unset):
         provider (None | str | Unset):
         node (None | str | Unset):
         provider_options (dict[str, Any] | None | Unset): Replaced as a whole
@@ -32,6 +33,7 @@ class LaunchSpecPatch:
     command: list[str] | None | Unset = UNSET
     workdir: None | str | Unset = UNSET
     env: dict[str, Any] | None | Unset = UNSET
+    env_file: None | str | Unset = UNSET
     provider: None | str | Unset = UNSET
     node: None | str | Unset = UNSET
     provider_options: dict[str, Any] | None | Unset = UNSET
@@ -76,6 +78,12 @@ class LaunchSpecPatch:
         else:
             env = self.env
 
+        env_file: None | str | Unset
+        if isinstance(self.env_file, Unset):
+            env_file = UNSET
+        else:
+            env_file = self.env_file
+
         provider: None | str | Unset
         if isinstance(self.provider, Unset):
             provider = UNSET
@@ -109,6 +117,8 @@ class LaunchSpecPatch:
             field_dict["workdir"] = workdir
         if env is not UNSET:
             field_dict["env"] = env
+        if env_file is not UNSET:
+            field_dict["envFile"] = env_file
         if provider is not UNSET:
             field_dict["provider"] = provider
         if node is not UNSET:
@@ -184,6 +194,15 @@ class LaunchSpecPatch:
 
         env = _parse_env(d.pop("env", UNSET))
 
+        def _parse_env_file(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        env_file = _parse_env_file(d.pop("envFile", UNSET))
+
         def _parse_provider(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -218,6 +237,7 @@ class LaunchSpecPatch:
             command=command,
             workdir=workdir,
             env=env,
+            env_file=env_file,
             provider=provider,
             node=node,
             provider_options=provider_options,

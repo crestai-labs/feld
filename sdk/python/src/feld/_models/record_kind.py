@@ -3,6 +3,9 @@ from enum import StrEnum
 
 class RecordKind(StrEnum):
     KILL_REQUESTED = "kill.requested"
+    LABEL_CLEARED = "label.cleared"
+    LABEL_EXPIRED = "label.expired"
+    LABEL_SET = "label.set"
     MESSAGE_ACCEPTED = "message.accepted"
     MESSAGE_READ = "message.read"
     MESSAGE_SENT = "message.sent"

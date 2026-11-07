@@ -108,6 +108,8 @@ def sync_detailed(
     Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A
     replacement that omits `grants` keeps the Actor's grants.
     A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+    `declaredIn` is the name of the declaration file whose `feld apply` declares the Actor. A
+    replacement that omits it keeps the Actor's `declaredIn`.
 
     Args:
         workspace (str):
@@ -151,6 +153,8 @@ def sync(
     Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A
     replacement that omits `grants` keeps the Actor's grants.
     A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+    `declaredIn` is the name of the declaration file whose `feld apply` declares the Actor. A
+    replacement that omits it keeps the Actor's `declaredIn`.
 
     Args:
         workspace (str):
@@ -191,6 +195,8 @@ async def asyncio_detailed(
     Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A
     replacement that omits `grants` keeps the Actor's grants.
     A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+    `declaredIn` is the name of the declaration file whose `feld apply` declares the Actor. A
+    replacement that omits it keeps the Actor's `declaredIn`.
 
     Args:
         workspace (str):
@@ -232,6 +238,8 @@ async def asyncio(
     Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A
     replacement that omits `grants` keeps the Actor's grants.
     A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+    `declaredIn` is the name of the declaration file whose `feld apply` declares the Actor. A
+    replacement that omits it keeps the Actor's `declaredIn`.
 
     Args:
         workspace (str):

@@ -11,6 +11,7 @@ from .._models.actor_kind import ActorKind
 from .._models.grant import Grant
 
 if TYPE_CHECKING:
+    from .._models.actor_label import ActorLabel
     from .._models.launch_spec import LaunchSpec
     from .._models.schedule import Schedule
     from .._models.session import Session
@@ -32,6 +33,10 @@ class Actor:
         schedule (None | Schedule):
         grants (list[Grant]): Operations on other Actors in the same Workspace that Admin allows the Actor's Session
         accept_from (list[str] | None): If null, receives from every Actor in the same Workspace
+        declared_in (None | str): Name of the declaration file whose `feld apply` declares the Actor. null for an Actor
+            declared otherwise
+        labels (list[ActorLabel]): By key. The daemon removes a label within seconds after its `until`, records
+            `label.expired`, and sends the Actor's resource event
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
         deleted_at (datetime.datetime | None):
@@ -55,6 +60,8 @@ class Actor:
     schedule: None | Schedule
     grants: list[Grant]
     accept_from: list[str] | None
+    declared_in: None | str
+    labels: list[ActorLabel]
     created_at: datetime.datetime
     updated_at: datetime.datetime
     deleted_at: datetime.datetime | None
@@ -105,6 +112,14 @@ class Actor:
         else:
             accept_from = self.accept_from
 
+        declared_in: None | str
+        declared_in = self.declared_in
+
+        labels = []
+        for labels_item_data in self.labels:
+            labels_item = labels_item_data.to_dict()
+            labels.append(labels_item)
+
         created_at = self.created_at.isoformat()
 
         updated_at = self.updated_at.isoformat()
@@ -154,6 +169,8 @@ class Actor:
                 "schedule": schedule,
                 "grants": grants,
                 "acceptFrom": accept_from,
+                "declaredIn": declared_in,
+                "labels": labels,
                 "createdAt": created_at,
                 "updatedAt": updated_at,
                 "deletedAt": deleted_at,
@@ -172,6 +189,7 @@ class Actor:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
+        from .._models.actor_label import ActorLabel
         from .._models.launch_spec import LaunchSpec
         from .._models.schedule import Schedule
         from .._models.session import Session
@@ -236,6 +254,20 @@ class Actor:
             return cast(list[str] | None, data)
 
         accept_from = _parse_accept_from(d.pop("acceptFrom"))
+
+        def _parse_declared_in(data: object) -> None | str:
+            if data is None:
+                return data
+            return cast(None | str, data)
+
+        declared_in = _parse_declared_in(d.pop("declaredIn"))
+
+        labels = []
+        _labels = d.pop("labels")
+        for labels_item_data in _labels:
+            labels_item = ActorLabel.from_dict(labels_item_data)
+
+            labels.append(labels_item)
 
         created_at = datetime.datetime.fromisoformat(d.pop("createdAt"))
 
@@ -312,6 +344,8 @@ class Actor:
             schedule=schedule,
             grants=grants,
             accept_from=accept_from,
+            declared_in=declared_in,
+            labels=labels,
             created_at=created_at,
             updated_at=updated_at,
             deleted_at=deleted_at,

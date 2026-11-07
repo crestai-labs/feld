@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Self, TypeVar, cast
+from typing import Any, Self, TypeVar
 
 from attrs import define as _attrs_define
 
@@ -15,20 +15,20 @@ class ScheduleSpec:
     """
     Attributes:
         cron (str): 5-field cron expression
-        timezone (None | str | Unset): IANA timezone
+        timezone (str | Unset): IANA timezone
+        enabled (bool | Unset):
     """
 
     cron: str
-    timezone: None | str | Unset = UNSET
+    timezone: str | Unset = UNSET
+    enabled: bool | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         cron = self.cron
 
-        timezone: None | str | Unset
-        if isinstance(self.timezone, Unset):
-            timezone = UNSET
-        else:
-            timezone = self.timezone
+        timezone = self.timezone
+
+        enabled = self.enabled
 
         field_dict: dict[str, Any] = {}
 
@@ -39,6 +39,8 @@ class ScheduleSpec:
         )
         if timezone is not UNSET:
             field_dict["timezone"] = timezone
+        if enabled is not UNSET:
+            field_dict["enabled"] = enabled
 
         return field_dict
 
@@ -47,18 +49,14 @@ class ScheduleSpec:
         d = dict(src_dict)
         cron = d.pop("cron")
 
-        def _parse_timezone(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
+        timezone = d.pop("timezone", UNSET)
 
-        timezone = _parse_timezone(d.pop("timezone", UNSET))
+        enabled = d.pop("enabled", UNSET)
 
         schedule_spec = cls(
             cron=cron,
             timezone=timezone,
+            enabled=enabled,
         )
 
         return schedule_spec

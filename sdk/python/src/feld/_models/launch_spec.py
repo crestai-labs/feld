@@ -38,6 +38,9 @@ class LaunchSpec:
             env (dict[str, Any] | Unset): Environment variables added to the environment that launches the Session. Names
                 consist of alphanumerics and `_` and do not start with a digit.
                 Variables that Feld sets (such as `FELD_*`) take precedence over values of the same name.
+            env_file (str | Unset): Absolute path of a file of `KEY=VALUE` lines. The daemon reads it at each launch, and
+                its variables go beneath `env`.
+                Only the path is stored. A file that cannot be read or parsed fails that launch.
             provider_options (dict[str, Any] | Unset): Options of the Execution Provider, from the CLI's `--<provider>-<key>
                 <value>`.
     """
@@ -50,6 +53,7 @@ class LaunchSpec:
     trust_workdir: bool | Unset = UNSET
     command: list[str] | Unset = UNSET
     env: dict[str, Any] | Unset = UNSET
+    env_file: str | Unset = UNSET
     provider_options: dict[str, Any] | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,6 +74,8 @@ class LaunchSpec:
             command = self.command
 
         env = self.env
+
+        env_file = self.env_file
 
         provider_options = self.provider_options
 
@@ -92,6 +98,8 @@ class LaunchSpec:
             field_dict["command"] = command
         if env is not UNSET:
             field_dict["env"] = env
+        if env_file is not UNSET:
+            field_dict["envFile"] = env_file
         if provider_options is not UNSET:
             field_dict["providerOptions"] = provider_options
 
@@ -116,6 +124,8 @@ class LaunchSpec:
 
         env = d.pop("env", UNSET)
 
+        env_file = d.pop("envFile", UNSET)
+
         provider_options = d.pop("providerOptions", UNSET)
 
         launch_spec = cls(
@@ -127,6 +137,7 @@ class LaunchSpec:
             trust_workdir=trust_workdir,
             command=command,
             env=env,
+            env_file=env_file,
             provider_options=provider_options,
         )
 

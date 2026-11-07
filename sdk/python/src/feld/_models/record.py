@@ -38,6 +38,9 @@ class Record:
             `schedule.skipped`: `planned`, `currentSessionId`.
             `schedule.missed`: `planned`, `reason`.
             `schedule.paused` / `schedule.resumed`: `requesterSessionId`.
+            `label.set`: `key`, `until`, `reason`, `by`; `sessionId` is the setting Session for `by: actor`.
+            `label.cleared`: `key`, `by`.
+            `label.expired`: `key`, `until`, `by` of the label.
     """
 
     sequence: int

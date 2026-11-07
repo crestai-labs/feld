@@ -37,7 +37,7 @@ The client has one attribute per resource, and each operation is a method of it:
 | Attribute | Methods |
 |---|---|
 | `workspaces` | `list`, `get`, `create`, `delete` |
-| `actors` | `list`, `get`, `get_by_id`, `create`, `update`, `delete`, `start`, `attach`, `restart` |
+| `actors` | `list`, `get`, `get_by_id`, `create`, `declare`, `update`, `delete`, `start`, `attach`, `restart`, `set_label`, `clear_label` |
 | `sessions` | `list`, `get`, `stop`, `kill`, `observe`, `output`, `transcript` |
 | `messages` | `list`, `send`, `get`, `delete` |
 | `records` | `iterate`, `follow` ([Reading records](#reading-records)) |

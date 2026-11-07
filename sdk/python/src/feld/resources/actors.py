@@ -5,24 +5,36 @@ from __future__ import annotations
 import builtins
 from typing import Any
 
+import datetime
+
 from .._api.actor import (
     attach_actor,
+    clear_actor_label,
     create_actor,
+    declare_actor,
     delete_actor,
     get_actor,
     get_actor_by_id,
     list_actors,
     restart_actor,
+    set_actor_label,
     start_actor,
     update_actor,
 )
-from .._models import AttachActorBody, CreateActorBody, UpdateActorBody
+from .._models import (
+    AttachActorBody,
+    CreateActorBody,
+    DeclareActorBody,
+    SetActorLabelBody,
+    UpdateActorBody,
+)
 from .._resource import Resource, sent
 from ..models import (
     NULL,
     Actor,
     ActorKind,
     AttachResponse,
+    DeclareResponse,
     Grant,
     LaunchSpec,
     LaunchSpecPatch,
@@ -106,6 +118,36 @@ class Actors(Resource):
         )
         return update_actor.sync(workspace, actor, client=self._api, body=body).actor
 
+    def declare(
+        self,
+        workspace: str,
+        actor: str,
+        *,
+        kind: ActorKind,
+        launch_spec: LaunchSpec,
+        grants: builtins.list[Grant] | None = None,
+        accept_from: builtins.list[str] | Null | None = None,
+        declared_in: str | None = None,
+        caller: dict[str, Any] | None = None,
+        schedule: ScheduleSpec | None = None,
+        dry_run: bool = False,
+    ) -> DeclareResponse:
+        """Makes the Actor named `actor` match the declaration once: creates it, brings a
+        differing one to match, or leaves a matching one as it is. With `dry_run`, answers
+        what the declaration would change and writes nothing."""
+        body = DeclareActorBody(
+            kind=kind,
+            launch_spec=launch_spec,
+            grants=sent(grants),
+            accept_from=None if accept_from is NULL else sent(accept_from),
+            declared_in=sent(declared_in),
+            caller=sent(caller),
+            schedule=sent(schedule),
+        )
+        return declare_actor.sync(
+            workspace, actor, client=self._api, body=body, dry_run=dry_run
+        )
+
     def delete(self, workspace: str, actor: str) -> Actor:
         """Soft-deletes the Actor."""
         return delete_actor.sync(workspace, actor, client=self._api).actor
@@ -135,3 +177,23 @@ class Actors(Resource):
     def restart(self, workspace: str, actor: str) -> RestartResponse:
         """Stops the current Session and launches the next generation."""
         return restart_actor.sync(workspace, actor, client=self._api)
+
+    def set_label(
+        self,
+        workspace: str,
+        actor: str,
+        key: str,
+        *,
+        until: datetime.datetime | None = None,
+        reason: str | None = None,
+    ) -> Actor:
+        """Sets the label `key` on the Actor, replacing one of the same key. Without
+        `until`, it stays until cleared."""
+        body = SetActorLabelBody(until=sent(until), reason=sent(reason))
+        return set_actor_label.sync(
+            workspace, actor, key, client=self._api, body=body
+        ).actor
+
+    def clear_label(self, workspace: str, actor: str, key: str) -> Actor:
+        """Clears the label `key` of the Actor; one without the label stays as it is."""
+        return clear_actor_label.sync(workspace, actor, key, client=self._api).actor

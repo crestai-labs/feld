@@ -41,6 +41,8 @@ def actor(session: Session) -> Actor:
         schedule=None,
         grants=[],
         accept_from=None,
+        declared_in=None,
+        labels=[],
         created_at=AT,
         updated_at=AT,
         deleted_at=None,
@@ -319,3 +321,19 @@ def test_records_follow_waits_for_appended_records() -> None:
     records = fake.client().records.follow(after=4, interval=0)
     assert [r.sequence for r in itertools.islice(records, 2)] == [5, 6]
     assert [r.url.params["after"] for r in fake.requests] == ["4", "5", "5"]
+
+
+def test_actors_set_label_sends_the_body_and_answers_the_actor(
+    session: Session,
+) -> None:
+    dev = actor(session)
+    fake = FakeDaemon().on(
+        "PUT",
+        "/v1/workspaces/feld-dev/actors/dev/labels/waiting-upstream",
+        {"actor": dev},
+    )
+    answer = fake.client().actors.set_label(
+        "feld-dev", "dev", "waiting-upstream", reason="blocked on #12"
+    )
+    assert answer == dev
+    assert fake.json() == {"reason": "blocked on #12"}
