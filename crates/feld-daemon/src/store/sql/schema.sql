@@ -81,8 +81,8 @@ CREATE TABLE records (
   at TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('session.started', 'session.ended', 'spawned',
     'message.accepted', 'message.sent', 'message.read', 'stop.requested', 'kill.requested',
-    'observation', 'schedule.skipped', 'schedule.missed', 'label.set', 'label.cleared',
-    'label.expired')),
+    'observation', 'schedule.skipped', 'schedule.missed', 'schedule.paused',
+    'schedule.resumed', 'label.set', 'label.cleared', 'label.expired')),
   actor_id TEXT NOT NULL REFERENCES actors(id),
   session_id TEXT REFERENCES sessions(id),
   data TEXT NOT NULL

@@ -747,12 +747,15 @@ pub enum ActorCommand {
     /// Keep the Schedule of a Job from firing, as an update of its `enabled`.
     ///
     /// No tick fires until `feld actor resume`, and a running Session is untouched. A Job
-    /// without a Schedule is rejected.
+    /// without a Schedule is rejected. A Session with the `control` grant pauses any Job of its
+    /// Workspace, one with grants among them.
     #[command(after_help = help_footer("Examples:\n  feld actor pause nightly"))]
     Pause(ActorTarget),
     /// Let the Schedule of a Job fire again, as an update of its `enabled`.
     ///
-    /// The next run is computed from now, and the ticks of the pause are not caught up.
+    /// The next run is computed from now, and the ticks of the pause are not caught up. A
+    /// Session with the `control` grant resumes any Job of its Workspace, one with grants among
+    /// them.
     #[command(after_help = help_footer("Examples:\n  feld actor resume nightly"))]
     Resume(ActorTarget),
     Label(ActorLabelArgs),

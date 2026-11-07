@@ -2486,3 +2486,86 @@ fn a_session_writes_only_managed_actors_without_grants() {
         .update_actor_as("default", "lead", schedule_patch, "UTC", Writer::Admin)
         .unwrap();
 }
+
+/// [`Writer::Control`] pauses and resumes the Schedule of any Job, one with grants among them,
+/// and writes nothing else.
+#[test]
+fn control_toggles_only_the_schedule_of_a_job() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store = Store::open(&temporary.path().join("feld.db")).unwrap();
+    let launch = launch("/tmp/granted");
+    let grants = [Grant::Read].into_iter().collect();
+    store
+        .create_actor(
+            "default",
+            "dispatcher",
+            ActorKind::Job,
+            &launch,
+            None,
+            Some(&grants),
+        )
+        .unwrap();
+    let schedule = |cron: Option<&str>, enabled: Option<bool>| feld_core::model::SchedulePatch {
+        cron: cron.map(str::to_owned),
+        timezone: None,
+        enabled,
+    };
+    let declare = schedule(Some("0 9 * * *"), None);
+    store
+        .update_actor_as(
+            "default",
+            "dispatcher",
+            ActorPatch {
+                schedule: Some(&declare),
+                ..ActorPatch::default()
+            },
+            "UTC",
+            Writer::Admin,
+        )
+        .unwrap();
+
+    let pause = schedule(None, Some(false));
+    let paused = store
+        .update_actor_as(
+            "default",
+            "dispatcher",
+            ActorPatch {
+                schedule: Some(&pause),
+                ..ActorPatch::default()
+            },
+            "UTC",
+            Writer::Control,
+        )
+        .unwrap();
+    assert!(!paused.schedule.unwrap().enabled);
+
+    let granted = |result: Result<_, ActorWriteError>| {
+        assert!(
+            matches!(result, Err(ActorWriteError::Unmanaged { .. })),
+            "{result:?}"
+        );
+    };
+    let retime = schedule(Some("0 10 * * *"), Some(true));
+    granted(store.update_actor_as(
+        "default",
+        "dispatcher",
+        ActorPatch {
+            schedule: Some(&retime),
+            ..ActorPatch::default()
+        },
+        "UTC",
+        Writer::Control,
+    ));
+    granted(store.update_actor_as(
+        "default",
+        "dispatcher",
+        ActorPatch {
+            schedule: Some(&pause),
+            rename: Some("renamed"),
+            ..ActorPatch::default()
+        },
+        "UTC",
+        Writer::Control,
+    ));
+    granted(store.delete_actor_as("default", "dispatcher", Writer::Control));
+}

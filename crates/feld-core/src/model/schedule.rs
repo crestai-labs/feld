@@ -38,6 +38,13 @@ pub struct SchedulePatch {
     pub enabled: Option<bool>,
 }
 
+impl SchedulePatch {
+    /// Whether the patch changes only `enabled`: a pause or a resume.
+    pub fn toggles_only(&self) -> bool {
+        self.cron.is_none() && self.timezone.is_none() && self.enabled.is_some()
+    }
+}
+
 impl Schedule {
     pub(super) fn new(cron: String, timezone: String, enabled: bool, at: &str) -> Self {
         Self {

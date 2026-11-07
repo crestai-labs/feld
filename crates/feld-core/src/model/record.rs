@@ -31,6 +31,10 @@ pub enum RecordKind {
     ScheduleSkipped,
     #[serde(rename = "schedule.missed")]
     ScheduleMissed,
+    #[serde(rename = "schedule.paused")]
+    SchedulePaused,
+    #[serde(rename = "schedule.resumed")]
+    ScheduleResumed,
     #[serde(rename = "label.set")]
     LabelSet,
     #[serde(rename = "label.cleared")]
@@ -40,7 +44,7 @@ pub enum RecordKind {
 }
 
 impl RecordKind {
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 16] = [
         Self::SessionStarted,
         Self::SessionEnded,
         Self::Spawned,
@@ -52,6 +56,8 @@ impl RecordKind {
         Self::Observation,
         Self::ScheduleSkipped,
         Self::ScheduleMissed,
+        Self::SchedulePaused,
+        Self::ScheduleResumed,
         Self::LabelSet,
         Self::LabelCleared,
         Self::LabelExpired,
@@ -70,6 +76,8 @@ impl RecordKind {
             Self::Observation => "observation",
             Self::ScheduleSkipped => "schedule.skipped",
             Self::ScheduleMissed => "schedule.missed",
+            Self::SchedulePaused => "schedule.paused",
+            Self::ScheduleResumed => "schedule.resumed",
             Self::LabelSet => "label.set",
             Self::LabelCleared => "label.cleared",
             Self::LabelExpired => "label.expired",

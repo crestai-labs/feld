@@ -3,6 +3,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
 use crate::service::{ActorDeclaration, ScheduleRequest};
+use crate::store::Writer;
 use feld_core::id::valid_key;
 use feld_core::model::{Actor, ActorKind, Grant, SchedulePatch};
 use feld_core::plugin::{Plugins, provider_not_installed, runtime_not_installed};
@@ -153,9 +154,21 @@ fn authorize_manage(
     }
 }
 
+/// Whether the update only pauses or resumes the Schedule, which `control` allows on any Job
+/// of the Workspace.
+fn toggles_only(request: &UpdateActorRequest) -> bool {
+    request.name.is_none()
+        && request.launch_spec.is_none()
+        && request.grants.is_none()
+        && request.accept_from.is_none()
+        && request.schedule.as_ref().is_some_and(|schedule| {
+            schedule.cron.is_none() && schedule.timezone.is_none() && schedule.enabled.is_some()
+        })
+}
+
 pub(super) async fn update_actor(
     State(state): State<AppState>,
-    Caller(auth): Caller,
+    RequesterCaller(auth): RequesterCaller,
     Path((workspace, actor)): Path<(String, String)>,
     ApiJson(request): ApiJson<UpdateActorRequest>,
 ) -> Result<Json<ActorResponse>, ApiError> {
@@ -169,11 +182,22 @@ pub(super) async fn update_actor(
     {
         auth.require_admin("`trustWorkdir`")?;
     }
-    authorize_manage(&state, &auth, &workspace, &actor, None)?;
+    let requester_session_id = auth.session_id.clone();
+    let writer = if !toggles_only(&request) || auth.is_admin() {
+        authorize_manage(&state, &auth, &workspace, &actor, None)?;
+        auth.writer()
+    } else if auth.has(Grant::Control) {
+        auth.require_grant(&workspace, Grant::Control)?;
+        Writer::Control
+    } else {
+        // `manage-job` also pauses a Job it manages; a refusal names the grant that pauses any.
+        authorize_manage(&state, &auth, &workspace, &actor, None)
+            .or_else(|_| auth.require_grant(&workspace, Grant::Control))?;
+        auth.writer()
+    };
     // The Execution Provider resolves the merged launchSpec, which blocks until its process
     // answers.
     let actors = state.actors.clone();
-    let writer = auth.writer();
     let mut actor = tokio::task::spawn_blocking(move || {
         actors.update(
             &workspace,
@@ -189,6 +213,7 @@ pub(super) async fn update_actor(
             request.accept_from.as_ref().map(Option::as_ref),
             request.caller.as_ref(),
             writer,
+            requester_session_id.as_deref(),
         )
     })
     .await

@@ -1,21 +1,11 @@
--- Schema 16 keeps the labels of each Actor and adds the `label.*` record kinds.
-CREATE TABLE actor_labels (
-  actor_id TEXT NOT NULL REFERENCES actors(id),
-  key TEXT NOT NULL,
-  until TEXT,
-  reason TEXT,
-  set_by TEXT NOT NULL CHECK (set_by IN ('admin', 'actor')),
-  set_at TEXT NOT NULL,
-  PRIMARY KEY (actor_id, key)
-);
-CREATE INDEX actor_labels_until ON actor_labels(until) WHERE until IS NOT NULL;
+-- Schema 16 adds the `schedule.paused` and `schedule.resumed` record kinds.
 CREATE TABLE records_16 (
   sequence INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('session.started', 'session.ended', 'spawned',
     'message.accepted', 'message.sent', 'message.read', 'stop.requested', 'kill.requested',
-    'observation', 'schedule.skipped', 'schedule.missed', 'label.set', 'label.cleared',
-    'label.expired')),
+    'observation', 'schedule.skipped', 'schedule.missed', 'schedule.paused',
+    'schedule.resumed')),
   actor_id TEXT NOT NULL REFERENCES actors(id),
   session_id TEXT REFERENCES sessions(id),
   data TEXT NOT NULL
