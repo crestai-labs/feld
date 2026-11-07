@@ -101,6 +101,8 @@ test("an Actor listing goes stale with its Actor and the Sessions it lists alone
   expect(actorListingsHolding(client, { resource: "session", id: "s3" })).toEqual([]);
   expect(actorListingsHolding(client, { resource: "log", id: "s1" })).toEqual([]);
   expect(invalidatedBy({ resource: "actor", id: "dev" })).toContainEqual(keys.actorListingsOf("dev"));
+  // A label set, cleared, or lapsed is an `actor` event, which refetches the Actors list.
+  expect(invalidatedBy({ resource: "actor", id: "dev" })).toContainEqual(keys.actorsAll());
   // The range's listing is a separate read.
   expect(invalidatedBy({ resource: "session", id: "s2" }).some((key) => key[0] === "actor-listing")).toBe(false);
 });

@@ -163,7 +163,7 @@ The default Workspace always exists. `delete` of a Workspace is accepted only fo
 
 ### Actor
 
-A durable identity that Feld handles. It has `id`, `name`, `kind`, an optional `launchSpec`, for a Job an optional [Schedule](#schedule), [grants](#grants), and an optional [acceptFrom](#acceptfrom); it holds no execution state.
+A durable identity that Feld handles. It has `id`, `name`, `kind`, an optional `launchSpec`, for a Job an optional [Schedule](#schedule), [grants](#grants), an optional [acceptFrom](#acceptfrom), and [labels](#labels); it holds no execution state.
 
 - `id`: An opaque, immutable ID assigned by Feld. Sessions, Messages, and records reference Actors by `id`, and display resolves it to `name`
 - `name`: A name unique among live Actors in the Workspace. Matches `^[a-z0-9][a-z0-9-]*$`. It can be changed with `update`, and history and the mailbox referenced by `id` appear under the new name
@@ -201,6 +201,12 @@ The set of operations on other Actors in the same Workspace that [Admin](#admin)
 #### acceptFrom
 
 The list of `name`s of Actors in the same Workspace from which an Actor accepts Messages. Messages from [Admin](#admin) are always accepted. An Actor that omits it accepts from all Actors in the same Workspace. It belongs to the Actor's declaration alongside launchSpec; Admin and Sessions that can manage the Actor ([grants](#grants) `manage-agent` / `manage-job`) set it with `create` and `update`, and `update` replaces it wholesale or returns it to omitted.
+
+#### labels
+
+States an Actor declares about itself for the readers of the Actor (such as a harness's dispatcher and the Web UI), such as waiting on purpose until a time, what it waits for, or its phase of work. Each label has `key`, an optional `until` (when it lapses), an optional `reason`, `by` (`admin`, or `actor` for a Session of the Actor), and `setAt`. `key` follows the grammar of `name`, and an Actor has at most one label per key. The meaning of a key belongs to its readers; Feld keeps labels, removes those whose `until` has passed, and records each set, clear, and lapse.
+
+A Session sets and clears labels of its own Actor, and Admin those of any Actor. Setting a key the Actor has replaces that label, and clearing a key it lacks changes nothing. A label stays across Sessions until it is cleared or its `until` passes; the daemon removes a label within seconds after its `until` passes, records it as `label.expired`, and tells readers of the Actor through its resource event.
 
 ### Session
 
@@ -341,7 +347,7 @@ Facts Feld itself left. It is a separate line from the dialogue history the Runt
 
 Records remain for both Agents and Jobs, and have `kind`, a time, Workspace, and the Actor's `id`, plus the related Session if any. All records have a global order along the time axis, and the continuation can be read from a cursor pointing to a position. They are read with a single search filtered by Workspace, Actor, Session, kind, and time range; per-Session history and the list of skipped ticks are both results of this search.
 
-There are 13 kinds.
+There are 16 kinds.
 
 - `session.started`, `session.ended`
 - `spawned`: See [spawned](#spawned)
@@ -351,6 +357,7 @@ There are 13 kinds.
 - `schedule.skipped`: A [Schedule](#schedule) tick rejected by admission
 - `schedule.missed`: A [Schedule](#schedule) tick not fired because the Scheduler stopped or woke 2 minutes or more past the scheduled time, with the reason. Has no Session
 - `schedule.paused`, `schedule.resumed`: A `pause` / `resume` that toggled `enabled` of a [Schedule](#schedule), with `requesterSessionId` (the requesting Session; null for a request from Admin). Has no Session
+- `label.set`, `label.cleared`, `label.expired`: A [label](#labels) set, cleared, or removed after its `until`, with its key. A label a Session sets or clears has that Session
 
 #### spawned
 

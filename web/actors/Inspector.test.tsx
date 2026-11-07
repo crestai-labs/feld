@@ -339,3 +339,24 @@ test("a Job without a Schedule gets Edit, whose form changes its name and launch
   expect((element('[data-edit-form] [name="workdir"]') as HTMLInputElement).value).not.toBe("");
   expect(store().cardView).toMatchObject({ agentId, editing: true });
 });
+
+test("an Actor's labels are marks on its band and a fact of its card", async () => {
+  const agentId = "default/reviewer-01";
+  const marks = [...page.querySelectorAll<HTMLElement>(".feld-agents__unread.is-label")];
+  expect(marks.map((mark) => mark.textContent)).toEqual(["needs-admin", "waiting-upstream"]);
+  expect(marks[0].title).toContain("set by actor");
+  expect(marks[0].title).toContain("until cleared");
+  expect(marks[0].title).toContain("decide on dropping the column");
+  expect(marks[1].title).toMatch(/^Label waiting-upstream · set by admin .+ · until .+/);
+
+  await click(element(`[data-action="open-actor"][data-agent-id="${agentId}"]`));
+  const labels = element(".feld-agents__inspector.is-actor [data-labels]");
+  expect([...labels.querySelectorAll("strong")].map((key) => key.textContent)).toEqual(["needs-admin", "waiting-upstream"]);
+  expect(labels.textContent).toContain("until cleared · set by actor");
+  expect(labels.textContent).toContain("decide on dropping the column");
+  expect(labels.textContent).toContain("set by admin");
+
+  await click(element('[data-action="open-actor"][data-agent-id="default/developer-01"]'));
+  expect(page.querySelector("[data-labels]")).toBeNull();
+  expect(element(".feld-agents__inspector.is-actor").textContent).toContain("LabelsNone");
+});

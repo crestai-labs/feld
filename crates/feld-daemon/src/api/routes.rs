@@ -6,8 +6,8 @@ use axum::routing::{MethodFilter, on};
 
 use super::AppState;
 use super::actors::{
-    attach_actor, create_actor, delete_actor, get_actor, get_actor_by_id, list_actors,
-    restart_actor, start_actor, update_actor,
+    attach_actor, clear_label, create_actor, delete_actor, get_actor, get_actor_by_id, list_actors,
+    restart_actor, set_label, start_actor, update_actor,
 };
 use super::daemon::{daemon_restart, daemon_shutdown, daemon_status, events};
 use super::messages::{
@@ -125,6 +125,16 @@ pub(super) fn api_routes() -> Routes<AppState> {
             Method::DELETE,
             "/v1/workspaces/{workspace}/actors/{actor}",
             delete_actor,
+        )
+        .route(
+            Method::PUT,
+            "/v1/workspaces/{workspace}/actors/{actor}/labels/{key}",
+            set_label,
+        )
+        .route(
+            Method::DELETE,
+            "/v1/workspaces/{workspace}/actors/{actor}/labels/{key}",
+            clear_label,
         )
         .route(Method::GET, "/v1/actors/{actor}", get_actor_by_id)
         .route(

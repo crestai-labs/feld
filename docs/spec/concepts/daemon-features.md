@@ -28,6 +28,7 @@ Features split into those for a Controller, which operates Actors and Sessions f
 | Delete | `actor delete` | Soft deletes an existing Agent | Soft deletes an existing Job |
 | Get details | `actor get` | Shows the Agent's details | Shows the Job's details |
 | List (search) | `actor list` | Searches Agents | Searches Jobs |
+| Set / clear label | `actor label set` / `clear` | Sets or clears a [label](glossary.md#labels) of the Agent | Sets or clears a label of the Job |
 
 ### Session
 
@@ -104,3 +105,4 @@ Handles the browser token of the browser that opens the Web UI.
 | Identify Runtime | `self runtime` | Delivers its own session id, model name, and transcript file location to Feld from a Claude Code or Codex hook (Agent) |
 | Receive Message | `self message recv` | Takes unread Messages from the caller's mailbox in FIFO order. Can wait for arrival with long-poll (Agent / Job) |
 | Mark Message read | `self message read` | Marks a received Message as read (Agent / Job) |
+| Declare state | `self label set` / `clear` | Sets or clears a [label](glossary.md#labels) of the caller's own Actor (Agent / Job) |

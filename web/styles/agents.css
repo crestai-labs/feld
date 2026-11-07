@@ -1075,6 +1075,15 @@ feld-agents {
   border-color: color-mix(in srgb, currentColor 35%, transparent);
   cursor: default;
 }
+/* A label only tells: its key in the neutral tone, its reason and lapse in the title. */
+.feld-agents__unread.is-label {
+  padding: 0 7px;
+  color: var(--ink-soft);
+  background: transparent;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  cursor: default;
+}
+
 /* An unlinked Runtime is answered in its pane, so the mark only tells. */
 .feld-agents__unread.is-unlinked {
   cursor: default;

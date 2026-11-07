@@ -4,7 +4,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use tokio::sync::Notify;
 
-use crate::store::{ActorPatch, ActorWriteError, LaunchUpdate, Store, Writer};
+use crate::store::{ActorPatch, ActorWriteError, LabelWriter, LaunchUpdate, Store, Writer};
 use feld_core::cron::{last_run_at_or_before, validate_cron, validate_timezone};
 use feld_core::id::valid_key;
 use feld_core::model::{
@@ -97,6 +97,7 @@ impl ActorService {
             .map(str::parse::<ActorKind>)
             .transpose()
             .map_err(ActorError::Invalid)?;
+        self.store.expire_labels()?;
         let mut actors = self.store.list_actors(workspace, kind, include_deleted)?;
         for actor in &mut actors {
             self.mark_overdue(actor)?;
@@ -111,6 +112,7 @@ impl ActorService {
     }
 
     pub fn get(&self, workspace: &str, actor: &str) -> anyhow::Result<Option<Actor>> {
+        self.store.expire_labels()?;
         self.store
             .get_actor(workspace, actor)?
             .map(|actor| self.with_overdue(actor))
@@ -118,6 +120,7 @@ impl ActorService {
     }
 
     pub fn get_by_id(&self, actor: &str) -> anyhow::Result<Option<Actor>> {
+        self.store.expire_labels()?;
         self.store
             .get_actor_by_id(actor)?
             .map(|actor| self.with_overdue(actor))
@@ -296,6 +299,34 @@ impl ActorService {
             self.schedule_notify.notify_one();
         }
         Ok(actor)
+    }
+
+    /// Sets the label `key` on the live Actor, as [`Store::set_label`] does.
+    pub fn set_label(
+        &self,
+        workspace: &str,
+        actor: &str,
+        key: &str,
+        until: Option<&str>,
+        reason: Option<&str>,
+        writer: LabelWriter<'_>,
+    ) -> Result<Actor, ActorWriteError> {
+        let actor = self
+            .store
+            .set_label(workspace, actor, key, until, reason, writer)?;
+        self.with_overdue(actor).map_err(ActorWriteError::from)
+    }
+
+    /// Clears the label `key` of the live Actor, as [`Store::clear_label`] does.
+    pub fn clear_label(
+        &self,
+        workspace: &str,
+        actor: &str,
+        key: &str,
+        writer: LabelWriter<'_>,
+    ) -> Result<Actor, ActorWriteError> {
+        let actor = self.store.clear_label(workspace, actor, key, writer)?;
+        self.with_overdue(actor).map_err(ActorWriteError::from)
     }
 
     pub fn delete(

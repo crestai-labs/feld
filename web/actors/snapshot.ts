@@ -444,6 +444,7 @@ export function toActorsInput(snapshot: FeldLiveData | null | undefined): Actors
     kind: actor.kind,
     launchSpec: mapLaunchSpec(actor.launchSpec),
     grants: actor.grants || [],
+    labels: (actor.labels || []).map((label) => ({ key: label.key, until: instantOf(label.until), reason: label.reason, by: label.by, setAt: instantOf(label.setAt)! })),
     actorId: actor.id,
     deletedAt: instantOf(actor.deletedAt),
     currentSession: actor.currentSession ? { id: actor.currentSession.id, ownership: actor.currentSession.ownership || null } : null,

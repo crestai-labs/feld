@@ -51,6 +51,10 @@ pub enum ActorWriteError {
     InvalidLaunch(String),
     #[error("invalid Schedule: {0}")]
     InvalidSchedule(String),
+    #[error("invalid label: {0}")]
+    InvalidLabel(String),
+    #[error("a Session token sets labels only on its own Actor, not on Actor '{0}'")]
+    OthersLabel(String),
     #[error(transparent)]
     Database(#[from] anyhow::Error),
 }

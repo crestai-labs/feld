@@ -26,6 +26,16 @@ CREATE TABLE actors (
   deleted_at TEXT
 );
 CREATE UNIQUE INDEX actor_live_name ON actors(workspace_id, name) WHERE deleted_at IS NULL;
+CREATE TABLE actor_labels (
+  actor_id TEXT NOT NULL REFERENCES actors(id),
+  key TEXT NOT NULL,
+  until TEXT,
+  reason TEXT,
+  set_by TEXT NOT NULL CHECK (set_by IN ('admin', 'actor')),
+  set_at TEXT NOT NULL,
+  PRIMARY KEY (actor_id, key)
+);
+CREATE INDEX actor_labels_until ON actor_labels(until) WHERE until IS NOT NULL;
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY NOT NULL,
   actor_id TEXT NOT NULL REFERENCES actors(id),
@@ -72,7 +82,7 @@ CREATE TABLE records (
   kind TEXT NOT NULL CHECK (kind IN ('session.started', 'session.ended', 'spawned',
     'message.accepted', 'message.sent', 'message.read', 'stop.requested', 'kill.requested',
     'observation', 'schedule.skipped', 'schedule.missed', 'schedule.paused',
-    'schedule.resumed')),
+    'schedule.resumed', 'label.set', 'label.cleared', 'label.expired')),
   actor_id TEXT NOT NULL REFERENCES actors(id),
   session_id TEXT REFERENCES sessions(id),
   data TEXT NOT NULL

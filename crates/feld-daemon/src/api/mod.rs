@@ -38,7 +38,7 @@ pub use types::{
     CreateActorRequest, CreateScheduleRequest, CreateWorkspaceRequest, DaemonStatus,
     LifecycleResponse, MessageList, MessageReadList, MessageResponse, MessageSummaryList,
     ProviderEntry, ProviderList, RecordList, RestartResponse, RestoredCounts, RuntimeEntry,
-    RuntimeList, SendMessageRequest, SessionList, SessionResponse, StartResponse,
+    RuntimeList, SendMessageRequest, SessionList, SessionResponse, SetLabelRequest, StartResponse,
     SubAgentSessionResponse, UpdateActorRequest, UpdateScheduleRequest, WorkspaceList,
     WorkspaceResponse,
 };

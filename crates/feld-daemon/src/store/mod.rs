@@ -12,6 +12,7 @@ mod actor;
 mod admission;
 mod browser;
 mod error;
+mod label;
 mod lifecycle;
 mod message;
 mod record;
@@ -30,6 +31,7 @@ pub use admission::{
 };
 pub use browser::{BROWSER_IDLE, BROWSER_LIFETIME, NewBrowser};
 pub use error::{ActorWriteError, MessageWriteError, SessionWriteError, WorkspaceDeleteError};
+pub use label::LabelWriter;
 pub use lifecycle::{AcceptedLifecycleAction, ObservationUpdate, PendingRestart};
 pub use message::MessageFilter;
 pub use record::RecordFilter;

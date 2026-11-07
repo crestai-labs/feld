@@ -100,6 +100,7 @@ fn actor(sessions: Vec<Session>, waiting_count: u64) -> Actor {
         waiting_count,
         unread_mail: false,
         skip_mark: false,
+        labels: Vec::new(),
         unlinked_mark: false,
     }
 }

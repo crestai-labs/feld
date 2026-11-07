@@ -113,11 +113,55 @@ pub struct Actor {
     pub current_session: Option<Session>,
     pub latest_session: Option<Session>,
     pub sessions: Vec<Session>,
+    /// The labels the Actor's Sessions and the Admin set on it, by key.
+    #[serde(default)]
+    pub labels: Vec<ActorLabel>,
     pub attention: bool,
     pub waiting_count: u64,
     pub unread_mail: bool,
     pub skip_mark: bool,
     pub unlinked_mark: bool,
+}
+
+/// Who set a label: the Admin, or a Session of the labelled Actor.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LabelSetter {
+    Admin,
+    Actor,
+}
+
+impl LabelSetter {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Admin => "admin",
+            Self::Actor => "actor",
+        }
+    }
+}
+
+impl FromStr for LabelSetter {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "admin" => Ok(Self::Admin),
+            "actor" => Ok(Self::Actor),
+            _ => Err(format!("unknown label setter '{value}'")),
+        }
+    }
+}
+
+/// A state an Actor declares about itself, whose meaning its readers decide. It lasts until
+/// `until`, or until it is cleared when it has none.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActorLabel {
+    pub key: String,
+    pub until: Option<String>,
+    pub reason: Option<String>,
+    pub by: LabelSetter,
+    pub set_at: String,
 }
 
 impl Actor {

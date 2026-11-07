@@ -5,7 +5,9 @@ use std::str::FromStr;
 use rusqlite::ToSql;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSqlOutput, ValueRef};
 
-use feld_core::model::{ActorKind, EndKind, ObservationKind, Ownership, RecordKind, StartKind};
+use feld_core::model::{
+    ActorKind, EndKind, LabelSetter, ObservationKind, Ownership, RecordKind, StartKind,
+};
 
 /// One of the model's enums as the text of a column: `params![Text(kind)]` writes it and
 /// `row.get::<_, Text<ActorKind>>(0)?.0` reads it.
@@ -34,6 +36,7 @@ text_enum!(
     EndKind,
     ObservationKind,
     RecordKind,
+    LabelSetter,
 );
 
 impl<T: TextEnum> ToSql for Text<T> {

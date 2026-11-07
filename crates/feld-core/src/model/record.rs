@@ -35,10 +35,16 @@ pub enum RecordKind {
     SchedulePaused,
     #[serde(rename = "schedule.resumed")]
     ScheduleResumed,
+    #[serde(rename = "label.set")]
+    LabelSet,
+    #[serde(rename = "label.cleared")]
+    LabelCleared,
+    #[serde(rename = "label.expired")]
+    LabelExpired,
 }
 
 impl RecordKind {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 16] = [
         Self::SessionStarted,
         Self::SessionEnded,
         Self::Spawned,
@@ -52,6 +58,9 @@ impl RecordKind {
         Self::ScheduleMissed,
         Self::SchedulePaused,
         Self::ScheduleResumed,
+        Self::LabelSet,
+        Self::LabelCleared,
+        Self::LabelExpired,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -69,6 +78,9 @@ impl RecordKind {
             Self::ScheduleMissed => "schedule.missed",
             Self::SchedulePaused => "schedule.paused",
             Self::ScheduleResumed => "schedule.resumed",
+            Self::LabelSet => "label.set",
+            Self::LabelCleared => "label.cleared",
+            Self::LabelExpired => "label.expired",
         }
     }
 }
