@@ -32,12 +32,13 @@ From here on, the new version is `X.Y.Z`, its tag `vX.Y.Z`, and the previous ver
 
 ## 3. Write the version
 
-The version number appears in two places; set both to the same value.
+The version number appears in three places; set all to the same value.
 
 | File | Change |
 |---|---|
 | `Cargo.toml` | `version` in `[workspace.package]` |
 | `docs/guide/daemon-api.openapi.yaml` | `info.version` |
+| `sdk/python/pyproject.toml` | `version` in `[project]`, the version of the Python SDK |
 
 The next `make check` rewrites the versions of the workspace crates (`feld`, `feld-daemon`, `feld-core`, `feld-plugin-*`) in `Cargo.lock`, so do not edit them by hand.
 Run `grep -rn 'P.Q.R' README*.md docs/guide` to check that no old version remains elsewhere.
@@ -53,12 +54,12 @@ Write the Release notes in `dist/notes.md`, in words for users, from `git log vP
 
 ```sh
 make check
-git add Cargo.toml Cargo.lock docs/guide/daemon-api.openapi.yaml
+git add Cargo.toml Cargo.lock docs/guide/daemon-api.openapi.yaml sdk/python/pyproject.toml sdk/python/uv.lock
 git commit -m "Release vX.Y.Z"
 ```
 
 If `make check` fails, fix it before this Release commit.
-`make check` rebuilds the Web UI's `web/dist/` with Vite and `web/types/feld-api.generated.d.ts` from the yaml. If either shows up in `git status --short`, the committed one is stale, so fix that before the Release commit too.
+`make check` rebuilds the Web UI's `web/dist/` with Vite, and `web/types/feld-api.generated.d.ts` and the Python SDK's `sdk/python/src/` from the yaml, and checks that the three versions match. If either shows up in `git status --short`, the committed one is stale, so fix that before the Release commit too.
 
 ## 5. Run the pre-release CI
 
@@ -94,7 +95,7 @@ With `--atomic`, main and the tag are either pushed together or rejected togethe
 
 ## 7. Wait for the workflow to finish
 
-The tag push starts `.github/workflows/release.yml`, which runs check (`cargo deny check` and `make check`), build (`package.sh` creates the macOS (`macos-15`) and Linux (`ubuntu-22.04`) archives and `.sha256` files) and release (creates the Release with the tag message body output by `notes.sh` as its body), in that order.
+The tag push starts `.github/workflows/release.yml`, which runs check (`cargo deny check` and `make check`), build (`package.sh` creates the macOS (`macos-15`) and Linux (`ubuntu-22.04`) archives and `.sha256` files) and release (builds the Python SDK's wheel and sdist, and creates the Release with the tag message body output by `notes.sh` as its body), in that order.
 
 ```sh
 run=$(gh run list --workflow release.yml --event push --commit "$(git rev-parse vX.Y.Z^{commit})" --limit 1 --json databaseId --jq '.[0].databaseId')
@@ -115,7 +116,7 @@ dir=$(mktemp -d) && gh release download vX.Y.Z --dir "$dir"
 diff <(gh release view vX.Y.Z --json body --jq .body) <(.claude/skills/release/scripts/notes.sh X.Y.Z)
 ```
 
-Check that the Release has `feld-vX.Y.Z-aarch64-apple-darwin.tar.gz`, `feld-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz` and their `.sha256` files attached, that the body is the tag message body (the output of `notes.sh X.Y.Z`), and that `--version` shows `X.Y.Z`.
+Check that the Release has `feld-vX.Y.Z-aarch64-apple-darwin.tar.gz`, `feld-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz` and their `.sha256` files, and `feld_sdk-X.Y.Z-py3-none-any.whl` and `feld_sdk-X.Y.Z.tar.gz` attached, that the body is the tag message body (the output of `notes.sh X.Y.Z`), and that `--version` shows `X.Y.Z`.
 
 ## 9. Update the Homebrew formula
 

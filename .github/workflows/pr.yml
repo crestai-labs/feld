@@ -1,5 +1,5 @@
 # The checks that need no Runtime. A PR runs the DCO sign-off check, `cargo deny`, `npm audit`,
-# fmt, and clippy; the weekly run checks the advisories again, which may appear for dependencies that stay the same.
+# fmt, clippy, and the check of the Python SDK (`make sdk-check`); the weekly run checks the advisories again, which may appear for dependencies that stay the same.
 # A manual run does what a PR does, except the DCO check.
 name: PR
 
@@ -81,3 +81,11 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  sdk:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+      - run: make sdk-check

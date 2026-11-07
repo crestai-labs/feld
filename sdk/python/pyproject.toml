@@ -1,0 +1,46 @@
+[project]
+name = "feld-sdk"
+# The version of Feld (`Cargo.toml`); `tests/test_version.py` checks that they match.
+version = "0.2.1"
+description = "Python SDK for the Feld daemon API"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "attrs>=23.2",
+    "httpx>=0.27,<1",
+    "python-dateutil>=2.8",
+]
+
+[project.urls]
+Repository = "https://github.com/crestai-labs/feld"
+Documentation = "https://github.com/crestai-labs/feld/blob/main/docs/guide/python-sdk.md"
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "openapi-python-client==0.29.1",
+    "pytest",
+    "pyyaml",
+    "types-python-dateutil",
+    "types-PyYAML",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/feld"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# What the generator writes that strict mypy does not accept as is.
+[[tool.mypy.overrides]]
+module = ["feld._client"]
+disable_error_code = ["arg-type"]

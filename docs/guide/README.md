@@ -1,6 +1,6 @@
 # Guide
 
-This directory holds the documents for the surfaces through which people and programs touch Feld (Quickstart, CLI, daemon API, Web UI, compatibility, Data & Privacy).
+This directory holds the documents for the surfaces through which people and programs touch Feld (Quickstart, CLI, daemon API, Python SDK, Web UI, compatibility, Data & Privacy).
 
 ## Source of truth
 
@@ -15,6 +15,7 @@ When the implementation changes, update the relevant documents to match the actu
 - [Web UI views](webui.md): what the Console, Actor card, Timeline, Now, and Metrics lane draw.
 - [CLI reference](cli.md): the arguments, options, behavior, and output of each `feld` command.
 - [daemon API](daemon-api.md): the rules common to the `feld daemon` HTTP API (authentication, errors, name grammar, soft delete, time ranges, cursors, derived values, SSE).
-- [daemon API OpenAPI definition](daemon-api.openapi.yaml): the request and response of each API. The `feld-daemon` tests check it against the routes, and the Web UI types are generated from it.
+- [daemon API OpenAPI definition](daemon-api.openapi.yaml): the request and response of each API. The `feld-daemon` tests check it against the routes, and the Web UI types and the Python SDK are generated from it.
+- [Python SDK](python-sdk.md): install the `feld` package and call the daemon API from Python with typed answers.
 - [Compatibility](compatibility.md): how the store, `FELD_HOME`, CLI, API, and Plugin protocol are handled when upgrading during 0.x, and the steps to upgrade.
 - [Data & Privacy](data-and-privacy.md): what Feld does not send outside, what it reads and writes on the user's machine, and how to remove it.

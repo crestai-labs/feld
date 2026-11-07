@@ -8,6 +8,7 @@ Feld is an open, harness-agnostic **Agent Loop Control Plane**.
 
 - `crates/`: the Rust workspace (details on the crates and Plugins are in [`CONTRIBUTING.md`](CONTRIBUTING.md#repository-layout)). `feld` (the CLI; it starts the daemon), `feld-daemon` (the API, serving the Web UI, Session control, the scheduler, the store, metrics), `feld-core` (what the daemon, the CLI, and the Plugins share), `feld-plugin-<name>` (the Runtime Adapter and Execution Provider executables)
 - `plugins/`: Plugin manifests, and the hooks, monitors, and skills installed into Runtimes
+- `sdk/python/`: the Python SDK, a hand-written client over a private layer generated from the daemon API's OpenAPI definition
 - `web/`: the Web UI. Its tech stack and code conventions are in [`web/README.md`](web/README.md)
 - `docs/spec/`: the source of truth for the spec the implementation satisfies. It consists of concepts (`concepts/`) and design (`design/`). The reading order and precedence are in [`docs/spec/README.md`](docs/spec/README.md)
 - `docs/guide/`: documents for the surfaces through which people and programs touch Feld (Quickstart, CLI, daemon API, Web UI, compatibility, Data & Privacy). They are written and updated with the current implementation as the truth. The daemon API's OpenAPI definition, `docs/guide/daemon-api.openapi.yaml`, is a contract that the `feld-daemon` tests check against the routes

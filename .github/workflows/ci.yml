@@ -76,6 +76,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - run: cargo deny check advisories licenses
       - run: npm --prefix web audit
+      # The Python SDK's generator, type checker, and tests (`make sdk-check`).
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - run: make check
 
   # The latest release of every product, the real Claude Code and Codex included, which the
@@ -149,6 +151,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - run: cargo deny check advisories licenses
       - run: npm --prefix web audit
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - run: make check
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -201,6 +204,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - run: cargo deny check advisories licenses
       - run: npm --prefix web audit
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
       - run: make check
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

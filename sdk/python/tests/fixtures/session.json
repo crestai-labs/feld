@@ -1,0 +1,90 @@
+{
+  "id": "session_737453096e274fb0923b587ee9dc1347",
+  "workspace": "sdk",
+  "actorId": "actor_7abb00ab35984f6e8194d08b25022194",
+  "actor": "echoer",
+  "actorKind": "job",
+  "generation": 1,
+  "start": "2026-11-04T09:07:24.196Z",
+  "end": "2026-11-04T09:07:27.528Z",
+  "startKind": "start",
+  "ownership": "owned",
+  "endKind": "stopped",
+  "exitCode": 143,
+  "planned": null,
+  "execution": {
+    "type": "program",
+    "label": "sh program",
+    "command": [
+      "sh",
+      "-c",
+      "echo hello; echo oops >&2; sleep 120"
+    ],
+    "ai": false
+  },
+  "placement": {
+    "provider": "tmux",
+    "node": "local",
+    "workdir": "/work/echoer",
+    "placement": {
+      "endpoint": {
+        "kind": "name",
+        "value": "feld"
+      },
+      "unit": "session",
+      "borrowed": null,
+      "workdir": "/work/echoer",
+      "server": {
+        "pid": 75487,
+        "startTime": "Wed Nov  4 18:07:24 2026"
+      },
+      "sessionId": "$0",
+      "sessionCreatedAt": 1793783244,
+      "sessionOrigin": "created",
+      "windowId": "@0",
+      "windowOrigin": "created",
+      "paneId": "%0",
+      "paneOrigin": "created",
+      "paneProcess": {
+        "pid": 75498,
+        "startTime": "Wed Nov  4 18:07:24 2026"
+      },
+      "program": {
+        "pid": 75498,
+        "startTime": "Wed Nov  4 18:07:24 2026"
+      },
+      "summary": "session $0 (feld-sdk-echoer-1, created)",
+      "attachCommand": "tmux -L feld attach-session -t '$0'"
+    }
+  },
+  "lifecycle": {
+    "startSettled": "2026-11-04T09:07:24.482Z",
+    "startFailed": null,
+    "stop": {
+      "accepted": "2026-11-04T09:07:27.494Z",
+      "requesterSessionId": null,
+      "attempt": "tmux sent SIGTERM to the pane's process",
+      "observed": {
+        "kind": "gone",
+        "at": "2026-11-04T09:07:27.528Z",
+        "detail": "the pane process exited",
+        "exitCode": 143
+      }
+    },
+    "kill": null
+  },
+  "observation": {
+    "kind": "gone",
+    "at": "2026-11-04T09:07:27.528Z",
+    "since": "2026-11-04T09:07:27.528Z",
+    "detail": "the pane process exited",
+    "exitCode": 143
+  },
+  "spawnedBy": {
+    "spawner": {
+      "type": "admin"
+    },
+    "spawnerSessionId": null
+  },
+  "outcome": "stopped"
+}

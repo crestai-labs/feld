@@ -8,6 +8,7 @@ Requirements:
 
 - Rust toolchain: a version that can build edition 2024 (Rust 1.85 or later)
 - Node.js (npm): used to build and test `web/`. Vite and vitest require an LTS version of 22.12 or later
+- [uv](https://docs.astral.sh/uv/): used to generate, type-check, and test the Python SDK in `sdk/python/`. It fetches the Python it needs
 - tmux, or [herdr](https://herdr.dev)
 - Claude Code, Codex (optional; used to try Runtime Adapters against the real products)
 
@@ -35,6 +36,10 @@ The repository root holds the Cargo workspace definition, and the crates are in 
 
 Integration tests that run the `feld` binary, and their fixtures, are in `crates/feld-cli/tests/`. Tests that exercise the store directly are in `crates/feld-daemon/tests/`.
 
+### Python SDK
+
+`sdk/python/` holds the Python SDK (the distribution `feld-sdk`, the package `feld`). Its client is written by hand over operations and models generated from `docs/guide/daemon-api.openapi.yaml` and committed; [`sdk/python/README.md`](sdk/python/README.md) says which files are generated and which are written by hand. Its version is the version of Feld.
+
 ### Plugins
 
 Runtime Adapters and Execution Providers are Plugins placed in `$FELD_HOME/plugins/<kind>/<name>/`, which the daemon reads at startup. The bundled ones are `claude-code`, `codex`, `tmux` and `herdr`, and `feld init` writes the selected ones there. The static files of the bundled Plugins are in the repository's `plugins/<kind>/<name>/`. Their executables are binaries of the Cargo workspace crates `crates/feld-plugin-<name>`, built together with `feld`. The product-independent skeleton is in `feld_core::plugin::sdk` and `feld_core::self_api` of `crates/feld-core`, the crate shared by the daemon, the CLI and Plugins. The only Feld crate a Plugin crate depends on is `feld-core`. The contract with core is in [`docs/spec/design/plugin.md`](docs/spec/design/plugin.md).
@@ -46,8 +51,11 @@ Pass `make check` before opening a PR.
 ```sh
 make web     # Type-check the Web UI and build web/dist, which the daemon embeds, with Vite
 make test    # Build web and the workspace, then run the Web UI's vitest and cargo test for the whole workspace
-make check   # Web UI API types match the OpenAPI definition, web/dist matches the source, test, cargo fmt --check, cargo clippy
+make sdk     # Regenerate the Python SDK from the OpenAPI definition
+make check   # Web UI API types and the Python SDK match the OpenAPI definition, web/dist matches the source, the SDK's mypy and pytest, test, cargo fmt --check, cargo clippy
 ```
+
+When you change the OpenAPI definition, regenerate the Python SDK with `make sdk` and include it in the same commit.
 
 When you change the Web UI source, rebuild `web/dist/` with `make web` and include it in the same commit ([`web/README.md`](web/README.md)). `make check` confirms that the rebuilt `web/dist/` matches the index.
 
@@ -69,8 +77,8 @@ The minimum versions are the defaults of the workflow inputs, and each product c
 
 | Trigger | Checks |
 |---|---|
-| PR | DCO sign-off line, `cargo deny check advisories licenses`, `npm --prefix web audit`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` |
-| Manual run (`gh workflow run pr.yml --ref <branch>`) | `cargo deny check advisories licenses`, `npm --prefix web audit`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` |
+| PR | DCO sign-off line, `cargo deny check advisories licenses`, `npm --prefix web audit`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `make sdk-check` |
+| Manual run (`gh workflow run pr.yml --ref <branch>`) | `cargo deny check advisories licenses`, `npm --prefix web audit`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `make sdk-check` |
 | Every Monday at 00:00 (UTC) | `cargo deny check advisories`, `npm --prefix web audit` |
 
 ## Filing issues
