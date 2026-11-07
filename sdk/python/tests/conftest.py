@@ -8,11 +8,10 @@ import pytest
 
 from feld.models import (
     ActorReference,
+    AdminRequester,
     MessageSummary,
     Record,
-    RecordData,
     RecordKind,
-    RequesterType0,
     Session,
 )
 
@@ -34,7 +33,7 @@ def record(sequence: int, kind: RecordKind = RecordKind.MESSAGE_ACCEPTED) -> Rec
         kind=kind,
         actor=DEV,
         session_id=None,
-        data=RecordData(),
+        data={},
     )
 
 
@@ -42,7 +41,7 @@ def message(id: str, read: bool = False) -> MessageSummary:
     return MessageSummary(
         id=id,
         fifo=1,
-        from_=RequesterType0(type_="admin"),
+        from_=AdminRequester(type_="admin"),
         from_session_id=None,
         to=DEV,
         to_session_id=None,

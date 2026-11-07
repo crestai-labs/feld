@@ -17,7 +17,7 @@ from ...exceptions import expect, operational
     arguments, client, kwargs, parse_response, docstring, body_to_kwarg %}
 
 {# Feld: an endpoint that answers with an event stream gets `_get_kwargs` alone; the stream is
-   read as it arrives by `feld.events`. #}
+   read as it arrives by `feld.resources.events`. #}
 {% set ns = namespace(streaming=false) %}
 {% for response in endpoint.responses.patterns %}
 {% if response.data.content and "text/event-stream" in response.data.content %}

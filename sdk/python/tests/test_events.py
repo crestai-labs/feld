@@ -6,8 +6,7 @@ import httpx
 import pytest
 
 import feld
-from feld import events
-from feld.events import Event
+from feld.models import Event
 from feld.testing import FakeDaemon
 
 STREAM = (
@@ -25,7 +24,7 @@ def test_stream_yields_each_event_and_skips_keep_alives() -> None:
             200, text=STREAM, headers={"content-type": "text/event-stream"}
         ),
     )
-    seen = list(events.stream(fake.client(), workspace="feld-dev"))
+    seen = list(fake.client().events.stream(workspace="feld-dev"))
     assert seen == [Event("daemon", "daemon_1"), Event("session", "session_1")]
     assert fake.requests[0].url.params["workspace"] == "feld-dev"
 
@@ -44,11 +43,11 @@ def test_stream_yields_an_event_before_the_stream_ends() -> None:
         "/v1/events",
         lambda request: httpx.Response(200, stream=FirstEventOnly()),
     )
-    assert next(events.stream(fake.client())) == Event("actor", "dev")
+    assert next(fake.client().events.stream()) == Event("actor", "dev")
 
 
 def test_a_refused_stream_is_rejected() -> None:
     fake = FakeDaemon().reject("GET", "/v1/events", 403, "other Workspace")
     with pytest.raises(feld.FeldRejected) as rejected:
-        next(events.stream(fake.client(), workspace="other"))
+        next(fake.client().events.stream(workspace="other"))
     assert rejected.value.status == 403

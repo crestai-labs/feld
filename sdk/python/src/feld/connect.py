@@ -8,7 +8,7 @@ from pathlib import Path
 
 import httpx
 
-from .client import AuthenticatedClient
+from .client import Client
 from .exceptions import FeldOperational
 
 FELD_API_ENV = "FELD_API"
@@ -31,7 +31,7 @@ def connect(
     token: str | None = None,
     home: str | os.PathLike[str] | None = None,
     timeout: httpx.Timeout | float | None = None,
-) -> AuthenticatedClient:
+) -> Client:
     """A client of the daemon API.
 
     The API is `api`, else `FELD_API`, else the `api` the daemon recorded in
@@ -42,13 +42,7 @@ def connect(
     root = feld_home(home)
     base_url = api or os.environ.get(FELD_API_ENV) or _recorded_api(root)
     bearer = token or os.environ.get(FELD_SESSION_TOKEN_ENV) or _local_token(root)
-    return AuthenticatedClient(
-        base_url=base_url,
-        token=bearer,
-        timeout=httpx.Timeout(timeout)
-        if isinstance(timeout, (int, float))
-        else timeout,
-    )
+    return Client(base_url, bearer, timeout=timeout)
 
 
 def _recorded_api(home: Path) -> str:

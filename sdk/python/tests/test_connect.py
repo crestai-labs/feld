@@ -23,7 +23,7 @@ def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_outside_a_session_speaks_with_the_local_token(home: Path) -> None:
     client = feld.connect()
     assert client.token == "local-token"
-    assert client._base_url == "http://127.0.0.1:7381"
+    assert client.base_url == "http://127.0.0.1:7381"
 
 
 def test_inside_a_session_speaks_with_the_session_token(
@@ -33,13 +33,13 @@ def test_inside_a_session_speaks_with_the_session_token(
     monkeypatch.setenv(FELD_API_ENV, "http://127.0.0.1:9999")
     client = feld.connect()
     assert client.token == "session-token"
-    assert client._base_url == "http://127.0.0.1:9999"
+    assert client.base_url == "http://127.0.0.1:9999"
 
 
 def test_arguments_come_first(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(FELD_SESSION_TOKEN_ENV, "session-token")
     client = feld.connect(api="http://127.0.0.1:1", token="given")
-    assert (client._base_url, client.token) == ("http://127.0.0.1:1", "given")
+    assert (client.base_url, client.token) == ("http://127.0.0.1:1", "given")
 
 
 def test_a_home_without_a_daemon_is_operational(home: Path) -> None:

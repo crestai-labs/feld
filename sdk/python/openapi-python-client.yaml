@@ -1,5 +1,6 @@
 # The generator writes `api/`, `models/`, `client.py`, `errors.py`, and `types.py` of the
-# package `feld`; `scripts/generate.py` copies them beside the hand-written modules.
+# package `feld`; `scripts/generate.py` renames them `_api/`, `_models/`, `_client.py`,
+# `_errors.py`, and `_types.py` and copies them beside the hand-written modules.
 package_name_override: feld
 project_name_override: feld-sdk
 literal_enums: false

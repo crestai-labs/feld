@@ -10,8 +10,8 @@ from typing import Any
 
 import httpx
 
-from .errors import UnexpectedStatus
-from .types import Response
+from ._errors import UnexpectedStatus
+from ._types import Response
 
 
 class FeldError(Exception):

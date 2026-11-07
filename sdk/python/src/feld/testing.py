@@ -1,9 +1,9 @@
-"""A stand-in for the daemon in tests: it answers each request with the model or error
-registered for its method and path, and keeps the requests it received.
+"""A stand-in for the daemon in tests: it answers each request with what is registered for its
+method and path, and keeps the requests it received.
 
     fake = FakeDaemon()
-    fake.on("GET", "/v1/messages", MessageSummaryList(messages=[...]))
-    list_messages.sync(client=fake.client(), to="dev")
+    fake.on("GET", "/v1/messages", {"messages": [summary]})
+    fake.client().messages.list(to="dev")
     assert fake.requests[0].url.params["to"] == "dev"
 """
 
@@ -15,7 +15,7 @@ from typing import Any, Protocol
 
 import httpx
 
-from .client import AuthenticatedClient
+from .client import Client
 
 
 class Model(Protocol):
@@ -23,6 +23,7 @@ class Model(Protocol):
 
 
 Handler = Callable[[httpx.Request], httpx.Response]
+Answer = Model | list[Any] | dict[str, Any] | Handler
 
 
 class FakeDaemon:
@@ -33,11 +34,11 @@ class FakeDaemon:
         self.routes: dict[tuple[str, str], list[Handler]] = {}
         self.requests: list[httpx.Request] = []
 
-    def on(
-        self, method: str, path: str, *answers: Model | list[Model] | Handler
-    ) -> FakeDaemon:
-        """Answers `method path` with `answers` in turn, repeating the last one. An answer is a
-        model (or a list of them) sent as JSON with `200`, or a function of the request."""
+    def on(self, method: str, path: str, *answers: Answer) -> FakeDaemon:
+        """Answers `method path` with `answers` in turn, repeating the last one. An answer is
+        sent as JSON with `200` when it is a model of `feld.models`, a list of them, or a
+        `dict` (the body, whose values may hold models); a function of the request answers
+        with what it returns."""
         self.routes.setdefault((method.upper(), path), []).extend(
             map(_handler, answers)
         )
@@ -52,12 +53,10 @@ class FakeDaemon:
             body["next"] = next
         return self.on(method, path, lambda _: httpx.Response(status, json=body))
 
-    def client(self, token: str = "test-token") -> AuthenticatedClient:
+    def client(self, token: str = "test-token") -> Client:
         """A client whose requests this answers."""
-        return AuthenticatedClient(
-            base_url="http://feld.test",
-            token=token,
-            httpx_args={"transport": httpx.MockTransport(self._handle)},
+        return Client(
+            "http://feld.test", token, transport=httpx.MockTransport(self._handle)
         )
 
     def json(self, index: int = -1) -> Any:
@@ -75,11 +74,20 @@ class FakeDaemon:
         return handler(request)
 
 
-def _handler(answer: Model | list[Model] | Handler) -> Handler:
-    if isinstance(answer, list):
-        items = [item.to_dict() for item in answer]
-        return lambda _: httpx.Response(200, json=items)
+def _handler(answer: Answer) -> Handler:
+    if isinstance(answer, (list, dict)) or hasattr(answer, "to_dict"):
+        body = _json(answer)
+        return lambda _: httpx.Response(200, json=body)
     if callable(answer):
         return answer
-    body = answer.to_dict()
-    return lambda _: httpx.Response(200, json=body)
+    raise TypeError(f"not an answer: {answer!r}")
+
+
+def _json(value: Any) -> Any:
+    if hasattr(value, "to_dict"):
+        return value.to_dict()
+    if isinstance(value, dict):
+        return {key: _json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json(item) for item in value]
+    return value

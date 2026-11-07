@@ -21,7 +21,9 @@ dev = [
     "mypy",
     "openapi-python-client==0.29.1",
     "pytest",
+    "pyyaml",
     "types-python-dateutil",
+    "types-PyYAML",
 ]
 
 [build-system]
@@ -40,5 +42,5 @@ testpaths = ["tests"]
 
 # What the generator writes that strict mypy does not accept as is.
 [[tool.mypy.overrides]]
-module = ["feld.client", "feld.models.placement"]
-disable_error_code = ["arg-type", "assignment", "return-value"]
+module = ["feld._client"]
+disable_error_code = ["arg-type"]
