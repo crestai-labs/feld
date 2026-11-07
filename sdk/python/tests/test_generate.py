@@ -80,7 +80,8 @@ def test_pruning_is_deterministic(generate: ModuleType) -> None:
 
 def test_the_generated_package_has_no_provider_models() -> None:
     package = ROOT / "src" / "feld"
-    assert sorted(p.name for p in (package / "_api").iterdir() if p.is_dir()) == [
+    tags = (p.name for p in (package / "_api").iterdir() if p.is_dir())
+    assert sorted(tag for tag in tags if not tag.startswith("__")) == [
         "actor",
         "daemon",
         "events",
