@@ -143,7 +143,7 @@ function usePan(model: ActorsModel, plot: Plot) {
   const begin = useCallback((event: PointerEvent<Element>, target: Element, width: number) => {
     const store = useActorsStore.getState();
     const current = modelRef.current;
-    store.beginGesture(current.bandAgents(store).map((agent) => agent.id));
+    store.beginGesture(current.listedAgents(store).map((agent) => agent.id));
     // Pressing a chart keeps the range: only a move takes it off Live.
     const anchor = anchorOf(current, store);
     gesture.current = { pointerId: event.pointerId, startX: event.clientX, anchor, width, scale: scaleOf(plot, store), moved: false, target, pressed: event.target as Element };

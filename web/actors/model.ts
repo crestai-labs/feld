@@ -14,6 +14,7 @@ import type {
   ActorLaunchSpec,
   ActorRecord,
   ActorsInput,
+  BandLane,
   AgentSession,
   AgentsState,
   BinSample,
@@ -75,6 +76,8 @@ export const LANE = Object.freeze({ laneHeight: 44, mainOffset: 30, subAgentRowH
 // On the compact layout a lane starts with the Actor's name row (its marks beside the name),
 // and the Timeline row under it spans the full width.
 export const COMPACT_LANE = Object.freeze({ nameRowHeight: 30, laneHeight: 62, mainOffset: 51 });
+// The heading row over a Workspace's bands in the All workspaces view, on both layouts.
+export const WORKSPACE_HEADING_HEIGHT = 30;
 export const METRIC_LANE_HEIGHT = 56;
 // A lane's chart runs from the lane's top line to its bottom: 100 % of the range on the
 // line that parts it from the lane above, 0 at the bottom.
@@ -605,11 +608,13 @@ export const ACTOR_COLUMN_WIDTHS_STORAGE_KEY = "feld-mock-actor-column-widths";
 // The reader's pins and row order: preferences of this browser, like the column widths.
 export const ACTOR_PINS_STORAGE_KEY = "feld-mock-actor-pins";
 export const ACTOR_ORDER_STORAGE_KEY = "feld-mock-actor-order";
+// The Workspace lanes the reader folded in the All workspaces view: layout, like the row order.
+export const COLLAPSED_WORKSPACES_STORAGE_KEY = "feld-mock-collapsed-workspaces";
 // The Metrics lanes the reader showed or hid, by lane id; the other lanes follow their default.
 export const METRIC_LANES_STORAGE_KEY = "feld-mock-metric-lanes";
 
 // What choosing and ordering the bands reads from the page state.
-type BandsState = Pick<AgentsState, "workspace" | "query" | "mode" | "anchor" | "duration" | "actorOrder" | "actorPins" | "showAgentsOutsideRange" | "frozenBandIds">;
+type BandsState = Pick<AgentsState, "workspace" | "query" | "mode" | "anchor" | "duration" | "actorOrder" | "actorPins" | "showAgentsOutsideRange" | "frozenBandIds" | "collapsedWorkspaces">;
 
 // A pinned Actor keeps its row whatever the range and sits above the unpinned ones. A
 // Job is pinned until the reader unpins it, wherever it was created, since its Sessions
@@ -2193,9 +2198,15 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     return state.mode === "live" && !actorFor(agentId).deletedAt && Boolean(scheduleFor(agentId)?.enabled);
   }
 
-  // Band order: pinned Actors above the rest; within each group the order the reader
-  // dragged rows into, then the default: Agents with a current Session, then Agents
-  // needing attention, then everything else by latest activity, then by name.
+  // The order of the Workspace lanes: the default Workspace first, then by key.
+  function compareWorkspaces(left: string, right: string) {
+    return Number(right === DEFAULT_WORKSPACE) - Number(left === DEFAULT_WORKSPACE) || (left < right ? -1 : left > right ? 1 : 0);
+  }
+
+  // Band order: with all Workspaces shown, by Workspace lane first. Then pinned Actors
+  // above the rest; within each group the order the reader dragged rows into, then the
+  // default: Agents with a current Session, then Agents needing attention, then
+  // everything else by latest activity, then by name.
   // Actors whose Sessions do not overlap the visible range are hidden unless pinned,
   // kept by an enabled Job in Live, or shown by the display settings.
   function visibleAgents(state: BandsState) {
@@ -2206,7 +2217,8 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     };
     return matchingAgents(state)
       .filter((agent) => state.showAgentsOutsideRange || isPinned(state, agent) || hasSessionInRange(agent.id, range) || keptBySchedule(agent.id, state))
-      .sort((left, right) => Number(isPinned(state, right)) - Number(isPinned(state, left))
+      .sort((left, right) => (state.workspace ? 0 : compareWorkspaces(left.workspace, right.workspace))
+        || Number(isPinned(state, right)) - Number(isPinned(state, left))
         || (orderOf(left) === orderOf(right) ? 0 : orderOf(left) - orderOf(right))
         || bandRank(left.id) - bandRank(right.id)
         || lastActivityFor(right.id) - lastActivityFor(left.id)
@@ -2214,11 +2226,41 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
         || left.id.localeCompare(right.id));
   }
 
-  // The bands drawn. A pointer gesture keeps the set it started with, so the lanes and the
-  // label column under the pointer do not change mid-drag; otherwise the visible Actors.
-  function bandAgents(state: BandsState) {
+  // The Actors the bands are drawn from. A pointer gesture keeps the set it started with,
+  // so the lanes and the label column under the pointer do not change mid-drag; otherwise
+  // the visible Actors.
+  function listedAgents(state: BandsState) {
     if (!state.frozenBandIds) return visibleAgents(state);
     return state.frozenBandIds.map((id) => ACTOR_BY_ID.get(id)).filter(Boolean) as ActorRecord[];
+  }
+
+  // With all Workspaces shown, the listed Actors split into one lane per Workspace, in
+  // the band order; a Workspace with no listed Actor has no lane. Null while one
+  // Workspace is selected.
+  function bandLanes(state: BandsState): BandLane[] | null {
+    if (state.workspace) return null;
+    const lanes = new Map<string, ActorRecord[]>();
+    listedAgents(state).forEach((agent) => lanes.set(agent.workspace, [...(lanes.get(agent.workspace) || []), agent]));
+    return [...lanes].map(([workspace, agents]) => ({
+      workspace,
+      agents,
+      collapsed: state.collapsedWorkspaces.includes(workspace),
+      running: agents.filter((agent) => currentSession(agent.id)).length,
+      attention: agents.filter((agent) => attentionReasons(agent.id).length).length,
+    }));
+  }
+
+  // The bands drawn: the listed Actors apart from those of a folded lane.
+  function bandAgents(state: BandsState) {
+    const lanes = bandLanes(state);
+    return lanes ? lanes.flatMap((lane) => lane.collapsed ? [] : lane.agents) : listedAgents(state);
+  }
+
+  // A lane heading's counts, in the heading row and its title.
+  function laneCounts(lane: BandLane) {
+    const actors = `${lane.agents.length} Actor${lane.agents.length === 1 ? "" : "s"}`;
+    const parts = [actors, `${lane.running} running`, ...(lane.attention ? [`${lane.attention} need${lane.attention === 1 ? "s" : ""} attention`] : [])];
+    return { label: parts.join(" · "), title: `Workspace ${lane.workspace}: ${actors} shown, ${lane.running} with a current Session, ${lane.attention} needing attention (UI inference)` };
   }
 
   // The Actors the range holds back: those with no Session in it and no pin. The button
@@ -2257,7 +2299,9 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     if (hiddenByRange) parts.push(`${hiddenByRange} hidden because no Session overlaps the visible range (display settings can keep them).`);
     if (kept) parts.push(`${kept} kept by an enabled Schedule although no Session overlaps the range (Live mode).`);
     if (hiddenBySearch) parts.push(`${hiddenBySearch} hidden by the search query.`);
-    parts.push("Order: current Session first, then needs attention (UI inference), then latest activity.");
+    const folded = (bandLanes(state) || []).filter((lane) => lane.collapsed).reduce((count, lane) => count + lane.agents.length, 0);
+    if (folded) parts.push(`${folded} in folded Workspace lanes.`);
+    parts.push(`Order: ${state.workspace ? "" : "one lane per Workspace (the default Workspace first, then by key); in each lane, "}current Session first, then needs attention (UI inference), then latest activity.`);
     return parts.join(" ");
   }
 
@@ -2300,10 +2344,13 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     return LANE.laneHeight + unreadRowHeightFor(agentId) + subAgentRows;
   }
 
-  function laneLayoutFor(agents: ActorRecord[], state: LaneState) {
+  // The lanes stacked from the top. With Workspace lanes, each starts with its heading row
+  // and a folded one is its heading row alone.
+  function laneLayoutFor(agents: ActorRecord[], state: LaneState, lanes: BandLane[] | null = null) {
     let top = 0;
     const layout = new Map<string, Lane>();
-    agents.forEach((agent) => {
+    const headings = new Map<string, number>();
+    const place = (agent: ActorRecord) => {
       const bandRows = bandRowsFor(agent.id, state);
       const height = laneHeightFor(agent.id, state);
       const mainY = top + (state.compactLayout ? COMPACT_LANE.mainOffset : LANE.mainOffset);
@@ -2314,8 +2361,14 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
         sessionY: new Map([...bandRows.rows].map(([sessionId, row]) => [sessionId, mainY + row * LANE.subAgentRowHeight])),
       });
       top += height;
+    };
+    if (!lanes) agents.forEach(place);
+    else lanes.forEach((lane) => {
+      headings.set(lane.workspace, top);
+      top += WORKSPACE_HEADING_HEIGHT;
+      if (!lane.collapsed) lane.agents.forEach(place);
     });
-    return { agents: layout, height: top };
+    return { agents: layout, headings, height: top };
   }
 
   // The Metrics window of the Timeline's range (see metricsRangeOf).
@@ -3220,7 +3273,10 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     bandRank,
     keptBySchedule,
     visibleAgents,
+    listedAgents,
+    bandLanes,
     bandAgents,
+    laneCounts,
     hiddenBandsFor,
     emptyBandsReason,
     agentCountTitle,

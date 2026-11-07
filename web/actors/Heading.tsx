@@ -45,7 +45,7 @@ export function Heading() {
         </button>
         <RefreshControls shown={shown} />
         <input className="feld-agents__search" id="feld-agents-search" type="search" placeholder="Search actors and metrics" aria-label="Search actors and metrics" title="Matches Actor names, Coding Agents, Execution Providers, metric names, Runtimes, and accounts" value={query} data-action="search" onChange={(event) => useActorsStore.getState().setQuery(event.target.value)} onBlur={() => setSearchOpen(false)} />
-        <button className="feld-agents__button feld-agents__button--primary feld-agents__button--new" type="button" data-action="new-actor" aria-haspopup="dialog" aria-expanded={newActorOpen} title="Declare an Agent or a Job" onClick={actions.openNewActor}>
+        <button className="feld-agents__button feld-agents__button--primary feld-agents__button--new" type="button" data-action="new-actor" aria-haspopup="dialog" aria-expanded={newActorOpen} title="Declare an Agent or a Job" onClick={() => actions.openNewActor()}>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
           <span>New actor</span>
         </button>

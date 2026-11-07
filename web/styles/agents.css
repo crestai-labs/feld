@@ -2137,6 +2137,104 @@ feld-agents {
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
+/* A Workspace lane's heading row in the All workspaces view, the same height in every
+   column and shaded like its row across the Timeline (.feld-agents__lane-heading-band). */
+.feld-agents__lane-heading,
+.feld-agents__lane-heading-cell {
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--bg) 70%, var(--panel));
+}
+
+.feld-agents__lane-heading:not(:first-child),
+.feld-agents__lane-heading-cell:not(:first-child) {
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__lane-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 6px 0 8px;
+  white-space: nowrap;
+}
+
+.feld-agents .feld-agents__lane-toggle,
+.feld-agents .feld-agents__lane-new {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.feld-agents__lane-toggle:hover,
+.feld-agents__lane-new:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__lane-toggle svg,
+.feld-agents__lane-new svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__lane-toggle svg {
+  transition: transform 120ms ease;
+}
+
+.feld-agents__lane-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.feld-agents .feld-agents__lane-workspace {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.feld-agents__lane-workspace:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.feld-agents__lane-counts {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--ink-faint-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.feld-agents__lane-toggle:focus-visible,
+.feld-agents__lane-workspace:focus-visible,
+.feld-agents__lane-new:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
 .feld-agents__action-button {
   display: inline-grid;
   width: 31px;
@@ -2879,6 +2977,10 @@ feld-agents {
   opacity: .7;
 }
 
+.feld-agents__lane-heading-band {
+  fill: color-mix(in srgb, var(--bg) 70%, var(--panel));
+}
+
 .feld-agents__session {
   fill: none;
   stroke: var(--timeline-session, var(--ink));
@@ -3044,7 +3146,8 @@ feld-agents {
     animation: none;
   }
 
-  .feld-agents__section-toggle svg {
+  .feld-agents__section-toggle svg,
+  .feld-agents__lane-toggle svg {
     transition: none;
   }
 
@@ -3723,6 +3826,21 @@ feld-agents {
   .feld-agents__action-cell {
     align-items: flex-start;
     justify-content: flex-end;
+  }
+
+  /* The heading row is one line as wide as a band's name row, over the shaded row the
+     Timeline draws across the full width. */
+  .feld-agents__band-labels .feld-agents__lane-heading {
+    width: fit-content;
+    max-width: calc(100% - 44px);
+    background: transparent;
+    border-top: 0;
+    pointer-events: auto;
+  }
+
+  .feld-agents__actions .feld-agents__lane-heading-cell {
+    background: transparent;
+    border-top: 0;
   }
 
   .feld-agents__bands .feld-agents__action-button {
