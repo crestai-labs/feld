@@ -37,6 +37,7 @@ class Record:
             `message.read`: `messageId`, `readId`, `fifo`.
             `schedule.skipped`: `planned`, `currentSessionId`.
             `schedule.missed`: `planned`, `reason`.
+            `schedule.paused` / `schedule.resumed`: `requesterSessionId`.
     """
 
     sequence: int

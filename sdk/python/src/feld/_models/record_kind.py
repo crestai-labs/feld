@@ -8,6 +8,8 @@ class RecordKind(StrEnum):
     MESSAGE_SENT = "message.sent"
     OBSERVATION = "observation"
     SCHEDULE_MISSED = "schedule.missed"
+    SCHEDULE_PAUSED = "schedule.paused"
+    SCHEDULE_RESUMED = "schedule.resumed"
     SCHEDULE_SKIPPED = "schedule.skipped"
     SESSION_ENDED = "session.ended"
     SESSION_STARTED = "session.started"

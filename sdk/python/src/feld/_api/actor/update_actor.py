@@ -109,7 +109,9 @@ def sync_detailed(
     `schedule` replaces only those of `cron`, `timezone`, and `enabled` that are present, and only a Job
     accepts it. For a Job without a Schedule, `cron` is required and a Schedule is created. A `schedule`
     for an Agent, and a `schedule` without `cron` for a Job without a Schedule, get `400`.
-    Toggling `schedule.enabled` is pause / resume.
+    Toggling `schedule.enabled` is pause / resume. A Session token with the `control` grant can send a
+    request that changes only `schedule.enabled` to any Job in its Workspace, including one with grants;
+    any other change needs `manage-agent` / `manage-job` and an Actor without grants or `trustWorkdir`.
     `grants` replaces the Actor's grants entirely. Only an Admin token can give it; a Session token
     request that includes `grants` gets `403`.
     `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting
@@ -162,7 +164,9 @@ def sync(
     `schedule` replaces only those of `cron`, `timezone`, and `enabled` that are present, and only a Job
     accepts it. For a Job without a Schedule, `cron` is required and a Schedule is created. A `schedule`
     for an Agent, and a `schedule` without `cron` for a Job without a Schedule, get `400`.
-    Toggling `schedule.enabled` is pause / resume.
+    Toggling `schedule.enabled` is pause / resume. A Session token with the `control` grant can send a
+    request that changes only `schedule.enabled` to any Job in its Workspace, including one with grants;
+    any other change needs `manage-agent` / `manage-job` and an Actor without grants or `trustWorkdir`.
     `grants` replaces the Actor's grants entirely. Only an Admin token can give it; a Session token
     request that includes `grants` gets `403`.
     `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting
@@ -212,7 +216,9 @@ async def asyncio_detailed(
     `schedule` replaces only those of `cron`, `timezone`, and `enabled` that are present, and only a Job
     accepts it. For a Job without a Schedule, `cron` is required and a Schedule is created. A `schedule`
     for an Agent, and a `schedule` without `cron` for a Job without a Schedule, get `400`.
-    Toggling `schedule.enabled` is pause / resume.
+    Toggling `schedule.enabled` is pause / resume. A Session token with the `control` grant can send a
+    request that changes only `schedule.enabled` to any Job in its Workspace, including one with grants;
+    any other change needs `manage-agent` / `manage-job` and an Actor without grants or `trustWorkdir`.
     `grants` replaces the Actor's grants entirely. Only an Admin token can give it; a Session token
     request that includes `grants` gets `403`.
     `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting
@@ -263,7 +269,9 @@ async def asyncio(
     `schedule` replaces only those of `cron`, `timezone`, and `enabled` that are present, and only a Job
     accepts it. For a Job without a Schedule, `cron` is required and a Schedule is created. A `schedule`
     for an Agent, and a `schedule` without `cron` for a Job without a Schedule, get `400`.
-    Toggling `schedule.enabled` is pause / resume.
+    Toggling `schedule.enabled` is pause / resume. A Session token with the `control` grant can send a
+    request that changes only `schedule.enabled` to any Job in its Workspace, including one with grants;
+    any other change needs `manage-agent` / `manage-job` and an Actor without grants or `trustWorkdir`.
     `grants` replaces the Actor's grants entirely. Only an Admin token can give it; a Session token
     request that includes `grants` gets `403`.
     `acceptFrom` replaces the Actor's `acceptFrom` entirely; `null` reverts it to omitted (accepting
