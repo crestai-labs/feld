@@ -38,7 +38,7 @@ Integration tests that run the `feld` binary, and their fixtures, are in `crates
 
 ### Python SDK
 
-`sdk/python/` holds the Python SDK (the distribution `feld-sdk`, the package `feld`). Its operations and models are generated from `docs/guide/daemon-api.openapi.yaml` and committed; [`sdk/python/README.md`](sdk/python/README.md) says which files are generated and which are written by hand. Its version is the version of Feld.
+`sdk/python/` holds the Python SDK (the distribution `feld-sdk`, the package `feld`). Its client is written by hand over operations and models generated from `docs/guide/daemon-api.openapi.yaml` and committed; [`sdk/python/README.md`](sdk/python/README.md) says which files are generated and which are written by hand. Its version is the version of Feld.
 
 ### Plugins
 
