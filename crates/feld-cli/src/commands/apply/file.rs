@@ -10,7 +10,6 @@ use feld_core::model::{ActorKind, Grant, LaunchSpec};
 use feld_core::plugin::sdk::provider::valid_env_name;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
-use serde_yaml_ng::Value as Yaml;
 
 use super::{Declaration, DeclaredActor, DeclaredSchedule};
 
@@ -85,14 +84,14 @@ struct ScheduleEntry {
 
 /// An `env` value written as a number or a boolean reads as its text, as a shell gives it.
 fn env<'de, D: Deserializer<'de>>(deserializer: D) -> Result<BTreeMap<String, String>, D::Error> {
-    let values = BTreeMap::<String, Yaml>::deserialize(deserializer)?;
+    let values = BTreeMap::<String, Value>::deserialize(deserializer)?;
     values
         .into_iter()
         .map(|(name, value)| {
             let text = match value {
-                Yaml::String(text) => text,
-                Yaml::Number(number) => number.to_string(),
-                Yaml::Bool(flag) => flag.to_string(),
+                Value::String(text) => text,
+                Value::Number(number) => number.to_string(),
+                Value::Bool(flag) => flag.to_string(),
                 _ => {
                     return Err(serde::de::Error::custom(format!(
                         "env {name} must be a string, a number or a boolean"
@@ -121,9 +120,11 @@ pub fn parse(
     base: &Path,
     lookup: &dyn Fn(&str) -> Option<String>,
 ) -> Result<Declaration> {
-    let mut yaml: Yaml = serde_yaml_ng::from_str(text)?;
-    expand_values(&mut yaml, lookup)?;
-    let file: File = serde_yaml_ng::from_value(yaml)?;
+    // The YAML is read as plain values first, so that `${VAR}` expands in every string
+    // before the shape is checked.
+    let mut values: Value = serde_saphyr::from_str(text)?;
+    expand_values(&mut values, lookup)?;
+    let file: File = serde_json::from_value(values)?;
     if file.version != VERSION {
         bail!(
             "version {} is unknown; this Feld reads version {VERSION}",
@@ -236,21 +237,20 @@ fn absolute(value: &str, base: &Path, home: Option<&Path>) -> PathBuf {
 }
 
 /// Expands `${VAR}` in every string value, leaving the keys of mappings as written.
-fn expand_values(yaml: &mut Yaml, lookup: &dyn Fn(&str) -> Option<String>) -> Result<()> {
-    match yaml {
-        Yaml::String(text) => *text = expand(text, lookup)?,
-        Yaml::Sequence(items) => {
+fn expand_values(value: &mut Value, lookup: &dyn Fn(&str) -> Option<String>) -> Result<()> {
+    match value {
+        Value::String(text) => *text = expand(text, lookup)?,
+        Value::Array(items) => {
             for item in items {
                 expand_values(item, lookup)?;
             }
         }
-        Yaml::Mapping(mapping) => {
+        Value::Object(mapping) => {
             for (_, value) in mapping.iter_mut() {
                 expand_values(value, lookup)?;
             }
         }
-        Yaml::Tagged(tagged) => expand_values(&mut tagged.value, lookup)?,
-        Yaml::Null | Yaml::Bool(_) | Yaml::Number(_) => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
     }
     Ok(())
 }
