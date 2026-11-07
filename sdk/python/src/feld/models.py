@@ -7,7 +7,9 @@ placeholder when it is absent, so `if session.turn:` tells whether it is there.
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
+from typing import Final
 
 from ._models import (
     Actor,
@@ -77,6 +79,16 @@ class Event:
     id: str
 
 
+class Null(enum.Enum):
+    """The JSON `null`, for an argument where `null` has a meaning of its own: in
+    `actors.update(accept_from=NULL)`, it removes the field, while `None` leaves it as it
+    is."""
+
+    NULL = "null"
+
+
+NULL: Final = Null.NULL
+
 __all__ = [
     "Actor",
     "ActorKind",
@@ -101,6 +113,8 @@ __all__ = [
     "MessageQueued",
     "MessageRead",
     "MessageSummary",
+    "NULL",
+    "Null",
     "Observation",
     "ObservationKind",
     "Outcome",

@@ -9,16 +9,15 @@ from .._api.workspace import (
     list_workspaces,
 )
 from .._models import CreateWorkspaceBody
-from .._types import UNSET, Unset
+from .._resource import Resource, sent
 from ..models import Workspace
-from ._resource import Resource
 
 
 class Workspaces(Resource):
-    def list(self, *, include_deleted: bool | Unset = UNSET) -> list[Workspace]:
+    def list(self, *, include_deleted: bool | None = None) -> list[Workspace]:
         """The Workspaces, with the deleted ones when `include_deleted`."""
         return list_workspaces.sync(
-            client=self._api, include_deleted=include_deleted
+            client=self._api, include_deleted=sent(include_deleted)
         ).workspaces
 
     def get(self, workspace: str) -> Workspace:

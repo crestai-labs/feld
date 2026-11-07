@@ -17,21 +17,22 @@ from .._api.actor import (
     update_actor,
 )
 from .._models import AttachActorBody, CreateActorBody, UpdateActorBody
-from .._types import UNSET, Unset
+from .._resource import Resource, sent
 from ..models import (
+    NULL,
     Actor,
     ActorKind,
     AttachResponse,
     Grant,
     LaunchSpec,
     LaunchSpecPatch,
+    Null,
     Placement,
     RestartResponse,
     SchedulePatch,
     ScheduleSpec,
     StartResponse,
 )
-from ._resource import Resource
 
 
 class Actors(Resource):
@@ -39,13 +40,16 @@ class Actors(Resource):
         self,
         workspace: str,
         *,
-        kind: ActorKind | Unset = UNSET,
-        include_deleted: bool | Unset = UNSET,
+        kind: ActorKind | None = None,
+        include_deleted: bool | None = None,
     ) -> list[Actor]:
         """The Actors of `workspace`, of `kind` when given, with the deleted ones when
         `include_deleted`."""
         return list_actors.sync(
-            workspace, client=self._api, kind=kind, include_deleted=include_deleted
+            workspace,
+            client=self._api,
+            kind=sent(kind),
+            include_deleted=sent(include_deleted),
         ).actors
 
     def get(self, workspace: str, actor: str) -> Actor:
@@ -63,19 +67,19 @@ class Actors(Resource):
         name: str,
         kind: ActorKind,
         launch_spec: LaunchSpec,
-        grants: builtins.list[Grant] | Unset = UNSET,
-        accept_from: builtins.list[str] | Unset = UNSET,
-        caller: dict[str, Any] | Unset = UNSET,
-        schedule: ScheduleSpec | None | Unset = UNSET,
+        grants: builtins.list[Grant] | None = None,
+        accept_from: builtins.list[str] | None = None,
+        caller: dict[str, Any] | None = None,
+        schedule: ScheduleSpec | None = None,
     ) -> Actor:
         body = CreateActorBody(
             name=name,
             kind=kind,
             launch_spec=launch_spec,
-            grants=grants,
-            accept_from=accept_from,
-            caller=caller,
-            schedule=schedule,
+            grants=sent(grants),
+            accept_from=sent(accept_from),
+            caller=sent(caller),
+            schedule=sent(schedule),
         )
         return create_actor.sync(workspace, client=self._api, body=body).actor
 
@@ -84,21 +88,21 @@ class Actors(Resource):
         workspace: str,
         actor: str,
         *,
-        name: str | Unset = UNSET,
-        launch_spec: LaunchSpecPatch | Unset = UNSET,
-        schedule: SchedulePatch | Unset = UNSET,
-        grants: builtins.list[Grant] | Unset = UNSET,
-        accept_from: builtins.list[str] | None | Unset = UNSET,
-        caller: dict[str, Any] | Unset = UNSET,
+        name: str | None = None,
+        launch_spec: LaunchSpecPatch | None = None,
+        schedule: SchedulePatch | None = None,
+        grants: builtins.list[Grant] | None = None,
+        accept_from: builtins.list[str] | Null | None = None,
+        caller: dict[str, Any] | None = None,
     ) -> Actor:
-        """Changes the fields given; `accept_from=None` removes it."""
+        """Changes the fields given; `accept_from=NULL` removes the Actor's `accept_from`."""
         body = UpdateActorBody(
-            name=name,
-            launch_spec=launch_spec,
-            schedule=schedule,
-            grants=grants,
-            accept_from=accept_from,
-            caller=caller,
+            name=sent(name),
+            launch_spec=sent(launch_spec),
+            schedule=sent(schedule),
+            grants=sent(grants),
+            accept_from=None if accept_from is NULL else sent(accept_from),
+            caller=sent(caller),
         )
         return update_actor.sync(workspace, actor, client=self._api, body=body).actor
 
@@ -117,14 +121,14 @@ class Actors(Resource):
         *,
         placement: Placement,
         runtime: str,
-        runtime_telemetry_prepared: bool | Unset = UNSET,
+        runtime_telemetry_prepared: bool | None = None,
     ) -> AttachResponse:
         """Attaches a running Runtime as a Session of the Actor, and issues its Session
         token."""
         body = AttachActorBody(
             placement=placement,
             runtime=runtime,
-            runtime_telemetry_prepared=runtime_telemetry_prepared,
+            runtime_telemetry_prepared=sent(runtime_telemetry_prepared),
         )
         return attach_actor.sync(workspace, actor, client=self._api, body=body)
 

@@ -10,6 +10,7 @@ import pytest
 
 import feld
 from feld.models import (
+    NULL,
     Actor,
     ActorKind,
     LaunchSpec,
@@ -75,6 +76,24 @@ def test_optional_parameters_are_not_sent_unless_given() -> None:
     )
     assert fake.client().actors.list("feld-dev") == []
     assert dict(fake.requests[0].url.params) == {}
+
+
+def test_none_is_not_sent() -> None:
+    fake = FakeDaemon().on("GET", "/v1/messages", {"messages": []})
+    fake.client().messages.list(workspace=None, to="dev", waiting=None)
+    assert dict(fake.requests[0].url.params) == {"to": "dev"}
+
+
+def test_actors_update_sends_only_the_given_fields(session: Session) -> None:
+    dev = actor(session)
+    fake = FakeDaemon().on(
+        "PATCH", "/v1/workspaces/feld-dev/actors/dev", {"actor": dev}
+    )
+    client = fake.client()
+    assert client.actors.update("feld-dev", "dev", name="dev2", accept_from=None) == dev
+    assert fake.json() == {"name": "dev2"}
+    client.actors.update("feld-dev", "dev", accept_from=NULL)
+    assert fake.json() == {"acceptFrom": None}
 
 
 def test_session_answers_datetimes_enums_and_the_placement(session: Session) -> None:
@@ -207,7 +226,7 @@ def test_actors_create_answers_the_actor(session: Session) -> None:
         schedule=None,
     )
     assert created == dev
-    assert fake.json()["schedule"] is None
+    assert "schedule" not in fake.json()
 
 
 def test_daemon_status() -> None:

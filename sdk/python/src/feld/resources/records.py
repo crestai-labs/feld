@@ -8,21 +8,20 @@ import time
 from collections.abc import Iterator
 
 from .._api.record import list_records
-from .._types import UNSET, Unset
+from .._resource import Resource, sent
 from ..models import Record, RecordKind
-from ._resource import Resource
 
 
 class Records(Resource):
     def iterate(
         self,
         *,
-        workspace: str | Unset = UNSET,
-        actor: str | Unset = UNSET,
-        session: str | Unset = UNSET,
-        kind: RecordKind | Unset = UNSET,
-        start: datetime.datetime | Unset = UNSET,
-        end: datetime.datetime | Unset = UNSET,
+        workspace: str | None = None,
+        actor: str | None = None,
+        session: str | None = None,
+        kind: RecordKind | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
         after: int = 0,
     ) -> Iterator[Record]:
         """The records after `after` that match the filters, until the last one there is
@@ -32,11 +31,11 @@ class Records(Resource):
     def follow(
         self,
         *,
-        workspace: str | Unset = UNSET,
-        actor: str | Unset = UNSET,
-        session: str | Unset = UNSET,
-        kind: RecordKind | Unset = UNSET,
-        start: datetime.datetime | Unset = UNSET,
+        workspace: str | None = None,
+        actor: str | None = None,
+        session: str | None = None,
+        kind: RecordKind | None = None,
+        start: datetime.datetime | None = None,
         after: int = 0,
         interval: float = 1.0,
     ) -> Iterator[Record]:
@@ -44,29 +43,29 @@ class Records(Resource):
         appended: it reads again every `interval` seconds once it has read them all, and
         never ends."""
         yield from self._pages(
-            workspace, actor, session, kind, start, UNSET, after, interval
+            workspace, actor, session, kind, start, None, after, interval
         )
 
     def _pages(
         self,
-        workspace: str | Unset,
-        actor: str | Unset,
-        session: str | Unset,
-        kind: RecordKind | Unset,
-        start: datetime.datetime | Unset,
-        end: datetime.datetime | Unset,
+        workspace: str | None,
+        actor: str | None,
+        session: str | None,
+        kind: RecordKind | None,
+        start: datetime.datetime | None,
+        end: datetime.datetime | None,
         after: int,
         interval: float | None,
     ) -> Iterator[Record]:
         while True:
             page = list_records.sync(
                 client=self._api,
-                workspace=workspace,
-                actor=actor,
-                session=session,
-                kind=kind,
-                start=start,
-                end=end,
+                workspace=sent(workspace),
+                actor=sent(actor),
+                session=sent(session),
+                kind=sent(kind),
+                start=sent(start),
+                end=sent(end),
                 after=after,
             )
             yield from page.records

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from .._api.daemon import get_daemon_status, list_providers, list_runtimes
+from .._resource import Resource
 from ..models import DaemonStatus, ProviderEntry, RuntimeEntry
-from ._resource import Resource
 
 
 class Daemon(Resource):

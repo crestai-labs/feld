@@ -45,6 +45,16 @@ def test_what_the_client_returns_and_accepts_is_public() -> None:
     assert referenced - set(models.__all__) == set()
 
 
+def test_no_public_signature_takes_the_generated_placeholder() -> None:
+    for _, resource in inspect.getmembers(resources, inspect.isclass):
+        for name, method in inspect.getmembers(resource, inspect.isfunction):
+            if not name.startswith("_"):
+                for annotation in method.__annotations__.values():
+                    assert "Unset" not in str(annotation), (resource, name)
+    for annotation in feld.Client.__init__.__annotations__.values():
+        assert "Unset" not in str(annotation)
+
+
 def test_the_generated_layer_is_private() -> None:
     for name in ("feld.api", "feld.types", "feld.errors"):
         assert importlib.util.find_spec(name) is None

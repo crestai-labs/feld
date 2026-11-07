@@ -6,17 +6,16 @@ import json
 from collections.abc import Iterator
 
 from .._api.events import stream_events
-from .._types import UNSET, Unset
+from .._resource import Resource, sent
 from ..exceptions import FeldOperational, operational, rejection
 from ..models import Event
-from ._resource import Resource
 
 
 class Events(Resource):
-    def stream(self, *, workspace: str | Unset = UNSET) -> Iterator[Event]:
+    def stream(self, *, workspace: str | None = None) -> Iterator[Event]:
         """Each event as the daemon sends it, until the daemon closes the stream. The first
         one is `daemon` with the daemon's instance ID."""
-        kwargs = stream_events._get_kwargs(workspace=workspace)
+        kwargs = stream_events._get_kwargs(workspace=sent(workspace))
         with (
             operational(),
             self._api.get_httpx_client().stream(**kwargs) as response,

@@ -13,7 +13,7 @@ from .._api.session import (
     observe_session,
     stop_session,
 )
-from .._types import UNSET, Unset
+from .._resource import Resource, sent
 from ..models import (
     ActorKind,
     LifecycleResponse,
@@ -24,29 +24,28 @@ from ..models import (
     TranscriptPage,
     TranscriptView,
 )
-from ._resource import Resource
 
 
 class Sessions(Resource):
     def list(
         self,
         *,
-        workspace: str | Unset = UNSET,
-        actor: str | Unset = UNSET,
-        kind: ActorKind | Unset = UNSET,
-        current: bool | Unset = UNSET,
-        start: datetime.datetime | Unset = UNSET,
-        end: datetime.datetime | Unset = UNSET,
+        workspace: str | None = None,
+        actor: str | None = None,
+        kind: ActorKind | None = None,
+        current: bool | None = None,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
     ) -> list[Session]:
         """The Sessions that match the filters; `current` keeps the running ones."""
         return list_sessions.sync(
             client=self._api,
-            workspace=workspace,
-            actor=actor,
-            kind=kind,
-            current=current,
-            start=start,
-            end=end,
+            workspace=sent(workspace),
+            actor=sent(actor),
+            kind=sent(kind),
+            current=sent(current),
+            start=sent(start),
+            end=sent(end),
         ).sessions
 
     def get(self, session: str) -> SessionResponse | SubAgentSession:
@@ -73,38 +72,38 @@ class Sessions(Resource):
         self,
         session: str,
         *,
-        after: int | Unset = UNSET,
-        before: int | Unset = UNSET,
-        limit: int | Unset = UNSET,
-        tail: bool | Unset = UNSET,
+        after: int | None = None,
+        before: int | None = None,
+        limit: int | None = None,
+        tail: bool | None = None,
     ) -> OutputPage:
         """A page of the output of a `program` Session."""
         return get_output.sync(
             session,
             client=self._api,
-            after=after,
-            before=before,
-            limit=limit,
-            tail=tail,
+            after=sent(after),
+            before=sent(before),
+            limit=sent(limit),
+            tail=sent(tail),
         )
 
     def transcript(
         self,
         session: str,
         *,
-        after: str | Unset = UNSET,
-        before: str | Unset = UNSET,
-        limit: int | Unset = UNSET,
-        tail: bool | Unset = UNSET,
-        view: TranscriptView | Unset = UNSET,
+        after: str | None = None,
+        before: str | None = None,
+        limit: int | None = None,
+        tail: bool | None = None,
+        view: TranscriptView | None = None,
     ) -> TranscriptPage:
         """A page of the transcript of an `agent-runtime` Session."""
         return get_transcript.sync(
             session,
             client=self._api,
-            after=after,
-            before=before,
-            limit=limit,
-            tail=tail,
-            view=view,
+            after=sent(after),
+            before=sent(before),
+            limit=sent(limit),
+            tail=sent(tail),
+            view=sent(view),
         )

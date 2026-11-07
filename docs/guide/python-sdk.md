@@ -44,7 +44,7 @@ The client has one attribute per resource, and each operation is a method of it:
 | `events` | `stream` ([Following changes](#following-changes)) |
 | `daemon` | `status`, `runtimes`, `providers` |
 
-Path parameters are positional, and query parameters and request body fields are keyword arguments in snake case (`from` is `from_`). An argument left out is not sent. A method returns the resource itself (an `Actor`, a `list[MessageSummary]`), or the answer's model when the answer carries more than the resource (`sessions.stop` returns a `LifecycleResponse` with `already_requested`). The types the methods return and accept are in `feld.models`.
+Path parameters are positional, and query parameters and request body fields are keyword arguments in snake case (`from` is `from_`). An argument left out, or `None`, is not sent; where the daemon gives `null` a meaning of its own (`actors.update(accept_from=feld.models.NULL)` removes it), `feld.models.NULL` sends it. A method returns the resource itself (an `Actor`, a `list[MessageSummary]`), or the answer's model when the answer carries more than the resource (`sessions.stop` returns a `LifecycleResponse` with `already_requested`). The types the methods return and accept are in `feld.models`.
 
 ```python
 from feld.models import ActorKind, LaunchSpec, LaunchSpecNode
