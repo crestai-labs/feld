@@ -239,6 +239,16 @@ pub struct UpdateScheduleRequest {
     pub enabled: Option<bool>,
 }
 
+/// The label a `PUT …/labels/{key}` sets: when it lapses and why it is set.
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SetLabelRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ActorResponse {
     pub actor: Actor,

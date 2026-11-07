@@ -207,6 +207,11 @@ The list of `name`s of Actors in the same Workspace from which an Actor accepts 
 #### declaration file
 
 A file that declares a Workspace's Actors (launchSpec, Schedule, grants, acceptFrom). Admin compares it with `feld diff` and applies it with `feld apply`; each apply makes the Workspace match the file once, by `declare`-ing each Actor of the file in turn, and starts and stops no Session. A field the file leaves out of an Actor (`grants`, `acceptFrom`, a Schedule's `timezone` and `enabled`) is kept as it is on a live Actor and takes its default on a new one, so what a person set by hand, such as a paused Schedule, stays until the file states it. Its `name` is recorded as each declared Actor's `declaredIn` and is the scope of pruning: an apply leaves the Actors the file does not declare as they are, and only `--prune` deletes those whose `declaredIn` is that `name` and that the file no longer declares, as `delete` deletes them. One file covers one Workspace. The format is in the [CLI guide](../../guide/cli.md#declaration-file).
+#### labels
+
+States an Actor declares about itself for the readers of the Actor (such as a harness's dispatcher and the Web UI), such as waiting on purpose until a time, what it waits for, or its phase of work. Each label has `key`, an optional `until` (when it lapses), an optional `reason`, `by` (`admin`, or `actor` for a Session of the Actor), and `setAt`. `key` follows the grammar of `name`, and an Actor has at most one label per key. The meaning of a key belongs to its readers; Feld keeps labels, removes those whose `until` has passed, and records each set, clear, and lapse.
+
+A Session sets and clears labels of its own Actor, and Admin those of any Actor. Setting a key the Actor has replaces that label, and clearing a key it lacks changes nothing. A label stays across Sessions until it is cleared or its `until` passes; the daemon removes a label within seconds after its `until` passes, records it as `label.expired`, and tells readers of the Actor through its resource event.
 
 ### Session
 
@@ -347,7 +352,7 @@ Facts Feld itself left. It is a separate line from the dialogue history the Runt
 
 Records remain for both Agents and Jobs, and have `kind`, a time, Workspace, and the Actor's `id`, plus the related Session if any. All records have a global order along the time axis, and the continuation can be read from a cursor pointing to a position. They are read with a single search filtered by Workspace, Actor, Session, kind, and time range; per-Session history and the list of skipped ticks are both results of this search.
 
-There are 13 kinds.
+There are 16 kinds.
 
 - `session.started`, `session.ended`
 - `spawned`: See [spawned](#spawned)
@@ -357,6 +362,7 @@ There are 13 kinds.
 - `schedule.skipped`: A [Schedule](#schedule) tick rejected by admission
 - `schedule.missed`: A [Schedule](#schedule) tick not fired because the Scheduler stopped or woke 2 minutes or more past the scheduled time, with the reason. Has no Session
 - `schedule.paused`, `schedule.resumed`: A `pause` / `resume` that toggled `enabled` of a [Schedule](#schedule), with `requesterSessionId` (the requesting Session; null for a request from Admin). Has no Session
+- `label.set`, `label.cleared`, `label.expired`: A [label](#labels) set, cleared, or removed after its `until`, with its key. A label a Session sets or clears has that Session
 
 #### spawned
 

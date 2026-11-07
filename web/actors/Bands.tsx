@@ -546,7 +546,7 @@ const MAIL_GLYPH = <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 5.5
 
 // The marks line under an Actor's name holds the marks that exist only while a current
 // Session runs: skipped ticks, an unlinked Runtime, and unread mail (or, with no current
-// Session, the neutral waiting count). One line, however many are present.
+// Session, the neutral waiting count), after the Actor's labels. One line, however many are present.
 function BandMarks({ agent, state }: { agent: ActorRecord; state: BandsView }) {
   const model = useActorsModel();
   const { openJob, openConsole } = usePageActions();
@@ -554,9 +554,14 @@ function BandMarks({ agent, state }: { agent: ActorRecord; state: BandsView }) {
   const unread = model.unreadMarkFor(agent, state);
   const unlinked = model.unlinkedMarkFor(agent);
   const deleted = agent.deletedAt ? `Deleted ${model.dateTime.format(agent.deletedAt)} ${model.ZONE} (Control Plane fact) · its Sessions and Messages stay` : null;
-  if (!skip && !unread && !unlinked && !deleted) return null;
+  const labels = agent.labels || [];
+  if (!skip && !unread && !unlinked && !deleted && !labels.length) return null;
   return (
     <span className="feld-agents__marks">
+      {labels.map((label) => {
+        const title = model.labelTitleFor(label);
+        return <span key={label.key} className="feld-agents__unread is-label" data-label={label.key} title={title} aria-label={title}><span>{label.key}</span></span>;
+      })}
       {deleted ? <span className="feld-agents__unread is-idle" title={deleted} aria-label={deleted}><span>deleted</span></span> : null}
       {skip ? (
         <button type="button" className="feld-agents__unread is-skip" data-action="open-job" data-agent-id={agent.id} data-skip-id={skip.skipId} title={skip.title} aria-label={skip.title} onClick={() => openJob(agent.id, skip.skipId)}>

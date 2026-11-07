@@ -43,6 +43,7 @@ pub async fn run(
         ActorCommand::Restart(target) => restart(ctx, &target.actor).await,
         ActorCommand::Pause(target) => set_schedule_enabled(ctx, &target.actor, false).await,
         ActorCommand::Resume(target) => set_schedule_enabled(ctx, &target.actor, true).await,
+        ActorCommand::Label(args) => super::label::run_actor(ctx, args.command).await,
     }
 }
 

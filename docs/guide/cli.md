@@ -15,7 +15,7 @@ Output examples show the human-readable output in its non-TTY form. `--json` out
 - [feld doctor](#feld-doctor)
 - [daemon](#daemon): [start](#feld-daemon-start) / [status](#feld-daemon-status) / [stop](#feld-daemon-stop) / [restart](#feld-daemon-restart)
 - [workspace](#workspace): [list](#feld-workspace-list) / [create](#feld-workspace-create) / [delete](#feld-workspace-delete) / [get](#feld-workspace-get)
-- [actor](#actor): [create](#feld-actor-create) / [update](#feld-actor-update) / [delete](#feld-actor-delete) / [get](#feld-actor-get) / [list](#feld-actor-list) / [start](#feld-actor-start) / [attach](#feld-actor-attach) / [restart](#feld-actor-restart) / [pause](#feld-actor-pause) / [resume](#feld-actor-resume)
+- [actor](#actor): [create](#feld-actor-create) / [update](#feld-actor-update) / [delete](#feld-actor-delete) / [get](#feld-actor-get) / [list](#feld-actor-list) / [start](#feld-actor-start) / [attach](#feld-actor-attach) / [restart](#feld-actor-restart) / [pause](#feld-actor-pause) / [resume](#feld-actor-resume) / [label](#feld-actor-label)
 - [feld diff](#feld-diff)
 - [feld apply](#feld-apply)
 - [session](#session): [get](#feld-session-get) / [list](#feld-session-list) / [stop](#feld-session-stop) / [kill](#feld-session-kill) / [observe](#feld-session-observe) / [log](#feld-session-log) / [metrics](#feld-session-metrics)
@@ -23,7 +23,7 @@ Output examples show the human-readable output in its non-TTY form. `--json` out
 - [message](#message): [send](#feld-message-send) / [delete](#feld-message-delete) / [get](#feld-message-get) / [list](#feld-message-list)
 - [runtime](#runtime): [list](#feld-runtime-list) / [metrics](#feld-runtime-metrics)
 - [provider](#provider): [list](#feld-provider-list)
-- [self](#self): [get](#feld-self-get) / [token](#feld-self-token) / [message recv](#feld-self-message-recv)
+- [self](#self): [get](#feld-self-get) / [token](#feld-self-token) / [message recv](#feld-self-message-recv) / [label](#feld-self-label)
 - [ui](#ui): [feld ui](#feld-ui) / [pair](#feld-ui-pair)
 - [browser](#browser): [list](#feld-browser-list) / [revoke](#feld-browser-revoke)
 - [feld env](#feld-env)
@@ -726,7 +726,7 @@ feld actor get <ACTOR>
 
 - `<ACTOR>`: Actor name or Actor ID (`actor_...`)
 
-The fields are the ID, kind, launchSpec (`env` shows only variable names; `--json` shows the values; `env_file` is the path of the env file), grants, acceptFrom (`*` if omitted), `declared_in` (the [declaration file](#declaration-file) that declares the Actor, if any), and, for a Job, the Schedule, next run, number of skipped ticks, and the overdue tick if any. The Session history shows only recent Sessions. Read all Sessions with `feld session list --actor <name>`, the details of one Session with `feld session get`, and skipped ticks with `feld record list --actor <name> --kind schedule.skipped`.
+The fields are the ID, kind, launchSpec (`env` shows only variable names; `--json` shows the values; `env_file` is the path of the env file), grants, acceptFrom (`*` if omitted), `declared_in` (the [declaration file](#declaration-file) that declares the Actor, if any), the [labels](../spec/concepts/glossary.md#labels) when there are any, and, for a Job, the Schedule, next run, number of skipped ticks, and the overdue tick if any. The Session history shows only recent Sessions. Read all Sessions with `feld session list --actor <name>`, the details of one Session with `feld session get`, and skipped ticks with `feld record list --actor <name> --kind schedule.skipped`.
 
 ```console
 $ feld actor get dispatcher
@@ -767,7 +767,7 @@ feld actor list [OPTIONS]
 - `--refresh`: Observe each current Session through its Execution Provider before showing
 - `--include-deleted`: With `-a`, also list deleted Actors and add a `DELETED` column
 
-Each row has the kind; the generation, start kind, outcome, and observation of the current Session, or of the latest Session if there is none; the number of unread Messages (`WAITING`); marks (`mail`, `skip`, `overdue`, `unlinked`); the next run time; grants; and acceptFrom (`*` if omitted, `-` if empty). The order is the same as the Web UI bands (current → attention → others). In `--json`, the current Session of an agent-runtime Session carries the [turn](../spec/concepts/glossary.md#turn) and the last activity time (`turn`, `lastEntryAt`).
+Each row has the kind; the generation, start kind, outcome, and observation of the current Session, or of the latest Session if there is none; the number of unread Messages (`WAITING`); marks (`mail`, `skip`, `overdue`, `unlinked`, followed by the keys of the Actor's [labels](../spec/concepts/glossary.md#labels)); the next run time; grants; and acceptFrom (`*` if omitted, `-` if empty). The order is the same as the Web UI bands (current → attention → others). In `--json`, the current Session of an agent-runtime Session carries the [turn](../spec/concepts/glossary.md#turn) and the last activity time (`turn`, `lastEntryAt`).
 
 ```console
 $ feld actor list
@@ -924,6 +924,35 @@ $ feld actor resume dispatcher
 Schedule resumed.
   enabled:      yes (since 2026-09-13T14:12:08+09:00)
   next_run:     2026-09-13T14:20:00+09:00
+```
+
+### feld actor label
+
+Sets and clears the [labels](../spec/concepts/glossary.md#labels) of an Actor. Setting a key the Actor has replaces that label, and clearing a key it lacks changes nothing. From inside a Session only the Session's own Actor is accepted; [`feld self label`](#feld-self-label) does that without naming it.
+
+```text
+feld actor label set [OPTIONS] <ACTOR> <KEY>
+feld actor label clear <ACTOR> <KEY>
+```
+
+**Arguments**
+
+- `<ACTOR>`: Actor name in the Workspace
+- `<KEY>`: Label key, in the grammar of Actor names
+
+**Options of `set`**
+
+- `--until <TIME>`: When the label lapses: an RFC 3339 time, or a span from now such as `30m`, `2h`, or `1d`. Without it, the label stays until cleared
+- `--reason <TEXT>`: Why the label is set
+
+```console
+$ feld actor label set dev-issue-15 needs-admin --reason "decide on dropping the column"
+Label set.
+  actor:        dev-issue-15 (agent)
+  label:        needs-admin
+  until:        -
+  reason:       decide on dropping the column
+  labels:       needs-admin
 ```
 
 ## feld diff
@@ -1540,6 +1569,25 @@ Mailbox read committed.
   read:         read_7d31c4 (message_f2a9d0, fifo 12)
   session:      session_9c41e2
   at:           2026-09-13T11:45:20+09:00
+```
+
+### feld self label
+
+Sets and clears the [labels](../spec/concepts/glossary.md#labels) of the calling Session's Actor, with the arguments and options of [`feld actor label`](#feld-actor-label) without `<ACTOR>`. A Session uses it to declare its state to the readers of the Actor, such as an intended wait until a time.
+
+```text
+feld self label set [OPTIONS] <KEY>
+feld self label clear <KEY>
+```
+
+```console
+$ feld self label set waiting-upstream --until 50m --reason "the monthly job holds the API"
+Label set.
+  actor:        dev-issue-15 (agent)
+  label:        waiting-upstream
+  until:        2026-09-13T12:40:20+09:00
+  reason:       the monthly job holds the API
+  labels:       waiting-upstream
 ```
 
 ## ui

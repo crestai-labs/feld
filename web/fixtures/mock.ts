@@ -2,7 +2,7 @@
 // Instants are epoch milliseconds, and an Actor is referred to by its bare id: the fixture
 // keeps every id distinct across Workspaces.
 
-import type { ActorLaunchSpec, SessionLifecycle, SessionObservation, SessionPlacement } from "../actors/types.ts";
+import type { ActorLabel, ActorLaunchSpec, SessionLifecycle, SessionObservation, SessionPlacement } from "../actors/types.ts";
 
 export interface MockClock {
   now: number;
@@ -22,6 +22,7 @@ export interface MockActor {
   launchSpec: ActorLaunchSpec | null;
   grants?: FeldApi.Actor["grants"];
   declaredIn?: string;
+  labels?: ActorLabel[];
 }
 
 type Unreported = { status: "n/a" | "unavailable"; source: string };

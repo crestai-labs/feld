@@ -659,6 +659,7 @@ fn actor_from_row(connection: &Connection, row: ActorRow) -> Result<Actor> {
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .context("count skipped Schedule ticks")?;
+    let labels = super::label::list_labels(connection, &row.id)?;
     let mut actor = Actor {
         sessions: list_sessions_for_actor(connection, &row.id)?,
         id: row.id,
@@ -680,6 +681,7 @@ fn actor_from_row(connection: &Connection, row: ActorRow) -> Result<Actor> {
             .map(|value| serde_json::from_str(&value).context("decode acceptFrom"))
             .transpose()?,
         declared_in: row.declared_in,
+        labels,
         created_at: row.created_at,
         updated_at: row.updated_at,
         deleted_at: row.deleted_at,
@@ -708,7 +710,7 @@ fn get_actor(connection: &Connection, workspace: &str, name: &str) -> Result<Opt
     .transpose()
 }
 
-fn get_actor_by_id(connection: &Connection, id: &str) -> Result<Option<Actor>> {
+pub(super) fn get_actor_by_id(connection: &Connection, id: &str) -> Result<Option<Actor>> {
     read_actor_rows(connection, "WHERE id = ?1", [id])?
         .into_iter()
         .next()

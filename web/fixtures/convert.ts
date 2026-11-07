@@ -286,6 +286,7 @@ export function actorsInputOf(data: MockActorsData, clock: MockClock, domain: La
     launchSpec: actor.launchSpec ? { ...actor.launchSpec } : null,
     grants: actor.grants || [],
     declaredIn: actor.declaredIn || null,
+    labels: actor.labels || [],
   }));
 
   const sessions = data.sessions.map((session): AgentSession => {

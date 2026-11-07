@@ -74,6 +74,30 @@ pub fn record_description(ctx: &Context, record: &Record) -> String {
             text("planned").map_or_else(|| "-".to_owned(), |planned| ctx.local_time(planned)),
             text("reason").unwrap_or("-")
         ),
+        RecordKind::LabelSet => {
+            let mut description = format!(
+                "{} by {}",
+                text("key").unwrap_or("-"),
+                text("by").unwrap_or("-")
+            );
+            if let Some(until) = text("until") {
+                description.push_str(&format!(" until {}", ctx.local_time(until)));
+            }
+            if let Some(reason) = text("reason") {
+                description.push_str(&format!(" · {reason}"));
+            }
+            description
+        }
+        RecordKind::LabelCleared => format!(
+            "{} by {}",
+            text("key").unwrap_or("-"),
+            text("by").unwrap_or("-")
+        ),
+        RecordKind::LabelExpired => format!(
+            "{} at its until {}",
+            text("key").unwrap_or("-"),
+            text("until").map_or_else(|| "-".to_owned(), |until| ctx.local_time(until))
+        ),
     }
 }
 

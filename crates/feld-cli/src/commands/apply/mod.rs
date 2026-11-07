@@ -158,21 +158,22 @@ impl Prepared {
     async fn declare_each(&self, dry_run: bool) -> CliResult<Vec<Change>> {
         let mut changes = Vec::new();
         for declared in &self.declaration.actors {
-            let response: DeclareResponse = self
-                .daemon
-                .put_json(
-                    &actor_path(&self.workspace, &declared.name),
-                    &self.request(declared),
-                    dry_run.then_some(&[("dryRun", "true")]),
+            let path = actor_path(&self.workspace, &declared.name);
+            let request = self.request(declared);
+            let response: CliResult<DeclareResponse> = if dry_run {
+                self.daemon
+                    .put_json_with(&path, &request, &[("dryRun", "true")])
+                    .await
+            } else {
+                self.daemon.put_json(&path, &request).await
+            };
+            let response = response.map_err(|error| {
+                stopped(
+                    error,
+                    &declared.name,
+                    if dry_run { 0 } else { changes.len() },
                 )
-                .await
-                .map_err(|error| {
-                    stopped(
-                        error,
-                        &declared.name,
-                        if dry_run { 0 } else { changes.len() },
-                    )
-                })?;
+            })?;
             let action = match response.action {
                 DeclareAction::Create => Action::Create,
                 DeclareAction::Replace => Action::Replace,

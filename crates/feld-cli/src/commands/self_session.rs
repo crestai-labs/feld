@@ -17,6 +17,7 @@ pub async fn run(ctx: &Context, command: SelfCommand) -> CliResult<ExitCode> {
         SelfCommand::Message(args) => match args.command {
             SelfMessageCommand::Recv { wait } => message_recv(ctx, wait).await?,
         },
+        SelfCommand::Label(args) => return super::label::run_self(ctx, args.command).await,
         SelfCommand::Get => {
             let daemon = Daemon::connect_self(ctx).await?;
             let response: SessionResponse = daemon.get("/v1/self").await?;

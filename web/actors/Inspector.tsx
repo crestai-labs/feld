@@ -1,7 +1,7 @@
 // The card over the Timeline: a Session's Console, the Actor card, or the Message composer
 // for an Actor's mailbox.
 
-import { memo, useMemo, type FormEvent } from "react";
+import { Fragment, memo, useMemo, type FormEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ConsoleTerminal } from "../console/ConsoleTerminal.tsx";
 import type { ConsoleReads } from "../console/reads.ts";
@@ -144,6 +144,7 @@ function ActorOverview({ agent }: { agent: ActorRecord }) {
         <LaunchSpecRows agent={agent} />
         <GrantsRow agent={agent} />
         {agent.declaredIn ? <div><dt>Declared in</dt><dd className="is-multiline"><strong data-declared-in="">{agent.declaredIn}</strong><span>The declaration file whose <code>feld apply</code> declares this Actor</span></dd></div> : null}
+        <LabelsRow agent={agent} />
         <div><dt>Mailbox</dt><dd><strong>{waiting.length} waiting</strong><span>{waiting.length ? `oldest accepted ${model.nearTime(waiting[0].accepted)}` : "no Message is waiting for a read"}</span></dd></div>
         <div><dt>Sessions</dt><dd><strong>{sessions.length}</strong><span>{session ? `latest ${session.id}` : "none recorded"}</span></dd></div>
       </dl>
@@ -182,6 +183,21 @@ function LaunchSpecRows({ agent }: { agent: ActorRecord }) {
 function GrantsRow({ agent }: { agent: ActorRecord }) {
   const grants = agent.grants || [];
   return <div><dt>Grants</dt><dd className="is-multiline"><strong>{grants.length ? grants.join(", ") : "None"}</strong><span>Given by the Admin alone · <code>feld actor update {agent.name} --grant …</code> replaces them</span></dd></div>;
+}
+
+// The labels set on the Actor, by the Admin or its own Sessions, which their readers interpret.
+function LabelsRow({ agent }: { agent: ActorRecord }) {
+  const model = useActorsModel();
+  const labels = agent.labels || [];
+  if (!labels.length) return <div><dt>Labels</dt><dd><strong>None</strong><span><code>feld actor label set {agent.name} …</code> sets one</span></dd></div>;
+  return (
+    <div><dt>Labels</dt><dd className="is-multiline" data-labels="">{labels.map((label) => (
+      <Fragment key={label.key}>
+        <strong data-label={label.key}>{label.key}</strong>
+        <span>{[label.until === null ? "until cleared" : `until ${model.nearTime(label.until)}`, `set by ${label.by} ${model.nearTime(label.setAt)}`, label.reason].filter(Boolean).join(" · ")}</span>
+      </Fragment>
+    ))}</dd></div>
+  );
 }
 
 // The Job section of the Actor card: the Schedule's own fields and the derived next run,

@@ -31,12 +31,22 @@ export interface ActorRecord {
   grants?: FeldApi.Actor["grants"];
   // The declaration file whose `feld apply` declares the Actor.
   declaredIn?: string | null;
+  // Labels sorted by key, which their readers interpret; a lapsed one is gone from the read.
+  labels?: ActorLabel[];
   // The daemon's `id` of the Actor, which its deleted history is read by.
   actorId?: string;
   // When the Actor was deleted; absent while it is live.
   deletedAt?: Instant | null;
   // The Actor's current Session whatever the range, as its listing answers it.
   currentSession?: { id: string; ownership: string | null } | null;
+}
+
+export interface ActorLabel {
+  key: string;
+  until: Instant | null;
+  reason: string | null;
+  by: FeldApi.Actor["labels"][number]["by"];
+  setAt: Instant;
 }
 
 export interface SessionPlacement {

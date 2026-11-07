@@ -349,6 +349,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{workspace}/actors/{actor}/labels/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The `name` of the Actor */
+                actor: components["parameters"]["Actor"];
+                /** @description The key of the label. Follows the same grammar as `Key` */
+                key: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets a label on an Actor
+         * @description Replaces the label of the same key, and records `label.set`. `by` is `admin` for a `localToken` or browser token, and `actor` for a `sessionToken`.
+         *     A `sessionToken` sets labels only on the Actor of its Session; another Actor gets `403`.
+         *     A `key` that does not match the `Key` grammar, and an `until` that is not RFC 3339 or is not after now, get `400`.
+         *     The `sessionToken` of a closed Session gets `409` as session closed.
+         */
+        put: operations["setActorLabel"];
+        post?: never;
+        /**
+         * Clears a label of an Actor
+         * @description Records `label.cleared`. An Actor without the label stays as it is, and nothing is recorded.
+         *     A `sessionToken` clears labels only of the Actor of its Session; another Actor gets `403`.
+         *     The `sessionToken` of a closed Session gets `409` as session closed.
+         */
+        delete: operations["clearActorLabel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{workspace}/actors/{actor}/messages": {
         parameters: {
             query?: never;
@@ -1248,6 +1284,8 @@ export interface components {
             acceptFrom: components["schemas"]["AcceptFrom"] | null;
             /** @description Name of the declaration file whose `feld apply` declares the Actor. null for an Actor declared otherwise */
             declaredIn: components["schemas"]["Key"] | null;
+            /** @description By key. The daemon removes a label within seconds after its `until`, records `label.expired`, and sends the Actor's resource event */
+            labels: components["schemas"]["ActorLabel"][];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1268,6 +1306,22 @@ export interface components {
             skipMark: boolean;
             /** @description True when the current Session is an `owned` `agent-runtime` Session whose Runtime identity has not arrived yet */
             unlinkedMark: boolean;
+        };
+        ActorLabel: {
+            key: components["schemas"]["Key"];
+            /**
+             * Format: date-time
+             * @description When the label lapses. null stays until cleared
+             */
+            until: string | null;
+            reason: string | null;
+            /**
+             * @description `admin`, or `actor` for a Session of the Actor
+             * @enum {string}
+             */
+            by: "admin" | "actor";
+            /** Format: date-time */
+            setAt: string;
         };
         ActorResponse: {
             actor: components["schemas"]["Actor"];
@@ -1608,7 +1662,7 @@ export interface components {
             model: unknown;
         };
         /** @enum {string} */
-        RecordKind: "session.started" | "session.ended" | "spawned" | "message.accepted" | "message.sent" | "message.read" | "stop.requested" | "kill.requested" | "observation" | "schedule.skipped" | "schedule.missed" | "schedule.paused" | "schedule.resumed";
+        RecordKind: "session.started" | "session.ended" | "spawned" | "message.accepted" | "message.sent" | "message.read" | "stop.requested" | "kill.requested" | "observation" | "schedule.skipped" | "schedule.missed" | "schedule.paused" | "schedule.resumed" | "label.set" | "label.cleared" | "label.expired";
         /** @description record */
         Record: {
             /** @description Global order */
@@ -1631,6 +1685,9 @@ export interface components {
              *     `schedule.skipped`: `planned`, `currentSessionId`.
              *     `schedule.missed`: `planned`, `reason`.
              *     `schedule.paused` / `schedule.resumed`: `requesterSessionId`.
+             *     `label.set`: `key`, `until`, `reason`, `by`; `sessionId` is the setting Session for `by: actor`.
+             *     `label.cleared`: `key`, `by`.
+             *     `label.expired`: `key`, `until`, `by` of the label.
              */
             data: Record<string, unknown>;
         };
@@ -2599,6 +2656,82 @@ export interface operations {
             403: components["responses"]["Error"];
             404: components["responses"]["Error"];
             409: components["responses"]["Error"];
+            500: components["responses"]["Error"];
+        };
+    };
+    setActorLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The `name` of the Actor */
+                actor: components["parameters"]["Actor"];
+                /** @description The key of the label. Follows the same grammar as `Key` */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @description When the label lapses. Omitted
+                     */
+                    until?: string;
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The labelled Actor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActorResponse"];
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            409: components["responses"]["SessionClosed"];
+            500: components["responses"]["Error"];
+        };
+    };
+    clearActorLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The `name` of the Actor */
+                actor: components["parameters"]["Actor"];
+                /** @description The key of the label. Follows the same grammar as `Key` */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Actor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActorResponse"];
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            409: components["responses"]["SessionClosed"];
             500: components["responses"]["Error"];
         };
     };

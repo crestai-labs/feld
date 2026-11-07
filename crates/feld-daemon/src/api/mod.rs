@@ -39,7 +39,7 @@ pub use types::{
     DeclareActorRequest, DeclareResponse, DeclareScheduleRequest, LifecycleResponse, MessageList,
     MessageReadList, MessageResponse, MessageSummaryList, ProviderEntry, ProviderList, RecordList,
     RestartResponse, RestoredCounts, RuntimeEntry, RuntimeList, SendMessageRequest, SessionList,
-    SessionResponse, StartResponse, SubAgentSessionResponse, UpdateActorRequest,
+    SessionResponse, SetLabelRequest, StartResponse, SubAgentSessionResponse, UpdateActorRequest,
     UpdateScheduleRequest, WorkspaceList, WorkspaceResponse,
 };
 

@@ -8,6 +8,7 @@ pub mod daemon;
 pub mod doctor;
 pub mod env;
 pub mod init;
+pub mod label;
 pub mod message;
 pub mod program_capture;
 pub mod provider;

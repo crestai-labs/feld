@@ -27,6 +27,7 @@ import type {
   Lane,
   LaunchOptions,
   ActorState,
+  ActorLabel,
   LegendGroup,
   MessageRead,
   MessageRecord,
@@ -2076,6 +2077,11 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     return { sessionId: session.id, title };
   }
 
+  // A label mark: the key, with who set it, the reason, and when it lapses as its title.
+  function labelTitleFor(label: ActorLabel) {
+    return [`Label ${label.key}`, `set by ${label.by} ${nearTime(label.setAt)}`, label.until === null ? "until cleared" : `until ${dateTime.format(label.until)} ${ZONE}`, label.reason].filter(Boolean).join(" · ");
+  }
+
   // One text cell of the Actor table (the Schedule cell is scheduleCellFor). Every column
   // reads the latest top-level Session, so a cell is null when that Session carries
   // nothing for it (a program has no Coding Agent).
@@ -3252,6 +3258,7 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     scheduleSummary,
     scheduleCellFor,
     skipMarkFor,
+    labelTitleFor,
     unreadMarkFor,
     unlinkedMarkFor,
     actorDetailCellFor,

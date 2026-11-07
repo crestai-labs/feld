@@ -817,6 +817,94 @@ pub enum ActorCommand {
     /// them.
     #[command(after_help = help_footer("Examples:\n  feld actor resume nightly"))]
     Resume(ActorTarget),
+    Label(ActorLabelArgs),
+}
+
+/// Set and clear the labels of an Actor, which its readers interpret.
+///
+/// A label is a key in the grammar of Actor names, with an optional time it lapses at and a
+/// reason. Setting a key the Actor already has replaces it, and clearing a key it lacks
+/// changes nothing. A Session token sets labels only on its own Actor; `feld self label`
+/// does that without naming it.
+#[derive(Debug, Args)]
+pub struct ActorLabelArgs {
+    #[command(subcommand)]
+    pub command: ActorLabelCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ActorLabelCommand {
+    /// Set a label on an Actor, replacing the one of the same key.
+    #[command(after_help = help_footer(
+        "Examples:
+  feld actor label set developer needs-admin --reason 'decide on dropping the column'
+  feld actor label set developer waiting-upstream --until 2h"
+    ))]
+    Set {
+        /// Actor name in the Workspace
+        #[arg(value_name = "ACTOR", value_parser = parse_actor_name)]
+        actor: String,
+        #[command(flatten)]
+        label: LabelSetArgs,
+    },
+    /// Clear a label of an Actor.
+    #[command(after_help = help_footer("Examples:\n  feld actor label clear developer needs-admin"))]
+    Clear {
+        /// Actor name in the Workspace
+        #[arg(value_name = "ACTOR", value_parser = parse_actor_name)]
+        actor: String,
+        /// Label key
+        #[arg(value_name = "KEY", value_parser = parse_label_key)]
+        key: String,
+    },
+}
+
+#[derive(Debug, Args)]
+pub struct LabelSetArgs {
+    /// Label key, in the grammar of Actor names
+    #[arg(value_name = "KEY", value_parser = parse_label_key)]
+    pub key: String,
+    /// When the label lapses: an RFC 3339 time, or a span from now such as 30m, 2h, or 1d
+    /// [default: it stays until cleared]
+    #[arg(long, value_name = "TIME", value_parser = parse_until)]
+    pub until: Option<Until>,
+    /// Why the label is set
+    #[arg(long, value_name = "TEXT")]
+    pub reason: Option<String>,
+}
+
+/// When a label lapses, as `--until` takes it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Until {
+    At(String),
+    In(Since),
+}
+
+impl Until {
+    /// The RFC 3339 time it names, a span counted from `now`.
+    pub fn resolve(&self, now: chrono::DateTime<chrono::Utc>) -> String {
+        match self {
+            Until::At(at) => at.clone(),
+            Until::In(since) => feld_core::time::format(now + since.duration()),
+        }
+    }
+}
+
+/// An RFC 3339 time, or a span from now as `--since` takes it.
+pub fn parse_until(value: &str) -> std::result::Result<Until, String> {
+    if feld_core::time::parse(value).is_ok() {
+        return Ok(Until::At(value.to_owned()));
+    }
+    parse_since(value).map(Until::In).map_err(|_| {
+        "the time must be RFC 3339, or a positive number and a unit, m, h, or d: 30m, 2h, 1d"
+            .to_owned()
+    })
+}
+
+pub fn parse_label_key(value: &str) -> std::result::Result<String, String> {
+    valid_key(value)
+        .then(|| value.to_owned())
+        .ok_or_else(|| "label keys must match ^[a-z0-9][a-z0-9-]*$".to_owned())
 }
 
 /// Create an Actor: an `agent` that runs a Runtime, or a `job` that runs a program.
@@ -1067,6 +1155,35 @@ pub enum SelfCommand {
     Token,
     /// Receive and read the Messages addressed to the caller.
     Message(SelfMessageArgs),
+    /// Set and clear the labels of the caller's Actor.
+    Label(SelfLabelArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SelfLabelArgs {
+    #[command(subcommand)]
+    pub command: SelfLabelCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SelfLabelCommand {
+    /// Set a label on the caller's Actor, replacing the one of the same key.
+    ///
+    /// The label tells the readers of the Actor what the Session is doing, such as waiting on
+    /// purpose until a time. It stays past the Session until it lapses or is cleared.
+    #[command(after_help = help_footer(
+        "Examples:
+  feld self label set waiting-upstream --until 50m --reason 'the monthly job holds the API'
+  feld self label set phase-review"
+    ))]
+    Set(LabelSetArgs),
+    /// Clear a label of the caller's Actor.
+    #[command(after_help = help_footer("Examples:\n  feld self label clear waiting-upstream"))]
+    Clear {
+        /// Label key
+        #[arg(value_name = "KEY", value_parser = parse_label_key)]
+        key: String,
+    },
 }
 
 #[derive(Debug, Args)]
