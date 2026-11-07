@@ -23,6 +23,9 @@ pub fn print_daemon_started(status: &DaemonStatus, style: &Style) {
     if !status.allowed_hosts.is_empty() {
         line("allow_host", &status.allowed_hosts.join(", "));
     }
+    if status.anonymous_read {
+        line("anon_read", "on");
+    }
     line("timezone", &status.timezone);
     line(
         "restored",
@@ -60,6 +63,10 @@ pub fn print_daemon_status(ctx: &Context, status: &DaemonStatus) {
         println!("  web_ui:     {web_ui}");
     }
     println!("  allow_host: {}", listed(status.allowed_hosts.clone()));
+    println!(
+        "  anon_read:  {}",
+        if status.anonymous_read { "on" } else { "off" }
+    );
     if let Some(otlp) = &status.otlp {
         println!("  otlp:       {otlp}");
     }

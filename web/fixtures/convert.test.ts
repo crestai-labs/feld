@@ -259,7 +259,7 @@ test("a current agent-runtime Session carries the turn of its recording on the f
 const STATUS: FeldApi.DaemonStatus = {
   state: "running", version: "0.6.0", instanceId: "dmn_1", pid: 1, home: "/h", api: "http://127.0.0.1:7381", startedAt: "2026-09-01T09:12:45+09:00",
   serverTime: "2026-09-02T15:00:02+09:00", historyStart: null, timezone: "Asia/Tokyo", runtimes: [], providers: [{ name: "tmux", label: "tmux" }],
-  nodes: ["local"], webUi: null, allowedHosts: [], otlp: "http://127.0.0.1:7382", restored: { actors: 1, runningSessions: 1, schedules: 0 },
+  nodes: ["local"], webUi: null, allowedHosts: [], anonymousRead: false, otlp: "http://127.0.0.1:7382", restored: { actors: 1, runningSessions: 1, schedules: 0 },
   scheduler: { wokeAt: "2026-09-02T15:00:00+09:00", planned: [], restarts: 0, lastRestart: null },
 };
 const REFUSALS = { restart: "cannot restart", shutdown: "cannot shut down", start: "no start", stop: "closed", kill: "closed", delete: "running" };

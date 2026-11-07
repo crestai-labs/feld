@@ -126,14 +126,16 @@ pub fn lock_held(home: &FeldHome) -> Result<bool> {
 
 /// Starts a daemon unless one runs. `port` is the API port to listen on, and without one
 /// the daemon listens on the port [`bind_listener`] chooses. `hosts` are the host names
-/// the daemon answers besides the loopback names.
+/// the daemon answers besides the loopback names. `anonymous_read` makes the daemon answer
+/// reads without a token as the Admin.
 pub async fn start(
     home: &FeldHome,
     port: Option<u16>,
     hosts: &[String],
+    anonymous_read: bool,
 ) -> Result<(DaemonStatus, bool)> {
     let _operation_lock = lock_lifecycle(home)?;
-    start_locked(home, None, port, None, hosts).await
+    start_locked(home, None, port, None, hosts, anonymous_read).await
 }
 
 /// Starts a daemon unless one runs. `local_token` is the local token the daemon keeps, and
@@ -145,6 +147,7 @@ async fn start_locked(
     port: Option<u16>,
     carried: Option<u16>,
     hosts: &[String],
+    anonymous_read: bool,
 ) -> Result<(DaemonStatus, bool)> {
     // A daemon that died without unwinding leaves its lock held by the Collector it
     // started, for as long as that Collector takes to notice its parent is gone, and its
@@ -156,6 +159,7 @@ async fn start_locked(
             Ok(Presence::Running(status)) => {
                 ensure_listening_on(&status, port)?;
                 ensure_answering(&status, hosts)?;
+                ensure_anonymous_read(&status, anonymous_read)?;
                 keep_port(home, port)?;
                 return Ok((*status, true));
             }
@@ -204,6 +208,9 @@ async fn start_locked(
     }
     for host in hosts {
         command.arg("--allow-host").arg(host);
+    }
+    if anonymous_read {
+        command.arg("--anonymous-read");
     }
     let mut child = command.spawn().context("start daemon process")?;
     if let Some(token) = local_token {
@@ -294,17 +301,23 @@ async fn stop_locked(home: &FeldHome) -> Result<bool> {
 /// on.
 /// `port` is the API port the started daemon listens on, and without one it listens on the
 /// port [`bind_listener`] chooses. The started daemon answers the host names of the one
-/// stopped and `hosts`.
+/// stopped and `hosts`, and reads without a token as the Admin when the one stopped does or
+/// `anonymous_read` is set.
 pub async fn restart(
     home: &FeldHome,
     port: Option<u16>,
     hosts: &[String],
+    anonymous_read: bool,
 ) -> Result<(bool, DaemonStatus)> {
     let _operation_lock = lock_lifecycle(home)?;
-    let (running, mut answered) = match probe(home).await {
-        Ok(Presence::Running(status)) => (api_port(&status.api), status.allowed_hosts),
+    let (running, mut answered, anonymous_read) = match probe(home).await {
+        Ok(Presence::Running(status)) => (
+            api_port(&status.api),
+            status.allowed_hosts,
+            anonymous_read || status.anonymous_read,
+        ),
         Err(error) if error.is::<Unresponsive>() => return Err(error),
-        _ => (None, Vec::new()),
+        _ => (None, Vec::new(), anonymous_read),
     };
     for host in hosts {
         if !answered.contains(host) {
@@ -326,7 +339,15 @@ pub async fn restart(
     let stopped = stop_locked(home).await?;
     let local_token = local_token.filter(|_| stopped);
     let carried = carried.filter(|_| stopped);
-    let (status, _) = start_locked(home, local_token.as_deref(), port, carried, &answered).await?;
+    let (status, _) = start_locked(
+        home,
+        local_token.as_deref(),
+        port,
+        carried,
+        &answered,
+        anonymous_read,
+    )
+    .await?;
     Ok((stopped, status))
 }
 
@@ -366,7 +387,8 @@ pub fn spawn_restart(home: &FeldHome, restarting: Arc<AtomicBool>) -> Result<()>
 /// with `--port`, and without one the daemon listens on the port [`bind_listener`] chooses.
 /// `carried` is the port of the daemon a restart stopped, which this daemon listens on
 /// without keeping it for the later starts. `hosts` are the host names the daemon answers
-/// besides the loopback names.
+/// besides the loopback names. `anonymous_read` makes the daemon answer reads without a
+/// token as the Admin.
 pub async fn run(
     home: FeldHome,
     version: &str,
@@ -374,6 +396,7 @@ pub async fn run(
     port: Option<u16>,
     carried: Option<u16>,
     hosts: Vec<String>,
+    anonymous_read: bool,
 ) -> Result<()> {
     // The instant this process began serving, before the store, the Collector and the
     // recovery of open Sessions are set up.
@@ -469,6 +492,7 @@ pub async fn run(
         nodes: vec!["local".to_owned()],
         web_ui: Some(format!("{api_url}/ui/")),
         allowed_hosts: hosts.clone(),
+        anonymous_read,
         otlp: collector_endpoint,
         restored: RestoredCounts {
             actors: counts.actors,
@@ -969,6 +993,17 @@ fn ensure_answering(status: &DaemonStatus, hosts: &[String]) -> Result<()> {
         ),
         None => Ok(()),
     }
+}
+
+/// A daemon already running answers a start with `--anonymous-read` that it does not serve
+/// with the way to serve it.
+fn ensure_anonymous_read(status: &DaemonStatus, anonymous_read: bool) -> Result<()> {
+    if anonymous_read && !status.anonymous_read {
+        bail!(
+            "the running daemon requires a token for reads; run `feld daemon restart --anonymous-read` to serve them without one"
+        );
+    }
+    Ok(())
 }
 
 /// Keeps `port` for the later starts of a daemon that already listens on it.

@@ -15,7 +15,7 @@ use super::messages::{
     send_message, unqueue_mailbox,
 };
 use super::pairing::{
-    create_pairing_code, list_browsers, pair_browser, revoke_browser, unpair_browser,
+    create_pairing_code, list_browsers, pair_browser, revoke_browser, ui_access, unpair_browser,
 };
 use super::runtime::{
     check_telemetry_token, get_runtime_metrics, list_providers, list_runtimes, record_runtime,
@@ -202,6 +202,7 @@ pub(super) fn api_routes() -> Routes<AppState> {
             check_telemetry_token,
         )
         .route(Method::GET, "/v1/events", events)
+        .route(Method::GET, "/v1/ui/access", ui_access)
         .route(Method::POST, "/v1/ui/pairing-codes", create_pairing_code)
         .route(Method::POST, "/v1/ui/pair", pair_browser)
         .route(Method::POST, "/v1/ui/unpair", unpair_browser)

@@ -17,7 +17,7 @@ pub async fn run(ctx: &Context, command: DaemonCommand) -> CliResult<ExitCode> {
     match command {
         DaemonCommand::Start(args) => {
             let (status, already_running) =
-                daemon::start(home, args.port, &args.allow_host).await?;
+                daemon::start(home, args.port, &args.allow_host, args.anonymous_read).await?;
             if already_running {
                 client::warn_version_drift(ctx, &status);
             }
@@ -98,7 +98,8 @@ pub async fn run(ctx: &Context, command: DaemonCommand) -> CliResult<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         DaemonCommand::Restart(args) => {
-            let (stopped, status) = daemon::restart(home, args.port, &args.allow_host).await?;
+            let (stopped, status) =
+                daemon::restart(home, args.port, &args.allow_host, args.anonymous_read).await?;
             ctx.print(
                 &serde_json::json!({ "stopped": stopped, "daemon": status, "ui": status.web_ui }),
                 |_| {
@@ -122,6 +123,7 @@ pub async fn run(ctx: &Context, command: DaemonCommand) -> CliResult<ExitCode> {
             port,
             carried_port,
             allow_host,
+            anonymous_read,
         } => {
             let local_token = if local_token_stdin {
                 let mut token = String::new();
@@ -140,6 +142,7 @@ pub async fn run(ctx: &Context, command: DaemonCommand) -> CliResult<ExitCode> {
                 port,
                 carried_port,
                 allow_host,
+                anonymous_read,
             )
             .await?;
             Ok(ExitCode::SUCCESS)

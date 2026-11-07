@@ -62,6 +62,9 @@ pub struct DaemonStatus {
     /// The host names allowed with `--allow-host`, besides the loopback names.
     #[serde(default)]
     pub allowed_hosts: Vec<String>,
+    /// Whether the daemon answers reads without a token as the Admin (`--anonymous-read`).
+    #[serde(default)]
+    pub anonymous_read: bool,
     pub otlp: Option<String>,
     #[serde(default)]
     pub restored: RestoredCounts,
@@ -432,4 +435,19 @@ pub struct BrowserResponse {
 pub struct PairResponse {
     pub browser: Browser,
     pub key: String,
+}
+
+/// What the Web UI may do as its caller: everything the Admin does, or read alone.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UiAccess {
+    pub access: UiAccessLevel,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UiAccessLevel {
+    /// The local token or a browser token.
+    Admin,
+    /// A caller without a token on a daemon that serves reads without one.
+    Read,
 }

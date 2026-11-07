@@ -26,12 +26,13 @@ This document describes how the daemon distinguishes its callers with four token
 
 The daemon listens on the same Port on loopback (`127.0.0.1`, and `[::1]` where IPv6 is available) and on the socket in Feld home (`$FELD_HOME/daemon.sock`); within the same host it relies on the OS user boundary. Browsers on other devices come through an HTTPS proxy that the user sets up (`tailscale serve`). Exposure is limited to the tailnet. The daemon learns the name the proxy exposes externally only through the user's permission ([Accepted hosts](#accepted-hosts)), and it does not identify callers by headers the proxy adds (other processes on the same host can forge them).
 
-The daemon owns the source-of-truth store, and every request from outside crosses the API acceptance boundary before it becomes a record. Callers fall into four groups, each of which reaches the daemon with its own token.
+The daemon owns the source-of-truth store, and every request from outside crosses the API acceptance boundary before it becomes a record. Callers fall into five groups. The first four reach the daemon with their own token.
 
 - CLI and scripts to the daemon: [Admin](../concepts/glossary.md#admin) operations. Called with the local token
 - Web UI to the daemon: Admin operations. Whether on the daemon's device or another device, the browser token is carried by a cookie and a key
 - From inside a Session to the daemon: calls from the Session's child processes (the `feld` CLI, the Runtime Adapter's hooks / helpers). Called with the Session token. The CLI inside a Runtime sandbox goes through the [spool](spool.md) instead of TCP, and the spool accepts only the Session token. A Session is outside the daemon even when it runs under the same OS account, and the facts a Session reports stay within the scope the Session token attributes
 - Collector to the daemon: forwarding Runtime telemetry. Called with the internal token
+- A browser without a token to the daemon: reading the Web UI. Accepted only when the daemon runs with `feld daemon start --anonymous-read`, behind an authentication layer the user provides, such as an identity-aware proxy. The daemon then trusts every caller that reaches it for reads, including processes on the same host
 
 The local token and the browser token have authority across all Workspaces. A Session token points to one Session, and since the Session's Actor has one Workspace, the token belongs to that Workspace. The authority of a Session token is limited to operations on itself and operations that the Actor's grants open within that Workspace ([Authorization decisions](#authorization-decisions)).
 
@@ -150,6 +151,8 @@ In an `owned` Session 1 applies, and in an `attached` Session 2 or 3 applies, so
 ## Authorization decisions
 
 For each operation, this section describes which tokens can call it and what the token determines. The local token and the browser token together are called the Admin token. The two allow the same operations except for pairing management and Sign out, and the caller becomes `Admin` with either. The Admin token can call every operation a Session token can call, except the Runtime API (`/v1/self/*`) and the [spool](spool.md) path. The Runtime API returns 403 to the Admin token.
+
+On a daemon started with `--anonymous-read`, a request without `Authorization` and without a valid browser token is the anonymous caller. It becomes `Admin` for `GET` and `HEAD`, and reads what the Admin token reads (including SSE and `GET /v1/ui/access`, which answers `read` to it and `admin` to the Admin token). It can call pairing (`POST /v1/ui/pair`) to obtain a browser token. Every other method returns 403, and pairing management and the Runtime API stay 403 as for the browser token. Without the flag, such a request returns 401.
 
 A Session token can call operations on itself, and operations on other Actors are opened only within the same Workspace by the [grants](../concepts/glossary.md#grants) of the Session's Actor. The daemon reads the grants from the store on each request and decides the same way on the TCP and [spool](spool.md) paths. Requests it does not allow return 403.
 
