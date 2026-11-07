@@ -64,11 +64,12 @@ export function normalizeCode(code: string) {
   return code.toUpperCase().replace(/[\s-]/g, "");
 }
 
-// A light authenticated read used before spending a fragment's one-time code, and after
-// pairing to make sure the browser kept the cookie and the key.
+// Whether the browser operates with its cookie and key, read before spending a fragment's
+// one-time code and after pairing to make sure the browser kept them. A daemon that serves
+// reads without a token answers `read` to a browser without them.
 export async function browserAccess() {
-  const response = await fetch("/v1/daemon/status", { cache: "no-store", headers: keyHeaders() });
-  if (response.ok) return true;
+  const response = await fetch("/v1/ui/access", { cache: "no-store", headers: keyHeaders() });
+  if (response.ok) return (await response.json()).access === "admin";
   if (response.status === 401) return false;
   throw await refusalOf(response);
 }

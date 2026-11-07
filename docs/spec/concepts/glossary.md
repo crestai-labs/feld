@@ -102,7 +102,7 @@ flowchart LR
 
 ### Admin
 
-A caller that holds a [local token](#local-token) or a [browser token](#browser-token) and is allowed the daemon's operations other than the Runtime API and the spool path (pairing management is limited to the local token, and Sign out to the browser token). A principal calling with these tokens is recorded as `Admin`, and `Admin` appears in the `spawner` of [spawned](#spawned) and in the `from` of a [Message](#message). Examples are `feld actor start` and `feld message send` typed by a human in an outside terminal, and operations in the Web UI. A script that creates Actors and sends Messages to run an Agent Loop is one example of using the CLI as Admin. Admin is a principal outside the Actors, and only Actors, which have a mailbox, are Message recipients.
+A caller that holds a [local token](#local-token) or a [browser token](#browser-token) and is allowed the daemon's operations other than the Runtime API and the spool path (pairing management is limited to the local token, and Sign out to the browser token). A daemon started with `--anonymous-read` also serves `GET` and `HEAD` without a token as Admin ([auth.md](../design/auth.md#authorization-decisions)). A principal calling with these tokens is recorded as `Admin`, and `Admin` appears in the `spawner` of [spawned](#spawned) and in the `from` of a [Message](#message). Examples are `feld actor start` and `feld message send` typed by a human in an outside terminal, and operations in the Web UI. A script that creates Actors and sends Messages to run an Agent Loop is one example of using the CLI as Admin. Admin is a principal outside the Actors, and only Actors, which have a mailbox, are Message recipients.
 
 ### daemon
 

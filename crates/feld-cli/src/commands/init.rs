@@ -461,11 +461,11 @@ async fn init(ctx: &Context, args: InitArgs) -> Result<ExitCode, Stop> {
     match start {
         Some(true) => {
             let started = if running {
-                daemon::restart(home, None, &[])
+                daemon::restart(home, None, &[], false)
                     .await
                     .map(|(_, status)| status)
             } else {
-                daemon::start(home, None, &[])
+                daemon::start(home, None, &[], false)
                     .await
                     .map(|(status, _)| status)
             };

@@ -198,8 +198,21 @@ function Notifications() {
 
 // This browser's pairing with the daemon, which the person sees as Sign out. The browser
 // holds its token as an HttpOnly cookie, so signing out asks the daemon, which needs a
-// daemon that answers.
+// daemon that answers. A browser that reads without signing in is offered Sign in.
 function Device({ source }: { source: DaemonSource }) {
+  return source.operate ? <SignOut source={source} /> : (
+    <Section id="device" scope="browser" badge={false} intro={t("device.readOnly.intro")}>
+      <div className="feld-settings__card">
+        <Row
+          label={t("device.signIn.label")} detail={t("device.signIn.detail")}
+          control={<a className="feld-settings__button is-primary" href="/ui/pair" data-settings-action="sign-in">{t("device.signIn.button")}</a>}
+        />
+      </div>
+    </Section>
+  );
+}
+
+function SignOut({ source }: { source: DaemonSource }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const disabled = source.phase !== "reachable";

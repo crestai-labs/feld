@@ -215,6 +215,7 @@ mod tests {
             token: Some("token".to_owned()),
             browser: None,
             grants: grants.iter().copied().collect(),
+            anonymous: false,
         }
     }
 
@@ -225,6 +226,7 @@ mod tests {
             token: None,
             browser: None,
             grants: BTreeSet::new(),
+            anonymous: false,
         }
     }
 

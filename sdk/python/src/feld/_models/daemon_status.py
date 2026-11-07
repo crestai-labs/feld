@@ -43,6 +43,7 @@ class DaemonStatus:
         nodes (list[Literal['local']]):
         web_ui (None | str):
         allowed_hosts (list[str]): Names allowed with `--allow-host`. Excludes loopback names.
+        anonymous_read (bool): Whether the daemon serves reads without a token as Admin (`--anonymous-read`).
         otlp (None | str): OTLP endpoint of the Collector. null if the Collector is not running.
         restored (DaemonStatusRestored):
         scheduler (DaemonStatusScheduler):
@@ -63,6 +64,7 @@ class DaemonStatus:
     nodes: list[Literal["local"]]
     web_ui: None | str
     allowed_hosts: list[str]
+    anonymous_read: bool
     otlp: None | str
     restored: DaemonStatusRestored
     scheduler: DaemonStatusScheduler
@@ -110,6 +112,8 @@ class DaemonStatus:
 
         allowed_hosts = self.allowed_hosts
 
+        anonymous_read = self.anonymous_read
+
         otlp: None | str
         otlp = self.otlp
 
@@ -136,6 +140,7 @@ class DaemonStatus:
                 "nodes": nodes,
                 "webUi": web_ui,
                 "allowedHosts": allowed_hosts,
+                "anonymousRead": anonymous_read,
                 "otlp": otlp,
                 "restored": restored,
                 "scheduler": scheduler,
@@ -219,6 +224,8 @@ class DaemonStatus:
 
         allowed_hosts = cast(list[str], d.pop("allowedHosts"))
 
+        anonymous_read = d.pop("anonymousRead")
+
         def _parse_otlp(data: object) -> None | str:
             if data is None:
                 return data
@@ -246,6 +253,7 @@ class DaemonStatus:
             nodes=nodes,
             web_ui=web_ui,
             allowed_hosts=allowed_hosts,
+            anonymous_read=anonymous_read,
             otlp=otlp,
             restored=restored,
             scheduler=scheduler,

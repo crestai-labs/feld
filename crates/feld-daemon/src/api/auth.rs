@@ -29,6 +29,8 @@ pub(super) struct AuthContext {
     pub(super) browser: Option<String>,
     /// The grants of the Actor of the Session token, which [`super::access`] reads.
     pub(super) grants: BTreeSet<Grant>,
+    /// Whether the caller carries no token and reads as the Admin (`--anonymous-read`).
+    pub(super) anonymous: bool,
 }
 
 /// A caller of the Control API, judged before the request is read.
@@ -365,6 +367,7 @@ fn authorize(parts: &Parts, state: &AppState) -> Result<AuthContext, ApiError> {
             token: None,
             browser: None,
             grants: BTreeSet::new(),
+            anonymous: false,
         });
     }
     let authenticated = supplied
@@ -379,6 +382,7 @@ fn authorize(parts: &Parts, state: &AppState) -> Result<AuthContext, ApiError> {
             token: supplied.map(str::to_owned),
             browser: None,
             grants: authenticated.grants,
+            anonymous: false,
         });
     }
     if let Some(browser) = browser_token(parts, state)? {
@@ -388,9 +392,46 @@ fn authorize(parts: &Parts, state: &AppState) -> Result<AuthContext, ApiError> {
             token: None,
             browser: Some(browser),
             grants: BTreeSet::new(),
+            anonymous: false,
         });
     }
-    Err(unauthorized())
+    anonymous(parts, state).unwrap_or_else(|| Err(unauthorized()))
+}
+
+/// The caller of a request that carries no token, on a daemon that serves reads without one
+/// (`--anonymous-read`): the Admin for `GET` and `HEAD`, and refused for any other method.
+/// None when the request carries `Authorization` or the daemon requires a token.
+fn anonymous(parts: &Parts, state: &AppState) -> Option<Result<AuthContext, ApiError>> {
+    if parts
+        .headers
+        .contains_key(axum::http::header::AUTHORIZATION)
+    {
+        return None;
+    }
+    anonymous_caller(&parts.method, state.status.anonymous_read)
+}
+
+fn anonymous_caller(
+    method: &Method,
+    anonymous_read: bool,
+) -> Option<Result<AuthContext, ApiError>> {
+    if !anonymous_read {
+        return None;
+    }
+    if !matches!(*method, Method::GET | Method::HEAD) {
+        return Some(Err(error(
+            StatusCode::FORBIDDEN,
+            "this daemon serves the Web UI read-only without a token; sign in to operate",
+        )));
+    }
+    Some(Ok(AuthContext {
+        requester: Requester::Admin,
+        session_id: None,
+        token: None,
+        browser: None,
+        grants: BTreeSet::new(),
+        anonymous: true,
+    }))
 }
 
 /// The caller of a Control API request that names the `spawner`, the `from` or the
@@ -408,7 +449,11 @@ fn authorize_self(parts: &Parts, state: &AppState) -> Result<SelfCaller, ApiErro
     let Some(token) = supplied_token(&parts.headers) else {
         return Err(match browser_token(parts, state)? {
             Some(_) => self_forbidden(),
-            None => unauthorized(),
+            None => match anonymous(parts, state) {
+                Some(Ok(_)) => self_forbidden(),
+                Some(Err(refused)) => refused,
+                None => unauthorized(),
+            },
         });
     };
     if is_token(token, &state.token) {
@@ -453,7 +498,10 @@ fn authorize_admin(parts: &Parts, state: &AppState) -> Result<(), ApiError> {
             "this operation requires the local token or a browser token",
         )),
         _ if browser_token(parts, state)?.is_some() => Ok(()),
-        _ => Err(unauthorized()),
+        _ => match anonymous(parts, state) {
+            Some(caller) => caller.map(|_| ()),
+            None => Err(unauthorized()),
+        },
     }
 }
 
@@ -470,7 +518,11 @@ fn authorize_local(parts: &Parts, state: &AppState) -> Result<(), ApiError> {
         Some(token) if is_token(token, &state.token) => Ok(()),
         Some(token) if state.tokens.issued(token).map_err(internal)? => Err(wrong_kind()),
         _ if browser_token(parts, state)?.is_some() => Err(wrong_kind()),
-        _ => Err(unauthorized()),
+        _ => match anonymous(parts, state) {
+            Some(Ok(_)) => Err(wrong_kind()),
+            Some(Err(refused)) => Err(refused),
+            None => Err(unauthorized()),
+        },
     }
 }
 
@@ -486,7 +538,13 @@ fn authorize_browser(parts: &Parts, state: &AppState) -> Result<String, ApiError
                 "this operation requires a browser token",
             ))
         }
-        _ => browser_token(parts, state)?.ok_or_else(unauthorized),
+        _ => match browser_token(parts, state)? {
+            Some(browser) => Ok(browser),
+            None => match anonymous(parts, state) {
+                Some(Err(refused)) => Err(refused),
+                Some(Ok(_)) | None => Err(unauthorized()),
+            },
+        },
     }
 }
 
@@ -501,7 +559,46 @@ fn authorize_internal(headers: &HeaderMap, state: &AppState) -> Result<(), ApiEr
 
 #[cfg(test)]
 mod tests {
-    use super::is_token;
+    use axum::http::{Method, StatusCode};
+    use feld_core::model::Requester;
+
+    use super::{anonymous_caller, is_token};
+
+    #[test]
+    fn a_daemon_that_requires_a_token_answers_no_anonymous_caller() {
+        for method in [Method::GET, Method::HEAD, Method::POST, Method::DELETE] {
+            assert!(anonymous_caller(&method, false).is_none(), "{method}");
+        }
+    }
+
+    #[test]
+    fn an_anonymous_read_is_the_admin_marked_anonymous() {
+        for method in [Method::GET, Method::HEAD] {
+            let Some(Ok(caller)) = anonymous_caller(&method, true) else {
+                panic!("{method} without a token is not served");
+            };
+            assert_eq!(caller.requester, Requester::Admin);
+            assert!(caller.anonymous);
+            assert!(caller.session_id.is_none());
+            assert!(caller.token.is_none());
+            assert!(caller.browser.is_none());
+            assert!(caller.grants.is_empty());
+        }
+    }
+
+    #[test]
+    fn an_anonymous_write_is_refused_with_403() {
+        for method in [Method::POST, Method::PATCH, Method::PUT, Method::DELETE] {
+            let refused = anonymous_caller(&method, true)
+                .expect("a caller")
+                .expect_err("a write is refused");
+            assert_eq!(refused.status, StatusCode::FORBIDDEN, "{method}");
+            assert_eq!(
+                refused.message,
+                "this daemon serves the Web UI read-only without a token; sign in to operate"
+            );
+        }
+    }
 
     #[test]
     fn is_token_accepts_only_the_same_token() {

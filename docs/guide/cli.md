@@ -373,13 +373,14 @@ feld daemon <COMMAND>
 Start the daemon in the background and wait up to 10 seconds for the API to respond. The daemon restores Actors, open Sessions, and Schedules from the store, and re-observes each Session's underlying process through its Provider. If the daemon is already running, the command returns its state.
 
 ```text
-feld daemon start [--port <PORT>] [--allow-host <HOST>]...
+feld daemon start [--port <PORT>] [--allow-host <HOST>]... [--anonymous-read]
 ```
 
 **Options**
 
 - `--port <PORT>`: The API Port (environment variable `FELD_API_PORT`). Later starts use the same Port
 - `--allow-host <HOST>`: The name of a proxy whose requests are accepted (a host name or IP address without Port, scheme, or path). Can be given multiple times
+- `--anonymous-read`: Serve requests without a token as [Admin](../spec/concepts/glossary.md#admin) for `GET` and `HEAD`, and refuse other methods with 403 ([auth.md](../spec/design/auth.md#authorization-decisions)). The running daemon holds it, and [`restart`](#feld-daemon-restart) carries it over
 
 ```console
 $ feld daemon start
@@ -419,6 +420,14 @@ $ feld daemon start --allow-host <host>.<tailnet>.ts.net
 
 When a Port was chosen with `--port`, relay that Port. For `--allow-host`, give the name `tailscale serve status` shows. On the other device, open `/ui/` at `https://<host>.<tailnet>.ts.net/`, and on the Sign in screen enter the code that [`feld ui pair`](#feld-ui-pair) prints on the daemon's machine. Exposure stays within the tailnet.
 
+Behind a proxy that authenticates people itself, such as an identity-aware proxy, `--anonymous-read` lets them read the Web UI without signing in. Signing in with a pairing code still lets a person operate.
+
+```console
+$ feld daemon start --allow-host <host> --anonymous-read
+```
+
+Authentication is then the proxy's job, and everything readable through the API, including transcripts and Message bodies, is readable by anyone the proxy lets through and by any process on the daemon's host.
+
 ### feld daemon status
 
 Show the state of the running daemon.
@@ -427,7 +436,7 @@ Show the state of the running daemon.
 feld daemon status
 ```
 
-It shows whether the daemon is running, its version (the same value as `feld --version`), pid, which store it serves, the API and Web UI, the names allowed with `--allow-host` (`(none)` if none), the Collector's OTLP endpoint, the local timezone used as the Schedule default, the installed Runtime Adapters and Execution Providers, Nodes, and the Scheduler state. The Scheduler state is the time it last woke, the number of restarts and the last reason, and the tick each Schedule is waiting for.
+It shows whether the daemon is running, its version (the same value as `feld --version`), pid, which store it serves, the API and Web UI, the names allowed with `--allow-host` (`(none)` if none), whether it serves reads without a token (`anon_read`, `--anonymous-read`), the Collector's OTLP endpoint, the local timezone used as the Schedule default, the installed Runtime Adapters and Execution Providers, Nodes, and the Scheduler state. The Scheduler state is the time it last woke, the number of restarts and the last reason, and the tick each Schedule is waiting for.
 
 ```console
 $ feld daemon status
@@ -439,6 +448,7 @@ Daemon
   api:        http://127.0.0.1:7381
   web_ui:     http://127.0.0.1:7381/ui/
   allow_host: macbook.tail1234.ts.net
+  anon_read:  off
   otlp:       http://127.0.0.1:4318
   timezone:   Asia/Tokyo
   runtimes:   claude-code
@@ -475,13 +485,13 @@ Daemon stopped. Sessions keep running on their providers.
 
 ### feld daemon restart
 
-Stop the daemon and start it again so it reloads the installed Plugins. The new daemon carries over the local token and the stopped daemon's Port and allowed names, so open Web UIs and Sessions keep reading. A daemon in the default Feld home that listened on a Port other than the default moves to the default Port with `stop` → `start`.
+Stop the daemon and start it again so it reloads the installed Plugins. The new daemon carries over the local token and the stopped daemon's Port, allowed names, and `--anonymous-read`, so open Web UIs and Sessions keep reading. A daemon in the default Feld home that listened on a Port other than the default moves to the default Port with `stop` → `start`.
 
 ```text
-feld daemon restart [--port <PORT>] [--allow-host <HOST>]...
+feld daemon restart [--port <PORT>] [--allow-host <HOST>]... [--anonymous-read]
 ```
 
-`--port` respecifies the Port as in [`start`](#feld-daemon-start), and `--allow-host` adds names to the carried-over allowed names. When the given Port is in use, the command ends with an error without stopping the running daemon.
+`--port` respecifies the Port as in [`start`](#feld-daemon-start), and `--allow-host` adds names to the carried-over allowed names, and `--anonymous-read` turns on serving reads without a token. When the given Port is in use, the command ends with an error without stopping the running daemon.
 
 ```console
 $ feld daemon restart

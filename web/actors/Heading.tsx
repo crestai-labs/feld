@@ -20,7 +20,7 @@ export function Heading() {
   const query = useActorsStore((state) => state.query);
   const newActorOpen = useActorsStore((state) => Boolean(state.newActor));
   const shown = useShownConnection();
-  const { afterRender } = useActorsTools();
+  const { afterRender, operate } = useActorsTools();
   // The compact layout shows the search field while it is opened or holds a query.
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || query !== "";
@@ -45,10 +45,12 @@ export function Heading() {
         </button>
         <RefreshControls shown={shown} />
         <input className="feld-agents__search" id="feld-agents-search" type="search" placeholder="Search actors and metrics" aria-label="Search actors and metrics" title="Matches Actor names, Coding Agents, Execution Providers, metric names, Runtimes, and accounts" value={query} data-action="search" onChange={(event) => useActorsStore.getState().setQuery(event.target.value)} onBlur={() => setSearchOpen(false)} />
-        <button className="feld-agents__button feld-agents__button--primary feld-agents__button--new" type="button" data-action="new-actor" aria-haspopup="dialog" aria-expanded={newActorOpen} title="Declare an Agent or a Job" onClick={() => actions.openNewActor()}>
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
-          <span>New actor</span>
-        </button>
+        {operate ? (
+          <button className="feld-agents__button feld-agents__button--primary feld-agents__button--new" type="button" data-action="new-actor" aria-haspopup="dialog" aria-expanded={newActorOpen} title="Declare an Agent or a Job" onClick={() => actions.openNewActor()}>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
+            <span>New actor</span>
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -153,6 +155,7 @@ export function TimeControls() {
 function WorkspaceSwitcher() {
   const model = useActorsModel();
   const actions = usePageActions();
+  const { operate } = useActorsTools();
   const drawer = useDrawer();
   const inDrawer = drawer?.slot ?? null;
   const workspace = useActorsStore((state) => state.workspace);
@@ -219,10 +222,12 @@ function WorkspaceSwitcher() {
           </button>
         ))}
         <button type="button" data-action="all-workspaces" role="menuitem" aria-checked={workspace === null} onClick={() => select(null)}><span>All workspaces</span>{workspace === null ? CHECK : null}</button>
-        <button type="button" data-action="new-workspace" role="menuitem" aria-haspopup="dialog" onClick={() => { setOpen(false); drawer?.close(); actions.openNewWorkspace(); }}>
-          <svg className="sidebar__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
-          <span>New workspace</span>
-        </button>
+        {operate ? (
+          <button type="button" data-action="new-workspace" role="menuitem" aria-haspopup="dialog" onClick={() => { setOpen(false); drawer?.close(); actions.openNewWorkspace(); }}>
+            <svg className="sidebar__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            <span>New workspace</span>
+          </button>
+        ) : null}
       </div>)}
     </div>
   );

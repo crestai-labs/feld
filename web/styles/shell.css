@@ -519,6 +519,38 @@ body {
   white-space: nowrap;
 }
 
+/* A page drawn without its writes (a browser that reads without signing in). */
+.read-only-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  color: var(--warning-text);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--warning) 10%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  border-radius: 999px;
+  cursor: default;
+}
+
+.read-only-badge svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.sidebar__read-only {
+  margin-left: auto;
+}
+
 .sidebar__collapse {
   display: flex;
   width: 100%;
@@ -602,8 +634,20 @@ body {
 }
 
 .viewport[data-sidebar-collapsed] .sidebar__brand {
+  flex-direction: column;
   justify-content: center;
+  gap: 6px;
   padding-inline: 0;
+}
+
+/* The icon rail keeps the badge's glyph. */
+.viewport[data-sidebar-collapsed] .sidebar__read-only {
+  margin-left: 0;
+  padding: 3px 6px;
+}
+
+.viewport[data-sidebar-collapsed] .read-only-badge__label {
+  display: none;
 }
 
 .viewport[data-sidebar-collapsed] .sidebar__bottom {
@@ -679,6 +723,7 @@ feld-agents {
   }
 
   .has-page-workspace-switcher .topbar {
+    position: relative;
     grid-area: app;
     align-self: start;
     width: var(--shell-menu-width);
@@ -716,6 +761,30 @@ feld-agents {
     stroke: currentColor;
     stroke-linecap: round;
     stroke-width: 1.8;
+  }
+
+  .topbar__read-only {
+    margin: 0 12px 0 auto;
+  }
+
+  /* Beside a page's own heading row the top bar holds the menu button alone, so the badge
+     is its glyph on the button's corner; the drawer shows it in full. */
+  .has-page-workspace-switcher .topbar__read-only {
+    position: absolute;
+    top: 3px;
+    left: 28px;
+    margin: 0;
+    padding: 2px;
+    pointer-events: none;
+  }
+
+  .has-page-workspace-switcher .topbar__read-only .read-only-badge__label {
+    display: none;
+  }
+
+  .has-page-workspace-switcher .topbar__read-only svg {
+    width: 10px;
+    height: 10px;
   }
 
   .topbar__scrim {

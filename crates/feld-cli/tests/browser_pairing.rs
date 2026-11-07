@@ -558,6 +558,7 @@ fn a_session_token_cannot_manage_pairing() {
     };
 
     for request in [
+        api.client.get(api.url("/v1/ui/access")),
         api.client.post(api.url("/v1/ui/pairing-codes")),
         api.client.get(api.url("/v1/ui/browsers")),
         api.client.delete(api.url("/v1/ui/browsers/browser_0")),
@@ -924,6 +925,7 @@ fn the_allowed_host_names_are_shown_and_kept_across_a_restart() {
 
     let shown = fixture.json(&["daemon", "status", "--json"]);
     assert_eq!(shown["allowedHosts"], json!([PROXY]));
+    assert_eq!(shown["anonymousRead"], false);
     let text = fixture.feld(&["daemon", "status"]);
     let text = String::from_utf8_lossy(&text.stdout);
     assert!(text.contains(&format!("  allow_host: {PROXY}\n")), "{text}");
@@ -954,4 +956,112 @@ fn the_allowed_host_names_are_shown_and_kept_across_a_restart() {
         json!([PROXY, "other.example"])
     );
     assert_eq!(status("other.example"), StatusCode::UNAUTHORIZED);
+}
+
+const READ_ONLY: &str =
+    "this daemon serves the Web UI read-only without a token; sign in to operate";
+
+#[test]
+fn a_daemon_that_requires_a_token_answers_a_request_without_one_with_401() {
+    let fixture = Fixture::new();
+    let api = fixture.start();
+    for request in [
+        api.client.get(api.url("/v1/daemon/status")),
+        api.client.get(api.url("/v1/ui/access")),
+        api.client.get(api.url("/v1/workspaces")),
+        api.client.post(api.url("/v1/workspaces")),
+        api.client.get(api.url("/v1/events")),
+    ] {
+        assert_eq!(request.send().unwrap().status(), StatusCode::UNAUTHORIZED);
+    }
+
+    // A running daemon answers a start that asks for anonymous reads with the way to serve them.
+    let refused = fixture.feld(&["daemon", "start", "--anonymous-read"]);
+    assert!(!refused.status.success());
+    let stderr = String::from_utf8_lossy(&refused.stderr);
+    assert!(
+        stderr.contains("feld daemon restart --anonymous-read"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn an_anonymous_read_daemon_serves_reads_without_a_token_and_refuses_the_rest() {
+    let fixture = Fixture::new();
+    let api = fixture.start_with(&["--anonymous-read"]);
+    let get = |path: &str| api.client.get(api.url(path)).send().unwrap();
+
+    let status = get("/v1/daemon/status");
+    assert_eq!(status.status(), StatusCode::OK);
+    assert_eq!(status.json::<Value>().unwrap()["anonymousRead"], true);
+    assert_eq!(
+        get("/v1/ui/access").json::<Value>().unwrap(),
+        json!({ "access": "read" })
+    );
+    assert_eq!(get("/v1/workspaces").status(), StatusCode::OK);
+    let head = api.client.head(api.url("/v1/workspaces")).send().unwrap();
+    assert_eq!(head.status(), StatusCode::OK);
+    let stream = watch_stream(get("/v1/events"));
+    assert_open(&stream, "an anonymous event stream");
+
+    // Every other method is refused with 403, which the Web UI shows without signing out.
+    for request in [
+        api.client
+            .post(api.url("/v1/workspaces"))
+            .json(&json!({ "key": "team" })),
+        api.client.delete(api.url("/v1/workspaces/default")),
+        api.client.post(api.url("/v1/daemon/shutdown")),
+        api.client.post(api.url("/v1/ui/pairing-codes")),
+        api.client.post(api.url("/v1/ui/unpair")),
+        api.client.post(api.url("/v1/self/messages/read")),
+    ] {
+        let refused = request.send().unwrap();
+        assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+        assert_eq!(refused.json::<Value>().unwrap()["message"], READ_ONLY);
+    }
+    // What the Admin token does not read, the anonymous caller does not either.
+    assert_eq!(get("/v1/ui/browsers").status(), StatusCode::FORBIDDEN);
+    assert_eq!(get("/v1/self").status(), StatusCode::FORBIDDEN);
+    // A token that is not valid is refused as before.
+    let unknown = api
+        .client
+        .get(api.url("/v1/workspaces"))
+        .bearer_auth("unknown")
+        .send()
+        .unwrap();
+    assert_eq!(unknown.status(), StatusCode::UNAUTHORIZED);
+
+    // The local token and a browser token operate as before.
+    let access = api.local(api.client.get(api.url("/v1/ui/access")));
+    assert_eq!(
+        access.json::<Value>().unwrap(),
+        json!({ "access": "admin" })
+    );
+    let created = api.local(
+        api.client
+            .post(api.url("/v1/workspaces"))
+            .json(&json!({ "key": "team" })),
+    );
+    assert_eq!(created.status(), StatusCode::OK);
+    let (token, _) = api.pair(api.issue_code(None)["code"].as_str().unwrap());
+    let access = api.browser(api.client.get(api.url("/v1/ui/access")), &token);
+    assert_eq!(
+        access.json::<Value>().unwrap(),
+        json!({ "access": "admin" })
+    );
+    let created = api.browser(
+        api.client
+            .post(api.url("/v1/workspaces"))
+            .json(&json!({ "key": "other" })),
+        &token,
+    );
+    assert_eq!(created.status(), StatusCode::OK);
+
+    // The daemon status shows it, and a restart keeps it.
+    let text = fixture.feld(&["daemon", "status"]);
+    let text = String::from_utf8_lossy(&text.stdout);
+    assert!(text.contains("  anon_read:  on\n"), "{text}");
+    let restarted = fixture.json(&["daemon", "restart", "--json"]);
+    assert_eq!(restarted["daemon"]["anonymousRead"], true);
+    assert_eq!(get("/v1/workspaces").status(), StatusCode::OK);
 }

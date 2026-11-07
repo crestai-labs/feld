@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { QueryClient, keepPreviousData, useQueries, useQuery, useQueryClient, type QueryKey, type UseQueryResult } from "@tanstack/react-query";
 import { holdsRead, useEventStream } from "./events.ts";
-import { api, isUnauthorized, listActors, readDaemonStatus, readSession } from "./client.ts";
+import { useSearchParams } from "react-router";
+import { api, isUnauthorized, listActors, readDaemonStatus, readSession, readUiAccess } from "./client.ts";
+import { fixtureAccessOf } from "../fixtures/index.ts";
 import { bucketSecondsFor, compose, isoOf, subAgentsInRange } from "../lib/range-reads.ts";
 import { readSlots } from "../lib/read-slots.ts";
 
@@ -48,6 +50,7 @@ export const keys = {
   runtimes: () => ["runtimes"] as const,
   providers: () => ["providers"] as const,
   daemonStatus: () => ["daemon-status"] as const,
+  uiAccess: () => ["ui-access"] as const,
   actorsAll: () => ["actors"] as const,
   actors: (workspace: string, includeDeleted = false) => ["actors", workspace, includeDeleted ? "with-deleted" : "live"] as const,
   listingAll: () => ["listing"] as const,
@@ -114,6 +117,20 @@ export function useDaemonTimeZone(enabled = true) {
     select: (answer) => answer?.timezone || null,
     enabled,
   }).data ?? null;
+}
+
+// Whether this page's caller operates: the daemon answers once per page, and until it has
+// the page draws itself read-only. Fixture mode answers `?access=` (admin by default).
+export function useCanOperate() {
+  const [search] = useSearchParams();
+  const fixture = fixtureAccessOf(search);
+  const access = useQuery({
+    queryKey: keys.uiAccess(),
+    queryFn: ({ signal }) => readUiAccess(signal),
+    select: (answer) => answer.access,
+    enabled: fixture === null,
+  }).data;
+  return (fixture ?? access) === "admin";
 }
 
 // What the page says of its reads in each state; an error carries the failed read's message.

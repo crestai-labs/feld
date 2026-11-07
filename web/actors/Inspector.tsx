@@ -124,6 +124,7 @@ function ActorCardPanel({ agentId, sessionId }: { agentId: string; sessionId: st
 function ActorOverview({ agent }: { agent: ActorRecord }) {
   const model = useActorsModel();
   const { openConsole, openComposer } = usePageActions();
+  const { operate } = useActorsTools();
   const workspace = useActorsStore((state) => state.workspace);
   const session = model.latestSessionFor(agent.id);
   const actorState = model.actorStateFor(agent);
@@ -150,7 +151,7 @@ function ActorOverview({ agent }: { agent: ActorRecord }) {
       </dl>
       <div className="feld-agents__card-actions">
         {session ? <button className="feld-agents__button" type="button" data-action="open-console" data-session-id={session.id} onClick={() => openConsole(session.id)}>Open latest Console</button> : null}
-        {agent.deletedAt ? null : <button className="feld-agents__button" type="button" data-action="send-message" data-agent-id={agent.id} onClick={() => openComposer(agent.id)}>Send message</button>}
+        {agent.deletedAt || !operate ? null : <button className="feld-agents__button" type="button" data-action="send-message" data-agent-id={agent.id} onClick={() => openComposer(agent.id)}>Send message</button>}
       </div>
       {agent.kind === "job" ? <JobSection agent={agent} schedule={schedule} /> : <AgentSection agent={agent} />}
       <h3 className="feld-agents__inspector-section">{schedule ? "Sessions and skipped ticks" : "Sessions"} · Control Plane fact</h3>
@@ -206,7 +207,7 @@ function LabelsRow({ agent }: { agent: ActorRecord }) {
 // place.
 function JobSection({ agent, schedule }: { agent: ActorRecord; schedule: ScheduleRecord | null }) {
   const model = useActorsModel();
-  const { client } = useActorsTools();
+  const { client, operate } = useActorsTools();
   const cardView = useActorsStore((state) => (state.cardView?.agentId === agent.id ? state.cardView : null));
   const edit = useEditAction(agent, schedule);
   if (cardView?.editing && cardView.draft) return <ActorEditForm agent={agent} schedule={schedule} cardView={cardView} />;
@@ -221,10 +222,14 @@ function JobSection({ agent, schedule }: { agent: ActorRecord; schedule: Schedul
         </dl>
         {cardView?.error ? <FormError message={cardView.error} /> : null}
         {cardView?.result ? <p className="feld-agents__composer-result" role="status">{cardView.result}</p> : null}
-        <div className="feld-agents__card-actions">
-          <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={deleted} onClick={edit}>Edit…</button>
-        </div>
-        <p className="feld-agents__form-note">Without a Schedule there is nothing to pause: the band follows the range rule alone. Delete actor in the Actions menu retires the Job and keeps its history.</p>
+        {operate ? (
+          <>
+            <div className="feld-agents__card-actions">
+              <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={deleted} onClick={edit}>Edit…</button>
+            </div>
+            <p className="feld-agents__form-note">Without a Schedule there is nothing to pause: the band follows the range rule alone. Delete actor in the Actions menu retires the Job and keeps its history.</p>
+          </>
+        ) : null}
       </>
     );
   }
@@ -239,13 +244,17 @@ function JobSection({ agent, schedule }: { agent: ActorRecord; schedule: Schedul
       </dl>
       {cardView?.error ? <FormError message={cardView.error} /> : null}
       {cardView?.result ? <p className="feld-agents__composer-result" role="status">{cardView.result}</p> : null}
-      <div className="feld-agents__card-actions">
-        <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={deleted} onClick={edit}>Edit…</button>
-        {schedule.enabled
-          ? <button className="feld-agents__button" type="button" data-action="pause-job" data-agent-id={agent.id} disabled={deleted} onClick={() => setScheduleEnabled(client, model, agent.id, false)}>Pause schedule</button>
-          : <button className="feld-agents__button" type="button" data-action="resume-job" data-agent-id={agent.id} disabled={deleted} onClick={() => setScheduleEnabled(client, model, agent.id, true)}>Resume schedule</button>}
-      </div>
-      <p className="feld-agents__form-note">Pausing stops the ticks: no tick fires, a running Session is not touched, and the band leaves Live mode once its last run leaves the range. Delete actor in the Actions menu retires the Job and keeps its history.</p>
+      {operate ? (
+        <>
+          <div className="feld-agents__card-actions">
+            <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={deleted} onClick={edit}>Edit…</button>
+            {schedule.enabled
+              ? <button className="feld-agents__button" type="button" data-action="pause-job" data-agent-id={agent.id} disabled={deleted} onClick={() => setScheduleEnabled(client, model, agent.id, false)}>Pause schedule</button>
+              : <button className="feld-agents__button" type="button" data-action="resume-job" data-agent-id={agent.id} disabled={deleted} onClick={() => setScheduleEnabled(client, model, agent.id, true)}>Resume schedule</button>}
+          </div>
+          <p className="feld-agents__form-note">Pausing stops the ticks: no tick fires, a running Session is not touched, and the band leaves Live mode once its last run leaves the range. Delete actor in the Actions menu retires the Job and keeps its history.</p>
+        </>
+      ) : null}
     </>
   );
 }
@@ -265,6 +274,7 @@ function useEditAction(agent: ActorRecord, schedule: ScheduleRecord | null) {
 // takes the section's place.
 function AgentSection({ agent }: { agent: ActorRecord }) {
   const model = useActorsModel();
+  const { operate } = useActorsTools();
   const cardView = useActorsStore((state) => (state.cardView?.agentId === agent.id ? state.cardView : null));
   const edit = useEditAction(agent, null);
   if (cardView?.editing && cardView.draft) return <ActorEditForm agent={agent} schedule={null} cardView={cardView} />;
@@ -276,9 +286,11 @@ function AgentSection({ agent }: { agent: ActorRecord }) {
       </dl>
       {cardView?.error ? <FormError message={cardView.error} /> : null}
       {cardView?.result ? <p className="feld-agents__composer-result" role="status">{cardView.result}</p> : null}
-      <div className="feld-agents__card-actions">
-        <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={Boolean(agent.deletedAt)} onClick={edit}>Edit…</button>
-      </div>
+      {operate ? (
+        <div className="feld-agents__card-actions">
+          <button className="feld-agents__button" type="button" data-action="edit-actor" disabled={Boolean(agent.deletedAt)} onClick={edit}>Edit…</button>
+        </div>
+      ) : null}
       <p className="feld-agents__form-note">A change to the launch spec takes effect at the next start; the current Session keeps what it was started with.</p>
     </>
   );

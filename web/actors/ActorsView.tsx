@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { QueryClient } from "@tanstack/react-query";
+import { useCanOperate } from "../api/queries.ts";
 import { ActorsModelContext } from "./context.ts";
 import { Bands } from "./Bands.tsx";
 import { AgentDisplayMenu, MetricsMenu, NewActor, NewWorkspace } from "./Dialogs.tsx";
@@ -34,7 +35,8 @@ export function ActorsView({ data, client }: { data: ActorsData; client: QueryCl
     useActorsStore.getState().showDefaultMetrics(data.input.metrics);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [laneIds]);
-  const tools = useMemo<ActorsTools>(() => ({ client, connection: data.connection, refusals: data.refusals, afterRender }), [client, data.connection, data.refusals, afterRender]);
+  const operate = useCanOperate();
+  const tools = useMemo<ActorsTools>(() => ({ client, connection: data.connection, refusals: data.refusals, operate, afterRender }), [client, data.connection, data.refusals, operate, afterRender]);
   return (
     <ActorsModelContext value={data.model}>
       <ActorsToolsContext value={tools}>

@@ -7,10 +7,10 @@ use serde::Deserialize;
 use feld_core::model::PairingCode;
 
 use super::AppState;
-use super::auth::{BrowserCaller, LocalCaller, PairCaller};
+use super::auth::{BrowserCaller, Caller, LocalCaller, PairCaller};
 use super::error::{ApiError, error, internal};
 use super::query::ApiJson;
-use super::types::{BrowserList, BrowserResponse, PairResponse};
+use super::types::{BrowserList, BrowserResponse, PairResponse, UiAccess, UiAccessLevel};
 
 /// The browser token cookie's attributes; `Secure` is added for HTTPS requests, and its
 /// lifetime is the longest a token can live.
@@ -123,6 +123,24 @@ pub(super) async fn revoke_browser(
                 &format!("browser token '{browser}' is not valid"),
             )
         })
+}
+
+/// What the Web UI may do as its caller. A Session token is refused as the wrong kind of
+/// token.
+pub(super) async fn ui_access(Caller(caller): Caller) -> Result<Json<UiAccess>, ApiError> {
+    if !caller.is_admin() {
+        return Err(error(
+            StatusCode::FORBIDDEN,
+            "this operation requires the local token or a browser token",
+        ));
+    }
+    Ok(Json(UiAccess {
+        access: if caller.anonymous {
+            UiAccessLevel::Read
+        } else {
+            UiAccessLevel::Admin
+        },
+    }))
 }
 
 fn with_cookie(mut response: Response, cookie: &str) -> Response {

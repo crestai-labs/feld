@@ -35,12 +35,15 @@ test("a run of failed codes is told apart from one, and a success counts again",
 
 test("a light read tells whether the browser cookie works", async () => {
   const fetch = vi.fn()
-    .mockResolvedValueOnce(new Response(null, { status: 200 }))
-    .mockResolvedValueOnce(new Response(null, { status: 401 }));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ access: "admin" }), { status: 200 }))
+    .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    // A daemon that serves reads without a token answers the browser without one.
+    .mockResolvedValueOnce(new Response(JSON.stringify({ access: "read" }), { status: 200 }));
   vi.stubGlobal("fetch", fetch);
   expect(await browserAccess()).toBe(true);
   expect(await browserAccess()).toBe(false);
-  expect(fetch).toHaveBeenCalledWith("/v1/daemon/status", { cache: "no-store", headers: {} });
+  expect(await browserAccess()).toBe(false);
+  expect(fetch).toHaveBeenCalledWith("/v1/ui/access", { cache: "no-store", headers: {} });
 });
 
 test("a pairing keeps the key the daemon answers, sends it beside the cookie, and signing out forgets it", async () => {

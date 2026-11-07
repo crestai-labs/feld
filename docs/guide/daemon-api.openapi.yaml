@@ -12,6 +12,7 @@ info:
       - `sessionToken`: the token of a Session that Feld launched or attached. Treated as the Actor of that Session.
       - `internalToken`: a token the daemon generates at each start and passes only to the OTel Collector.
     - The Control API accepts `localToken`, `browserToken`, and `sessionToken`. A `sessionToken` passes only for a Session without `end`, a `browserToken` passes only when it is within its expiry and not revoked, and anything else gets `401`. The token used for the call becomes the `spawner` of spawned, the `from` of a Message, and the `requesterSessionId` of stop / kill. With a `sessionToken`, callable operations are limited to operations on the caller itself and operations opened by the grants of the Session's Actor; anything else gets `403` ("Authorization decisions" in `docs/spec/design/auth.md`). Pairing management (`/v1/ui/pairing-codes`, `/v1/ui/browsers`) accepts only `localToken`; anything else gets `403`.
+    - A daemon started with `feld daemon start --anonymous-read` serves a request without `Authorization` and without a valid browser token as Admin when it is `GET` or `HEAD`, and answers `403` to any other method. `POST /v1/ui/pair` stays callable, and the Runtime API and pairing management stay refused with `403`. Without the flag such a request gets `401`.
     - Reads with a `sessionToken` are limited to the Session's Workspace, and target that Workspace when the `workspace` query is omitted. Records are limited to those of the caller's own Actor unless it has the grant `read`. The `launchSpec` of another Actor and the `execution.command` of its Session are returned as `null`.
     - The daemon responds only to requests whose destination name is a loopback name (`127.0.0.1`, `localhost`, `[::1]`; the port is the daemon's port) or a name allowed with `feld daemon start --allow-host`. If any one of `Host` and `X-Forwarded-Host` falls outside these, it returns `403` with a `text/plain` body (the disallowed name and the command that allows it) before checking the token.
     - Requests other than `GET` authenticated with a browser token, and `POST /v1/ui/pair`, get `403` unless the host and port of `Origin` match the request destination (`X-Forwarded-Host`, or `Host` when absent). An omitted port is filled with the scheme default (http 80, https 443).
@@ -1121,6 +1122,26 @@ paths:
         "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
 
+  /v1/ui/access:
+    get:
+      tags: [Pairing]
+      operationId: getUiAccess
+      summary: Returns what the Web UI may do as its caller
+      description: '`admin` for `localToken` and `browserToken`, `read` for a caller without a token on a daemon started with `--anonymous-read`. `sessionToken` gets `403`.'
+      security:
+        - localToken: []
+        - browserToken: []
+          browserKey: []
+        - {}
+      responses:
+        "200":
+          description: The caller's access
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UiAccess" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+
   /v1/ui/pairing-codes:
     post:
       tags: [Pairing]
@@ -1774,7 +1795,7 @@ components:
 
     DaemonStatus:
       type: object
-      required: [state, version, instanceId, pid, home, api, startedAt, serverTime, historyStart, timezone, runtimes, providers, nodes, webUi, allowedHosts, otlp, restored, scheduler]
+      required: [state, version, instanceId, pid, home, api, startedAt, serverTime, historyStart, timezone, runtimes, providers, nodes, webUi, allowedHosts, anonymousRead, otlp, restored, scheduler]
       properties:
         state: { type: string, const: running }
         version: { type: string, description: 'The same value as `feld --version`.', examples: ["0.6.0 (built 2026-09-28T00:00:00Z)"] }
@@ -1802,6 +1823,7 @@ components:
           type: array
           description: "Names allowed with `--allow-host`. Excludes loopback names."
           items: { type: string, examples: ["macbook.tail1234.ts.net"] }
+        anonymousRead: { type: boolean, description: "Whether the daemon serves reads without a token as Admin (`--anonymous-read`)." }
         otlp: { type: [string, "null"], description: "OTLP endpoint of the Collector. null if the Collector is not running." }
         restored:
           type: object
@@ -2353,6 +2375,12 @@ components:
         code: { type: string, examples: [K7QM-4XPD] }
         name: { type: string, description: Name of the browser token issued on redemption }
         expiresAt: { type: string, format: date-time }
+
+    UiAccess:
+      type: object
+      required: [access]
+      properties:
+        access: { type: string, enum: [admin, read], description: '`admin` operates as Admin; `read` reads as Admin and gets `403` for anything else' }
 
     Browser:
       type: object

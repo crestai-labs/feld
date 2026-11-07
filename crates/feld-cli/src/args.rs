@@ -606,8 +606,12 @@ pub enum DaemonCommand {
     /// The daemon answers requests sent to 127.0.0.1, localhost, or [::1] on its port, and
     /// to the host names allowed with --allow-host. To open the Web UI from another device,
     /// relay the port with `tailscale serve` and allow the name it serves.
+    ///
+    /// With --anonymous-read, requests without a token read everything the Admin reads, and
+    /// requests other than reads without a token are refused with 403. Authentication is then
+    /// the job of the proxy in front of the daemon.
     #[command(after_help = help_footer(
-        "Examples:\n  feld daemon start\n  feld daemon start --port 7390\n  tailscale serve --bg 7381\n  feld daemon start --allow-host <host>.<tailnet>.ts.net"
+        "Examples:\n  feld daemon start\n  feld daemon start --port 7390\n  tailscale serve --bg 7381\n  feld daemon start --allow-host <host>.<tailnet>.ts.net\n  feld daemon start --allow-host <host> --anonymous-read"
     ))]
     Start(DaemonStartArgs),
     /// Show the running daemon: pid, API, Web UI, allowed host names, timezone, and installed
@@ -631,6 +635,8 @@ pub enum DaemonCommand {
     ///
     /// The daemon listens on the port of the daemon it stops; --port names another port.
     /// It answers the host names of the daemon it stops, and those --allow-host adds.
+    /// It serves reads without a token when the daemon it stops does or --anonymous-read
+    /// is given.
     /// A daemon that does not answer within 5 seconds is left as it is, and the error names
     /// its pid to stop it with `kill`.
     #[command(after_help = help_footer(
@@ -651,6 +657,9 @@ pub enum DaemonCommand {
         /// Answer requests sent to this host name too
         #[arg(long, value_parser = allowed_host_name)]
         allow_host: Vec<String>,
+        /// Answer reads without a token as the Admin
+        #[arg(long)]
+        anonymous_read: bool,
     },
 }
 
@@ -663,6 +672,10 @@ pub struct DaemonStartArgs {
     /// (repeatable)
     #[arg(long, value_name = "HOST", value_parser = allowed_host_name)]
     pub allow_host: Vec<String>,
+    /// Serve reads to callers without a token as the Admin, for a Web UI behind an
+    /// authenticating proxy; other requests without a token are refused
+    #[arg(long)]
+    pub anonymous_read: bool,
 }
 
 /// Group Actors into Workspaces, which each hold their own Actor names.

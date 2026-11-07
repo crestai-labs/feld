@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { readDaemonStatus, restartDaemon, shutdownDaemon } from "../api/client.ts";
 import { showPairing, unpair } from "../api/auth.ts";
-import { keys, useWorkspaces } from "../api/queries.ts";
+import { keys, useCanOperate, useWorkspaces } from "../api/queries.ts";
 import { subscribeDaemonEvents } from "../api/events.ts";
 import { DEFAULT_WORKSPACE_KEY } from "../actors/snapshot.ts";
 import { phaseOf, readIntervalOf, restartingOf, RESTART_READ_INTERVAL, type Phase, type Restart } from "./model.ts";
@@ -31,12 +31,15 @@ export interface DaemonRead {
 }
 
 export interface DaemonSource extends DaemonRead {
+  // Whether this page's caller operates; a caller that only reads is offered no control.
+  operate: boolean;
   retry(): void;
   // Each settles once the daemon accepted or refused; a refusal shows as `actionError`.
   restart(): Promise<void>;
   stop(): Promise<void>;
-  // Removes this browser's pairing and gives the page over to the pairing screen; throws
-  // what the daemon answered when it refused.
+  // Removes this browser's pairing and gives the page over to the pairing screen, or on a
+  // daemon that serves reads without a token, reloads it read-only; throws what the daemon
+  // answered when it refused.
   removeDevice(): Promise<void>;
 }
 
@@ -51,6 +54,7 @@ export function useLiveDaemonSource(): DaemonSource {
   const [lastRestart, setLastRestart] = useState<Restart | null>(null);
   const notificationTimer = useRef<number | null>(null);
   const workspaces = useWorkspaces();
+  const operate = useCanOperate();
 
   // The same query as the daemon's time zone and Nodes (see api/queries.ts). The interval
   // is this page's own; a read the query starts by itself follows the options its
@@ -122,6 +126,14 @@ export function useLiveDaemonSource(): DaemonSource {
   }, [setGone, status]);
   const restart = useCallback(() => act("restart"), [act]);
   const stop = useCallback(() => act("stop"), [act]);
+  // POST /v1/ui/unpair revokes this browser's token and deletes its cookie; the preferences
+  // stay in this browser.
+  const anonymousRead = Boolean(status?.anonymousRead);
+  const removeDevice = useCallback(async () => {
+    await unpair();
+    if (anonymousRead) location.reload();
+    else showPairing("removed");
+  }, [anonymousRead]);
 
   return {
     phase,
@@ -134,16 +146,10 @@ export function useLiveDaemonSource(): DaemonSource {
     actionError: actionError && actionError.at > query.dataUpdatedAt ? { action: actionError.action, message: actionError.message } : null,
     restartedAt: lastRestart?.at ?? null,
     now: Date.now(),
+    operate,
     retry,
     restart,
     stop,
     removeDevice,
   };
-}
-
-// POST /v1/ui/unpair revokes this browser's token and deletes its cookie. The preferences
-// stay in this browser.
-async function removeDevice() {
-  await unpair();
-  showPairing("removed");
 }

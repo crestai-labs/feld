@@ -684,6 +684,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ui/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns what the Web UI may do as its caller
+         * @description `admin` for `localToken` and `browserToken`, `read` for a caller without a token on a daemon started with `--anonymous-read`. `sessionToken` gets `403`.
+         */
+        get: operations["getUiAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ui/pairing-codes": {
         parameters: {
             query?: never;
@@ -1094,6 +1114,8 @@ export interface components {
             webUi: string | null;
             /** @description Names allowed with `--allow-host`. Excludes loopback names. */
             allowedHosts: string[];
+            /** @description Whether the daemon serves reads without a token as Admin (`--anonymous-read`). */
+            anonymousRead: boolean;
             /** @description OTLP endpoint of the Collector. null if the Collector is not running. */
             otlp: string | null;
             restored: {
@@ -1620,6 +1642,13 @@ export interface components {
             name: string;
             /** Format: date-time */
             expiresAt: string;
+        };
+        UiAccess: {
+            /**
+             * @description `admin` operates as Admin; `read` reads as Admin and gets `403` for anything else
+             * @enum {string}
+             */
+            access: "admin" | "read";
         };
         Browser: {
             /** @example browser_5c1f0e9a2b7d4c86a3e1f4b2d9c07a51 */
@@ -3202,6 +3231,28 @@ export interface operations {
                 };
             };
             400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+        };
+    };
+    getUiAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's access */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UiAccess"];
+                };
+            };
             401: components["responses"]["Error"];
             403: components["responses"]["Error"];
         };
