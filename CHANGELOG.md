@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.3.0
+
+### Highlights
+
+- `feld diff` / `feld apply` declare the standing Actors of a Workspace in a YAML file and make the Workspace match it, with secrets kept out of the store through `envFile`.
+- Actors carry labels with an optional `until` and `reason`, and a Python SDK (`feld-sdk`) ships with each Release.
+- Behind an authenticating proxy, `feld daemon start --anonymous-read` serves the Web UI read-only to a team without pairing.
+
+### Breaking
+
+- **daemon**: `PATCH /v1/workspaces/{ws}/actors/{actor}` (`feld actor update` / `pause` / `resume`) answers `409 session closed` instead of `401` to the token of a closed Session (#31)
+  - Affects: scripts that update Actors with a Session token and treat `401` as a closed Session
+  - Fix: treat `409` with `session closed` the same way
+
+### Added
+
+- **cli, daemon**: `feld diff -f <file>` / `feld apply -f <file>` apply the Actors declared in a YAML file through the new `PUT /v1/workspaces/{ws}/actors/{actor}` (`?dryRun=true` for diff). Fields the file leaves out are kept, and `apply --prune` deletes only the Actors the same file declared before (#37)
+- **daemon, cli**: launchSpec takes `envFile`, a file of `KEY=VALUE` lines the daemon reads at each launch, so secret values never reach the store. `feld actor create/update --env-file` / `--no-env-file` (#37)
+- **daemon, cli, webui**: an Actor carries labels (`key`, optional `until` and `reason`), set with `feld self label` / `feld actor label` and the `labels` API. Lapsed labels are removed within about a second, and every change is recorded as `label.set` / `label.cleared` / `label.expired`. The Web UI shows them as chips on the Actor band (#39)
+- **sdk**: the Python SDK `feld-sdk` (Python 3.11+) with `feld.connect()`, a synchronous client grouped by resource, and `feld.testing.FakeDaemon`. Each Release attaches its wheel and sdist (#36)
+- **daemon, cli, webui**: `feld daemon start --anonymous-read` answers token-less `GET` / `HEAD` as Admin and refuses writes with 403, and the Web UI draws itself read-only with a Read-only badge. `GET /v1/ui/access` tells the caller's access (#47)
+- **daemon, cli**: a Session whose Actor holds `control` can pause and resume the Schedule of any Job in its Workspace, recorded as `schedule.paused` / `schedule.resumed` with the requester (#31)
+- **cli**: `feld doctor` checks for a newer Release on GitHub and warns with the upgrade step (#30)
+- **webui**: with All workspaces selected, the Actors section draws one foldable lane per Workspace, with counts and New actor in each heading (#34)
+
+### Fixed
+
+- **webui**: the Metrics chart stays beside the pinned lane labels at mid widths (#43)
+- **webui**: Console tabs, links and toggles keep their own font, color and focus outline (#42)
+- **webui**: the Console event summary meets WCAG AA contrast (#41)
+- **test**: tests that start tmux servers pass in deep checkouts (#44)
+
 ## 0.2.1
 
 ### Highlights
