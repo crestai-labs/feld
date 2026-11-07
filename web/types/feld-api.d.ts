@@ -12,6 +12,7 @@ declare global {
     type Workspace = Schemas["Workspace"];
     type Plugin = Schemas["Plugin"];
     type DaemonStatus = Schemas["DaemonStatus"];
+    type UiAccess = Schemas["UiAccess"];
     type ActorKind = Schemas["ActorKind"];
     type LaunchSpec = Schemas["LaunchSpec"];
     type LaunchSpecPatch = Schemas["LaunchSpecPatch"];

@@ -137,3 +137,45 @@ test("All workspaces draws a heading row per Workspace lane that folds the lane 
   expect(page.querySelector(".feld-agents__lane-heading")).toBeNull();
   await act(async () => root.unmount());
 });
+
+// The actions of every Actor's Actions menu and the page's New actor and New workspace, on
+// the fixture opened with `?access=`.
+async function offeredActions(access: string) {
+  const page = document.createElement("div");
+  document.body.append(page);
+  const root = createRoot(page);
+  await act(async () => root.render(
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[`/ui/?scenario=three-days-ago-1h&workspace=*&access=${access}`]}><ActorsPage /></MemoryRouter>
+    </QueryClientProvider>,
+  ));
+  await vi.waitFor(() => expect(page.querySelector('[data-action="toggle-agent-menu"]')).not.toBeNull(), { timeout: 10000 });
+  const actions = new Set<string>();
+  const menus: string[][] = [];
+  for (const button of page.querySelectorAll<HTMLButtonElement>('[data-action="toggle-agent-menu"]')) {
+    await act(async () => button.click());
+    const menu = page.querySelector(".feld-agents__action-menu")!;
+    menus.push([...menu.children].map((entry) => entry.getAttribute("data-action") || "rule"));
+    await act(async () => store().dismissAgentMenu());
+  }
+  for (const entry of menus.flat()) actions.add(entry);
+  for (const control of page.querySelectorAll('[data-action="new-actor"], [data-action="new-workspace"]')) actions.add(control.getAttribute("data-action")!);
+  await act(async () => root.unmount());
+  page.remove();
+  return { actions, menus };
+}
+
+const WRITES = ["stop-session", "terminate-session", "start-replacement", "pause-job", "resume-job", "send-message", "delete-actor", "new-actor", "new-workspace"];
+
+test("a caller that only reads is offered no write, and its menus keep their separators between items", async () => {
+  const admin = await offeredActions("admin");
+  expect(WRITES.filter((action) => admin.actions.has(action))).toEqual(WRITES);
+  const read = await offeredActions("read");
+  expect(WRITES.filter((action) => read.actions.has(action))).toEqual([]);
+  expect([...read.actions].sort()).toEqual(expect.arrayContaining(["open-agent", "open-console", "toggle-pin"]));
+  for (const menu of read.menus) {
+    expect(menu[0]).toBe("toggle-pin");
+    expect(menu.at(-1)).not.toBe("rule");
+    expect(menu.join(" ")).not.toContain("rule rule");
+  }
+}, 20000);

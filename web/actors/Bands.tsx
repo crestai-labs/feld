@@ -293,6 +293,7 @@ function LaneHeadingCell() {
 function LaneHeading({ lane }: { lane: BandLane }) {
   const model = useActorsModel();
   const { focus, openNewActor } = usePageActions();
+  const { operate } = useActorsTools();
   const counts = model.laneCounts(lane);
   const toggle = `[data-action="toggle-workspace-lane"][data-workspace="${lane.workspace}"]`;
   return (
@@ -302,9 +303,11 @@ function LaneHeading({ lane }: { lane: BandLane }) {
       </button>
       <button type="button" className="feld-agents__lane-workspace" data-action="select-workspace" data-workspace={lane.workspace} title={`Show only Workspace ${lane.workspace}`} onClick={() => useActorsStore.getState().selectWorkspace(lane.workspace)}>{lane.workspace}</button>
       <small className="feld-agents__lane-counts" title={counts.title}>{counts.label}</small>
-      <button type="button" className="feld-agents__lane-new" data-action="new-actor" data-workspace={lane.workspace} aria-haspopup="dialog" aria-label={`New actor in Workspace ${lane.workspace}`} title={`Declare an Agent or a Job in Workspace ${lane.workspace}`} onClick={() => openNewActor(lane.workspace)}>
-        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.5v7M2.5 6h7"></path></svg>
-      </button>
+      {operate ? (
+        <button type="button" className="feld-agents__lane-new" data-action="new-actor" data-workspace={lane.workspace} aria-haspopup="dialog" aria-label={`New actor in Workspace ${lane.workspace}`} title={`Declare an Agent or a Job in Workspace ${lane.workspace}`} onClick={() => openNewActor(lane.workspace)}>
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.5v7M2.5 6h7"></path></svg>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -659,10 +662,10 @@ export function targetConfirmed(confirmedTarget: string | null, menuTarget: stri
 // closes once the row leaves the visible part of the bands pane.
 function ActionMenu({ agent, state, anchor }: { agent: ActorRecord; state: BandsView; anchor: RefObject<HTMLDivElement | null> }) {
   const model = useActorsModel();
-  const { client, refusals } = useActorsTools();
+  const { client, refusals, operate } = useActorsTools();
   const { openConsole, openJob, openActorCard, openComposer } = usePageActions();
   const actionRequest = useActorsStore((current) => current.actionRequest);
-  const menu = model.agentMenuFor(agent, { actorPins: state.actorPins, actionRequest });
+  const menu = model.agentMenuFor(agent, { actorPins: state.actorPins, actionRequest }, operate);
   const element = useRef<HTMLDivElement>(null);
   const [confirmed, setConfirmed] = useState<{ action: string; target: string | null } | null>(null);
 

@@ -16,6 +16,8 @@ export interface ActorsTools {
   connection: FeldLiveConnection;
   // Fixture mode's refusing daemon; null when the daemon answers the Actions menu.
   refusals: MenuRefusals | null;
+  // Whether the caller operates; a caller that only reads is drawn no writes.
+  operate: boolean;
   // Runs `step` on the page's root once the state the caller just changed is drawn: the
   // focus or scroll an action moves once, never a restoration after every drawing.
   afterRender(step: (root: HTMLElement) => void): void;

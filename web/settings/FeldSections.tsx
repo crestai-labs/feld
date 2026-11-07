@@ -44,7 +44,7 @@ function Unreachable({ read, zone, onRetry }: { read: DaemonRead; zone: string; 
 }
 
 // Only a reachable daemon is described: the process, what it keeps, and where it listens.
-function Reachable({ read, zone, onConfirm }: { read: DaemonRead; zone: string; onConfirm(action: DaemonAction): void }) {
+function Reachable({ read, zone, operate, onConfirm }: { read: DaemonRead; zone: string; operate: boolean; onConfirm(action: DaemonAction): void }) {
   const { now, restartedAt, actionError } = read;
   const status = read.status!;
   const started = Date.parse(status.startedAt);
@@ -78,7 +78,7 @@ function Reachable({ read, zone, onConfirm }: { read: DaemonRead; zone: string; 
           <Endpoint name={t("daemon.collector")} detail={t("daemon.collector.detail")} url={status.otlp} />
         </ul>
       </div>
-      <div className="feld-settings__card">
+      {operate ? <div className="feld-settings__card">
         <div className="feld-settings__row">
           <div className="feld-settings__row-copy">
             <span className="feld-settings__row-label">{t("daemon.control.label")}</span>
@@ -94,7 +94,7 @@ function Reachable({ read, zone, onConfirm }: { read: DaemonRead; zone: string; 
             </div>
           </div>
         </div>
-      </div>
+      </div> : null}
     </>
   );
 }
@@ -117,7 +117,7 @@ export function DaemonSection({ source }: { source: DaemonSource }) {
     if (read.phase === "unreachable") return <Unreachable read={read} zone={zone} onRetry={source.retry} />;
     return (
       <>
-        <Reachable read={read} zone={zone} onConfirm={confirm} />
+        <Reachable read={read} zone={zone} operate={source.operate} onConfirm={confirm} />
         {(["restart", "stop"] as const).map((action) => (
           <ConfirmDialog key={action} kind={`daemon.${action}`} danger={action === "stop"} dialogRef={dialogs[action]} onConfirm={() => void source[action]()} onClose={() => setHeld(null)} />
         ))}

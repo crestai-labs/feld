@@ -93,6 +93,12 @@ export function readDaemonStatus(signal?: AbortSignal) {
   return api<FeldApi.DaemonStatus>("/v1/daemon/status", { signal });
 }
 
+// Whether this page's caller operates (`admin`) or only reads (`read`, a browser without a
+// token on a daemon started with `--anonymous-read`).
+export function readUiAccess(signal?: AbortSignal) {
+  return api<FeldApi.UiAccess>("/v1/ui/access", { signal });
+}
+
 // ---- Writes ------------------------------------------------------------------------------
 // Each returns what the daemon answered; the pages read again through the query cache.
 

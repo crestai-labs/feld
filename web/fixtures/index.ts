@@ -70,6 +70,12 @@ export function fixtureModeOf(search: URLSearchParams) {
   return import.meta.env.DEV && (search.has("scenario") || search.has("state"));
 }
 
+// The caller's access in fixture mode (`?access=read`, else `admin`); null outside it.
+export function fixtureAccessOf(search: URLSearchParams): FeldApi.UiAccess["access"] | null {
+  if (!fixtureModeOf(search)) return null;
+  return search.get("access") === "read" ? "read" : "admin";
+}
+
 // The `?state=` that puts the pairing screen in place of any page; null outside
 // fixture mode.
 export function fixtureAuthStateOf(search: URLSearchParams): FixtureAuthState | null {
@@ -143,6 +149,7 @@ export function useFixtureDaemonSource(): DaemonSource | null {
   const [search] = useSearchParams();
   const navigate = useNavigate();
   const state = fixtureDaemonStateOf(search);
+  const access = fixtureAccessOf(search);
   const fixture = useFixture(state === null ? null : search.get("scenario") || DEFAULT_SCENARIO);
   const [restartedAt, setRestartedAt] = useState<number | null>(null);
   const [actionError, setActionError] = useState<DaemonRead["actionError"]>(null);
@@ -175,6 +182,6 @@ export function useFixtureDaemonSource(): DaemonSource | null {
     const restarted = read.phase === "reachable" ? restartedAt : null;
     // A restart starts the process again now.
     const status = restarted !== null && read.status ? { ...read.status, startedAt: new Date(restarted).toISOString() } : read.status;
-    return { ...read, status, restartedAt: restarted, actionError, retry, restart, stop, removeDevice };
-  }, [state, fixture, restartedAt, actionError, retry, restart, stop]);
+    return { ...read, status, restartedAt: restarted, actionError, operate: access === "admin", retry, restart, stop, removeDevice };
+  }, [state, fixture, restartedAt, actionError, access, retry, restart, stop]);
 }

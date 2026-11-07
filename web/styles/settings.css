@@ -316,6 +316,13 @@ feld-settings {
   cursor: pointer;
 }
 
+a.feld-settings__button {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  text-decoration: none;
+}
+
 .feld-settings__button:hover {
   background: var(--bg);
 }

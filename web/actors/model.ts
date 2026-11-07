@@ -1525,6 +1525,9 @@ export const END_ATTEMPTS = Object.freeze({
   kill: "ends the execution",
 });
 
+// The Actions menu's items that write (or open the composer that writes).
+const MENU_WRITES: ReadonlySet<string> = new Set(["stop-session", "terminate-session", "start-replacement", "pause-job", "resume-job", "send-message", "delete-actor"]);
+
 // Agent Actions expose only the lifecycle primitives the product contract names:
 // `feld session stop`, `feld session kill`, `feld actor start`, and `feld message send`.
 // Which of them apply follows from two facts: does the Actor have a current Session,
@@ -2568,8 +2571,9 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
   }
 
   // The items of an Actor's Actions menu, in order, with the separators between groups,
-  // and the note of a request of this menu in flight or refused.
-  function agentMenuFor(agent: ActorRecord, state: Pick<AgentsState, "actionRequest" | "actorPins">) {
+  // and the note of a request of this menu in flight or refused. A caller that only reads
+  // (`operate` false) is offered the items that write nothing.
+  function agentMenuFor(agent: ActorRecord, state: Pick<AgentsState, "actionRequest" | "actorPins">, operate = true) {
     const session = latestSessionFor(agent.id);
     const current = Boolean(session && session.end === null);
     // Feld holds no stop authority over an attached Session: Stop and Kill are not
@@ -2624,7 +2628,13 @@ export function createModel(input: ActorsInput, clock: ActorsClock, consoleReads
     items.push(running
       ? item("delete-actor", "Delete actor", `${running.id} is running · ${running.ownership === "attached" ? "the person who started it ends it" : "stop or kill it"} before the delete`, true)
       : item("delete-actor", "Delete actor", "feld actor delete · leaves the bands, start, and Message addressing; its Sessions and Messages stay"));
-    return { sessionId: session?.id || null, items };
+    return { sessionId: session?.id || null, items: operate ? items : readOnlyMenu(items) };
+  }
+
+  // The menu without its writes, and without a separator left at an end or beside another.
+  function readOnlyMenu<T extends { kind: "rule" } | { kind: "item"; action: string }>(items: T[]) {
+    const kept = items.filter((entry) => entry.kind === "rule" || !MENU_WRITES.has(entry.action));
+    return kept.filter((entry, index) => entry.kind !== "rule" || (index > 0 && index < kept.length - 1 && kept[index + 1].kind !== "rule"));
   }
 
   // The Message composer's facts: whether the Actor has a current Session to read the

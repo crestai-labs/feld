@@ -15,13 +15,13 @@ export function instantText(at: number, zone: string, { seconds = false, year = 
 
 // A section without a badge passes `badge={false}`: its facts are neither stored in this
 // browser nor read from the daemon.
-export function Section({ id, scope, badge = true, children }: { id: string; scope: "browser" | "feld"; badge?: boolean; children: ReactNode }) {
+export function Section({ id, scope, badge = true, intro = t(`${id}.intro`), children }: { id: string; scope: "browser" | "feld"; badge?: boolean; intro?: string; children: ReactNode }) {
   return (
     <section className="feld-settings__group" id={`settings-${id}`} data-settings-section={id} aria-labelledby={`settings-${id}-title`}>
       <div className="feld-settings__section-heading">
         <div>
           <h2 id={`settings-${id}-title`}>{t(`${id}.title`)}</h2>
-          <p>{t(`${id}.intro`)}</p>
+          <p>{intro}</p>
         </div>
         {badge ? <span className={`feld-settings__scope is-${scope}`}>{t(scope === "feld" ? "scope.daemonBadge" : "scope.browserBadge")}</span> : null}
       </div>

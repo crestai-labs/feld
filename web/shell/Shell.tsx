@@ -5,6 +5,7 @@ import { storedValue, storeValue } from "./storage.ts";
 import { language, usePreferences } from "./preferences.ts";
 import { t } from "./i18n.ts";
 import { pageQuery } from "./workspace-url.ts";
+import { useCanOperate } from "../api/queries.ts";
 
 const SIDEBAR_MIN_WIDTH = 176;
 const SIDEBAR_MAX_WIDTH = 360;
@@ -69,6 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const applied = collapsed && !compact;
   const menu = useRef<HTMLButtonElement>(null);
   const drawer = useShellDrawer(compact, sidebar, menu);
+  const readOnly = !useCanOperate();
 
   useEffect(() => {
     document.body.classList.toggle("is-resizing-sidebar", resizing);
@@ -120,6 +122,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <button ref={menu} className="topbar__menu" type="button" data-action="toggle-drawer" aria-label={t("nav.menu")} aria-expanded={drawer.expanded} aria-controls={DRAWER_ID} onClick={drawer.expanded ? drawer.close : drawer.open}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14"></path></svg>
         </button>
+        {readOnly ? <ReadOnlyBadge className="topbar__read-only" /> : null}
       </header>
 
       <aside className="sidebar" id={DRAWER_ID} aria-label="Feld navigation" ref={sidebar} onClick={drawer.closeOnLink}>
@@ -128,6 +131,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className="sidebar__feld-logo" aria-hidden="true"></span>
             <strong className="sidebar__brand-name">Feld</strong>
           </Link>
+          {readOnly ? <ReadOnlyBadge className="sidebar__read-only" /> : null}
         </header>
 
         <div className="sidebar__workspaces" ref={drawer.setSlot}></div>
@@ -175,6 +179,18 @@ export function Shell({ children }: { children: ReactNode }) {
         <DrawerContext value={drawer.context}>{children}</DrawerContext>
       </main>
     </div>
+  );
+}
+
+// The mark of a page drawn without its writes, for a browser that reads without signing in.
+// The wide layout shows it beside the brand (its glyph alone on the icon rail), the compact
+// one in the top bar and the drawer.
+function ReadOnlyBadge({ className }: { className: string }) {
+  return (
+    <span className={`read-only-badge ${className}`} data-read-only="" title={t("nav.readOnly.detail")}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"></path><circle cx="8" cy="8" r="2"></circle></svg>
+      <span className="read-only-badge__label">{t("nav.readOnly")}</span>
+    </span>
   );
 }
 

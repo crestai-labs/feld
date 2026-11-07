@@ -56,6 +56,8 @@ A write settles its menu or dialog when the daemon accepts it. It does not wait 
 
 Reads, writes, and `GET /v1/events` pass with the browser token's cookie and key ([cookie and key](auth.md#cookie-and-key)). The cookie is HttpOnly, so the page cannot tell whether it has one; when a request returns 401, the page switches to the Sign in screen, and reads and the event stream stop there. A 401 after a successful read shows "access has ended".
 
+Each page reads `GET /v1/ui/access` once and draws itself read-only until the answer arrives. A `read` caller (a browser without a token on a daemon started with `--anonymous-read`) gets the same screens without their writes, a Read-only badge in the shell, and Sign in in Settings; Sign out on such a daemon brings the page back read-only. The daemon refuses a write that a `read` caller still sends with 403, and the page shows the daemon's message where it shows any refusal.
+
 The pairing procedure follows [auth.md](auth.md#pairing). `/ui/pair#code=` shows only the logo, and every other page reloads itself after pairing. The daemon answers every failed code with 401, so the page counts 5 consecutive failures and shows "all codes are now invalid".
 
 ## Viewer settings
