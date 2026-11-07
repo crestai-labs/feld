@@ -248,6 +248,7 @@ def test_daemon_status() -> None:
         "nodes": ["local"],
         "webUi": None,
         "allowedHosts": [],
+        "anonymousRead": False,
         "otlp": None,
         "restored": {"actors": 0, "runningSessions": 0, "schedules": 0},
         "scheduler": {
