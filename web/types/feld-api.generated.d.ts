@@ -213,7 +213,14 @@ export interface paths {
         };
         /** Returns an Actor */
         get: operations["getActor"];
-        put?: never;
+        /**
+         * Declares an Actor once, or with `dryRun` answers what the declaration would change
+         * @description Makes the Actor match the declaration once: creates it when no live Actor holds the name (`action: create`), brings a differing live Actor to match while keeping its `id` (`replace`), or leaves a matching one as it is (`unchanged`). `fields` are the fields that differ, by dotted path (`env.EPIC`, `schedule.cron`, `grants`), as `before` and `after`; a create lists every field of the new Actor, and `unchanged` lists none.
+         *     The `launchSpec` is admitted as `POST` admits one, so the `providerOptions` the Execution Provider fills in are compared too. A field the request leaves out is kept as it is on a live Actor and takes its default on a new one: `grants` (none), `acceptFrom` (every Actor of the Workspace; `null` states that again), `declaredIn` (none), `schedule.timezone` (the daemon's) and `schedule.enabled` (true). A Job without `schedule` has no Schedule.
+         *     With `dryRun=true`, nothing is written, and `actor` is the live Actor, or `null` for a create.
+         *     The same refusals as `POST` apply: a different kind gets `409`, a `launchSpec` that does not fit the kind or a `schedule` on an Agent gets `400`, and `grants` or `trustWorkdir` from a Session token get `403`. `feld diff` and `feld apply` declare each Actor of a declaration file this way.
+         */
+        put: operations["declareActor"];
         post?: never;
         /**
          * Soft-deletes an Actor
@@ -1265,6 +1272,27 @@ export interface components {
         ActorResponse: {
             actor: components["schemas"]["Actor"];
         };
+        /** @description One field of an Actor declaration as it changes, by its dotted path */
+        FieldChange: {
+            /**
+             * @example env.EPIC
+             * @example schedule.cron
+             * @example grants
+             */
+            field: string;
+            /** @description The value the live Actor holds; null when the field was absent */
+            before: unknown;
+            /** @description The value the declaration gives; null when it removes the field */
+            after: unknown;
+        };
+        DeclareResponse: {
+            /** @enum {string} */
+            action: "create" | "replace" | "unchanged";
+            /** @description The fields the declaration changes; empty when `unchanged` */
+            fields: components["schemas"]["FieldChange"][];
+            /** @description The Actor after the write; with `dryRun`, the live Actor, or null for a create */
+            actor: components["schemas"]["Actor"] | null;
+        };
         Requester: {
             /** @constant */
             type: "admin";
@@ -2300,6 +2328,58 @@ export interface operations {
             401: components["responses"]["Error"];
             403: components["responses"]["Error"];
             404: components["responses"]["Error"];
+            500: components["responses"]["Error"];
+        };
+    };
+    declareActor: {
+        parameters: {
+            query?: {
+                /** @description Answers what the declaration would change, writing nothing */
+                dryRun?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The key of the Workspace */
+                workspace: components["parameters"]["Workspace"];
+                /** @description The `name` of the Actor */
+                actor: components["parameters"]["Actor"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    kind: components["schemas"]["ActorKind"];
+                    launchSpec: components["schemas"]["LaunchSpec"];
+                    grants?: components["schemas"]["Grants"];
+                    acceptFrom?: components["schemas"]["AcceptFrom"] | null;
+                    declaredIn?: components["schemas"]["Key"];
+                    caller?: components["schemas"]["Caller"];
+                    schedule?: {
+                        /** @description 5-field cron expression */
+                        cron: string;
+                        /** @description IANA timezone */
+                        timezone?: string;
+                        enabled?: boolean;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description What the declaration did, or with `dryRun` would do */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclareResponse"];
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            409: components["responses"]["Error"];
             500: components["responses"]["Error"];
         };
     };

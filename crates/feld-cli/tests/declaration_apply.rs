@@ -1,5 +1,6 @@
 //! `feld diff` and `feld apply` against a running daemon: the changes, a second apply that
-//! changes nothing, the prune scope, and the env file read at launch.
+//! changes nothing, the fields a file leaves out, the prune scope, and the env file read at
+//! launch.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -77,6 +78,15 @@ impl Fixture {
         .expect("write declaration file");
         path.display().to_string()
     }
+
+    fn actor_names(&self) -> Vec<String> {
+        self.json(&["actor", "list", "-a", "--json"])["actors"]
+            .as_array()
+            .expect("actors")
+            .iter()
+            .map(|actor| actor["name"].as_str().expect("name").to_owned())
+            .collect()
+    }
 }
 
 impl Drop for Fixture {
@@ -122,12 +132,29 @@ fn actions(report: &Value) -> Vec<(String, String)> {
         .collect()
 }
 
+fn fields(report: &Value, actor: &str) -> Vec<String> {
+    report["changes"]
+        .as_array()
+        .expect("changes")
+        .iter()
+        .find(|change| change["actor"] == actor)
+        .map(|change| {
+            change["fields"]
+                .as_array()
+                .expect("fields")
+                .iter()
+                .map(|field| field["field"].as_str().expect("field").to_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn pair(action: &str, actor: &str) -> (String, String) {
     (action.to_owned(), actor.to_owned())
 }
 
 #[test]
-fn apply_matches_the_file_once_and_prunes_only_its_own_actors() {
+fn apply_matches_the_file_once_and_prunes_only_its_own_actors_when_asked() {
     let fixture = Fixture::new();
     fs::create_dir_all(fixture.workdir()).expect("create workdir");
     fs::write(fixture.workdir().join("secrets.env"), "SECRET=s3cr3t\n").expect("write env file");
@@ -138,17 +165,12 @@ fn apply_matches_the_file_once_and_prunes_only_its_own_actors() {
         actions(&diff),
         [pair("create", "writer"), pair("create", "reviewer")]
     );
-    assert!(
-        fixture.json(&["actor", "list", "-a", "--json"])["actors"]
-            .as_array()
-            .expect("actors")
-            .is_empty(),
-        "a diff changes nothing"
-    );
+    assert!(fixture.actor_names().is_empty(), "a diff changes nothing");
     let human = fixture.feld(&["diff", "-f", &file]);
     let human = String::from_utf8_lossy(&human.stdout);
     assert!(human.contains("+ writer (job)"), "{human}");
     assert!(human.contains("env.GREETING: set"), "{human}");
+    assert!(human.contains("providerOptions.socket:"), "{human}");
 
     let applied = fixture.json(&["apply", "-f", &file, "--json"]);
     assert_eq!(
@@ -157,6 +179,7 @@ fn apply_matches_the_file_once_and_prunes_only_its_own_actors() {
     );
     let again = fixture.json(&["diff", "-f", &file, "--json"]);
     assert!(actions(&again).is_empty(), "{again}");
+    assert!(again.get("prunable").is_none(), "{again}");
 
     let writer = fixture.json(&["actor", "get", "writer", "--json"]);
     assert_eq!(writer["actor"]["declaredIn"], "harness");
@@ -166,23 +189,54 @@ fn apply_matches_the_file_once_and_prunes_only_its_own_actors() {
         fixture.workdir().join("secrets.env").display().to_string()
     );
     assert!(!writer.to_string().contains("s3cr3t"));
+    let reviewer = fixture.json(&["actor", "get", "reviewer", "--json"]);
+    assert_eq!(reviewer["actor"]["acceptFrom"], serde_json::json!(["writer"]));
 
-    // A paused Schedule stays paused, since the file leaves `enabled` out.
+    // What the file leaves out stays: a paused Schedule, and the grants given by hand.
     fixture.json(&["actor", "pause", "writer", "--json"]);
     assert!(actions(&fixture.json(&["diff", "-f", &file, "--json"])).is_empty());
+    let reviewer_with_grants = REVIEWER.replace("    acceptFrom: [writer]\n", "");
+    fixture.json(&[
+        "actor", "update", "reviewer", "--grant", "read", "--json",
+    ]);
+    let file = fixture.declare(&format!("{WRITER}{reviewer_with_grants}"));
+    assert!(
+        actions(&fixture.json(&["diff", "-f", &file, "--json"])).is_empty(),
+        "grants and acceptFrom left out are kept"
+    );
+    // Written as `null` and `[]`, they are declared.
+    let reviewer_cleared = format!("{reviewer_with_grants}    acceptFrom: null\n    grants: []\n");
+    let file = fixture.declare(&format!("{WRITER}{reviewer_cleared}"));
+    let cleared = fixture.json(&["diff", "-f", &file, "--json"]);
+    assert_eq!(actions(&cleared), [pair("replace", "reviewer")]);
+    assert_eq!(fields(&cleared, "reviewer"), ["acceptFrom", "grants"]);
+    fixture.json(&["apply", "-f", &file, "--json"]);
+    let reviewer = fixture.json(&["actor", "get", "reviewer", "--json"]);
+    assert_eq!(reviewer["actor"]["acceptFrom"], Value::Null);
+    assert_eq!(reviewer["actor"]["grants"], serde_json::json!([]));
 
+    // An Actor the file no longer declares stays, and is listed, until --prune.
     fixture.json(&[
         "actor", "create", "manual", "--kind", "job", "--json", "--", "true",
     ]);
     let file = fixture.declare(WRITER);
-    let pruned = fixture.json(&["apply", "-f", &file, "--json"]);
+    let kept = fixture.json(&["apply", "-f", &file, "--json"]);
+    assert!(actions(&kept).is_empty(), "{kept}");
+    assert_eq!(
+        kept["prunable"],
+        serde_json::json!([{ "actor": "reviewer", "kind": "agent" }])
+    );
+    assert!(fixture.actor_names().contains(&"reviewer".to_owned()));
+    let human = fixture.feld(&["diff", "-f", &file]);
+    let human = String::from_utf8_lossy(&human.stdout);
+    assert!(human.contains("--prune deletes them"), "{human}");
+    assert!(human.contains("  reviewer (agent)"), "{human}");
+
+    let pruned_diff = fixture.json(&["diff", "-f", &file, "--prune", "--json"]);
+    assert_eq!(actions(&pruned_diff), [pair("delete", "reviewer")]);
+    let pruned = fixture.json(&["apply", "-f", &file, "--prune", "--json"]);
     assert_eq!(actions(&pruned), [pair("delete", "reviewer")]);
-    let names: Vec<String> = fixture.json(&["actor", "list", "-a", "--json"])["actors"]
-        .as_array()
-        .expect("actors")
-        .iter()
-        .map(|actor| actor["name"].as_str().expect("name").to_owned())
-        .collect();
+    let names = fixture.actor_names();
     assert!(names.contains(&"manual".to_owned()), "{names:?}");
     assert!(!names.contains(&"reviewer".to_owned()), "{names:?}");
 
@@ -212,7 +266,13 @@ fn an_unset_variable_and_an_actor_of_another_kind_are_refused() {
         "actor", "create", "reviewer", "--kind", "job", "--json", "--", "true",
     ]);
     let file = fixture.declare(REVIEWER);
-    let refused = fixture.feld(&["apply", "-f", &file]);
-    assert_eq!(refused.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&refused.stderr).contains("an Actor keeps its kind"));
+    for command in ["diff", "apply"] {
+        let refused = fixture.feld(&[command, "-f", &file]);
+        assert_eq!(refused.status.code(), Some(1), "{command}");
+        assert!(
+            String::from_utf8_lossy(&refused.stderr).contains("kind cannot change"),
+            "{command}: {}",
+            String::from_utf8_lossy(&refused.stderr)
+        );
+    }
 }

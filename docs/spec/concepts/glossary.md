@@ -173,7 +173,7 @@ A durable identity that Feld handles. It has `id`, `name`, `kind`, an optional `
 
 [Sessions](#session) carry the actual execution, and the Actor is the permanent principal that groups them. Every Actor has a [mailbox](#mailbox) and exactly one current Session slot.
 
-`create` against a live Actor of the same name replaces the declaration while keeping the same `id`, and keeps grants and, if not given, acceptFrom and `declaredIn`. Changing an Actor's `name` and `delete` are accepted only when the current Session is not running. A deleted Actor leaves the targets of `start` and of Message recipients, and also leaves the `name` uniqueness constraint. `create` with the same `name` makes a separate Actor with a new `id`, and a deleted Actor's history is traced with `get` by its `id`.
+`create` against a live Actor of the same name replaces the declaration while keeping the same `id`, and keeps grants and, if not given, acceptFrom and `declaredIn`. `declare` takes the same declaration and makes the Actor match it once: it creates the Actor, brings a differing live Actor to match while keeping the same `id`, or leaves a matching one as it is, and answers which fields it changed; asked as a dry run, it answers the same and writes nothing. Changing an Actor's `name` and `delete` are accepted only when the current Session is not running. A deleted Actor leaves the targets of `start` and of Message recipients, and also leaves the `name` uniqueness constraint. `create` with the same `name` makes a separate Actor with a new `id`, and a deleted Actor's history is traced with `get` by its `id`.
 
 #### kind
 
@@ -206,7 +206,7 @@ The list of `name`s of Actors in the same Workspace from which an Actor accepts 
 
 #### declaration file
 
-A file that declares a Workspace's Actors (launchSpec, Schedule, grants, acceptFrom). Its `name` is recorded as each declared Actor's `declaredIn` and is the scope of deletion: Actors whose `declaredIn` is that `name` and that the file no longer declares are deleted, and other Actors are left as they are. One file covers one Workspace. Admin compares it with `feld diff` and applies it with `feld apply`; each apply makes the Workspace match the file once. The format is in the [CLI guide](../../guide/cli.md#declaration-file).
+A file that declares a Workspace's Actors (launchSpec, Schedule, grants, acceptFrom). Admin compares it with `feld diff` and applies it with `feld apply`; each apply makes the Workspace match the file once, by `declare`-ing each Actor of the file in turn, and starts and stops no Session. A field the file leaves out of an Actor (`grants`, `acceptFrom`, a Schedule's `timezone` and `enabled`) is kept as it is on a live Actor and takes its default on a new one, so what a person set by hand, such as a paused Schedule, stays until the file states it. Its `name` is recorded as each declared Actor's `declaredIn` and is the scope of pruning: an apply leaves the Actors the file does not declare as they are, and only `--prune` deletes those whose `declaredIn` is that `name` and that the file no longer declares, as `delete` deletes them. One file covers one Workspace. The format is in the [CLI guide](../../guide/cli.md#declaration-file).
 
 ### Session
 

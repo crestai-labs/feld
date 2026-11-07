@@ -10,7 +10,10 @@ mod session;
 mod token;
 mod workspace;
 
-pub use actor::{ActorDeclaration, ActorError, ActorService, ScheduleRequest};
+pub use actor::{
+    ActorDeclaration, ActorError, ActorService, Declaration, Declared, DeclaredSchedule,
+    ScheduleRequest,
+};
 pub use browser::{BrowserService, Paired, credential};
 pub use message::{MailboxError, MessageError, MessageService};
 pub use session::SessionService;

@@ -63,9 +63,16 @@ struct Entry {
     node: Option<String>,
     provider_options: Option<Value>,
     schedule: Option<ScheduleEntry>,
-    #[serde(default)]
-    grants: BTreeSet<Grant>,
-    accept_from: Option<BTreeSet<String>>,
+    grants: Option<BTreeSet<Grant>>,
+    #[serde(default, deserialize_with = "present")]
+    accept_from: Option<Option<BTreeSet<String>>>,
+}
+
+/// A field that is written, as `null` or a value, as against one left out.
+fn present<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Option<BTreeSet<String>>>, D::Error> {
+    Option::<BTreeSet<String>>::deserialize(deserializer).map(Some)
 }
 
 #[derive(Deserialize)]
@@ -352,7 +359,7 @@ actors:
         assert_eq!(env["EPIC"], "96");
         assert_eq!(env["A"], "1");
         assert_eq!(env["N"], "3");
-        assert_eq!(dispatcher.grants.len(), 2);
+        assert_eq!(dispatcher.grants.as_ref().map(BTreeSet::len), Some(2));
         assert_eq!(
             dispatcher
                 .schedule
@@ -360,10 +367,26 @@ actors:
                 .map(|schedule| schedule.enabled),
             Some(None)
         );
+        assert!(dispatcher.accept_from.is_none(), "left out keeps it");
         assert_eq!(reviewer.launch.workdir.as_deref(), Some("/home/me/work"));
         assert_eq!(reviewer.launch.runtime.as_deref(), Some("codex"));
         assert!(reviewer.launch.command.is_none());
-        assert!(reviewer.accept_from.is_some());
+        assert!(reviewer.grants.is_none(), "left out keeps them");
+        assert_eq!(
+            reviewer.accept_from.as_ref().and_then(Option::as_ref),
+            Some(&BTreeSet::from(["dispatcher".to_owned()]))
+        );
+    }
+
+    #[test]
+    fn a_written_null_accept_from_and_empty_grants_are_declared() {
+        let declaration = parse_file(
+            "version: 1\nname: harness\nactors:\n  - {name: a, kind: job, command: [x], grants: [], acceptFrom: null}\n",
+        )
+        .expect("parse");
+        let actor = &declaration.actors[0];
+        assert_eq!(actor.grants.as_ref().map(BTreeSet::len), Some(0));
+        assert_eq!(actor.accept_from, Some(None));
     }
 
     #[test]

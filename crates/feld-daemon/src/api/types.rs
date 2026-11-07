@@ -7,8 +7,8 @@ use crate::console::SubAgentSession;
 use crate::scheduler::SchedulerStatus;
 use crate::store::Workspace;
 use feld_core::model::{
-    Actor, ActorKind, Browser, Grant, LaunchSpec, LaunchSpecPatch, Message, MessageQueued,
-    MessageRead, MessageSummary, Placement, Record, Session,
+    Actor, ActorKind, Browser, DeclareAction, FieldChange, Grant, LaunchSpec, LaunchSpecPatch,
+    Message, MessageQueued, MessageRead, MessageSummary, Placement, Record, Session,
 };
 use feld_core::plugin::PluginSummary;
 
@@ -131,6 +131,66 @@ pub struct CreateActorRequest {
 pub struct CreateScheduleRequest {
     pub cron: String,
     pub timezone: Option<String>,
+}
+
+/// The declaration of one Actor, as `PUT /v1/workspaces/{workspace}/actors/{actor}` takes
+/// it: the Actor is created, or its declaration brought to match. A field the request leaves
+/// out is kept as it is on a live Actor, and takes its default on a new one.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeclareActorRequest {
+    pub kind: ActorKind,
+    pub launch_spec: LaunchSpec,
+    /// The Schedule of a Job; left out, a Job has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedule: Option<DeclareScheduleRequest>,
+    /// The grants, which only an Admin token sets.
+    #[serde(
+        default,
+        deserialize_with = "present_set",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub grants: Option<BTreeSet<Grant>>,
+    /// The names of the Actors whose Messages the Actor accepts; null accepts every Actor of
+    /// the Workspace.
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub accept_from: Option<Option<BTreeSet<String>>>,
+    /// The `name` of the declaration file that declares the Actor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_in: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "optional_object",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub caller: Option<Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeclareScheduleRequest {
+    pub cron: String,
+    /// Left out, a live Schedule keeps its timezone and a new one takes the daemon's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    /// Left out, a live Schedule stays paused or enabled, and a new one is enabled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+}
+
+/// What declaring an Actor did, or with `dryRun` would do.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclareResponse {
+    pub action: DeclareAction,
+    /// The fields the declaration changes, by their dotted path; none when `unchanged`.
+    pub fields: Vec<FieldChange>,
+    /// The Actor after the write; with `dryRun`, the Actor as it is, or null for a create.
+    pub actor: Option<Actor>,
 }
 
 /// A partial update of an Actor: each top-level field of `launchSpec` and `schedule` that

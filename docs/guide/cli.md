@@ -925,17 +925,18 @@ Schedule resumed.
 
 ## feld diff
 
-Shows how the Actors a [declaration file](#declaration-file) declares differ from the Actors of its Workspace, changing nothing.
+Shows how the Actors a [declaration file](#declaration-file) declares differ from the Actors of its Workspace, changing nothing. Each Actor of the file is declared to the daemon as a dry run, which answers the fields it would change.
 
 ```text
-feld diff -f <FILE>
+feld diff -f <FILE> [--prune]
 ```
 
 **Options**
 
 - `-f, --file <FILE>`: Declaration file (YAML)
+- `--prune`: Also show, as `-`, the Actors [`feld apply --prune`](#feld-apply) would delete
 
-Each Actor of the file is `+` when it is new, with its fields, and `~` when its declaration differs, with each differing field by its dotted path (`env.EPIC`, `schedule.cron`, `runtimeSettings.model`, `grants`, `acceptFrom`, `declaredIn`, and so on) as `before -> after`. `-` is a live Actor whose `declaredIn` is the file's `name` and that the file no longer declares. An `env` value shows only as `set`, `changed`, or `removed`; `--json` shows the values. The `providerOptions` the file leaves out and the Schedule `timezone` and `enabled` the file leaves out are left to the daemon and not compared. With no difference, it prints `No changes: Workspace <ws> matches declaration file <name>.`
+Each Actor of the file is `+` when it is new, with its fields, and `~` when its declaration differs, with each differing field by its dotted path (`env.EPIC`, `schedule.cron`, `runtimeSettings.model`, `providerOptions.socket`, `grants`, `acceptFrom`, `declaredIn`, and so on) as `before -> after`. The fields are those of the declaration as the daemon admits it, so the `providerOptions` the Execution Provider fills in and the timezone the daemon gives a new Schedule are compared too. A field the file leaves out (`grants`, `acceptFrom`, a Schedule's `timezone` and `enabled`) is kept as it is and not compared. An `env` value shows only as `set`, `changed`, or `removed`; `--json` shows the values. A live Actor whose `declaredIn` is the file's `name` and that the file no longer declares is listed after the changes as one `--prune` deletes, and is `-` with `--prune`. With no difference, it prints `No changes: Workspace <ws> matches declaration file <name>.`
 
 ```console
 $ feld diff -f feld.yaml
@@ -943,10 +944,11 @@ Declaration file feld-harness · Workspace feld-dev
 ~ dispatcher (job)
     env.EPIC: changed
     schedule.cron: */15 * * * * -> */20 * * * *
-- nightly (job)
+Declared by feld-harness before and not in the file now; --prune deletes them:
+  nightly (job)
 ```
 
-`--json` prints `{"name","workspace","changes":[{"action","actor","kind","fields":[{"field","before","after"}]}]}`, where `action` is `create`, `replace`, or `delete`.
+`--json` prints `{"name","workspace","changes":[{"action","actor","kind","fields":[{"field","before","after"}]}],"prunable":[{"actor","kind"}]}`, where `action` is `create`, `replace`, or `delete`, and `prunable` is left out when it is empty or `--prune` is given.
 
 **Exit codes**
 
@@ -956,31 +958,32 @@ Declaration file feld-harness · Workspace feld-dev
 
 ## feld apply
 
-Makes the Actors of the Workspace match a declaration file, once. A new Actor is created and a differing one has its declaration replaced under the same ID, through the same create as [`feld actor create`](#feld-actor-create), and both record the file's `name` as `declaredIn`. An Actor of the same name declared by hand or by another file is taken over and gets this file's `name`. Then a live Actor whose `declaredIn` is the file's `name` and that the file no longer declares is deleted; one whose current Session runs is kept with a warning on stderr and exit code 1, and the next `feld diff` still shows it. Other Actors are left as they are: those declared by hand, by other files, or created by a harness at run time.
+Makes the Actors of the Workspace match a declaration file, once. Each Actor of the file is declared to the daemon in the order of the file: a new Actor is created, a differing one has its declaration brought to match under the same ID, and both record the file's `name` as `declaredIn`. An Actor of the same name declared by hand or by another file is taken over and gets this file's `name`. A field the file leaves out (`grants`, `acceptFrom`, a Schedule's `timezone` and `enabled`) is kept as it is, so a Schedule paused by hand stays paused until the file writes `enabled: true`, and grants given by hand stay until the file writes `grants`. Actors the file does not declare are left as they are: those declared by hand, by other files, or created by a harness at run time, and also those an earlier apply of this file declared, which are listed after the changes. `--prune` deletes the last kind, the live Actors whose `declaredIn` is the file's `name` and that the file no longer declares, as [`feld actor delete`](#feld-actor-delete) deletes them: one whose current Session is running is refused.
 
 ```text
-feld apply -f <FILE>
+feld apply -f <FILE> [--prune]
 ```
 
 **Options**
 
 - `-f, --file <FILE>`: Declaration file (YAML)
+- `--prune`: Delete the live Actors whose `declaredIn` is the file's `name` and that the file no longer declares
 
-apply starts and stops no Session. An Agent starts with [`feld actor start`](#feld-actor-start), a Job with a Schedule runs on its cron, and a running Session keeps its launchSpec until its next start. A second run changes nothing. A refusal stops apply, the changes before it stay committed, and the error says how many were committed.
+apply starts and stops no Session. An Agent starts with [`feld actor start`](#feld-actor-start), a Job with a Schedule runs on its cron, and a running Session keeps its launchSpec until its next start. A second run changes nothing. A refusal stops apply, the changes before it stay committed, and the error says how many were committed; the declared Actors come before the deletes.
 
 ```console
-$ feld apply -f feld.yaml
+$ feld apply -f feld.yaml --prune
 Declaration file feld-harness applied to Workspace feld-dev.
   ~ dispatcher (job)               replaced
   - nightly (job)                  deleted
 ```
 
-`--json` prints the same shape as `feld diff`, and a kept delete adds `kept` with the reason.
+`--json` prints the same shape as `feld diff`, with the changes made.
 
 **Exit codes**
 
 - `0`: The Workspace matches the file
-- `1`: Refused: a change was refused, or an Actor with a running Session was kept
+- `1`: Refused: a change was refused, such as a `--prune` of an Actor whose current Session is running; the changes before it stay
 - `2`: The file cannot be read or is invalid, a `${VAR}` is not set, or the daemon cannot be reached
 
 ### Declaration file
@@ -1012,7 +1015,7 @@ actors:
 - An Actor takes `name`, `kind` (`agent` or `job`), the launchSpec fields (`runtime`, `runtimeSettings`, `trustWorkdir`, `command`, `workdir`, `env`, `envFile`, `provider`, `node`, `providerOptions`), `schedule` (`cron`, `timezone`, `enabled`), `grants`, and `acceptFrom`. `defaults` takes the launchSpec fields. Unknown fields are refused
 - An Actor's own field overrides the default, and `env` merges per variable. The defaults `runtime`, `runtimeSettings`, and `trustWorkdir` apply only to an Actor that runs a Runtime, and `command` only to one that runs a command
 - `workdir` defaults to the file's directory. A relative `workdir` or `envFile` resolves from the file's directory, and `~/` from `HOME`. The workdir is checked as in `feld actor create`. `provider` defaults to the only installed Execution Provider, `node` to `local`, and the Provider fills the `providerOptions` the file leaves out
-- The file declares the whole of each Actor: without `grants` the Actor has no grants, without `acceptFrom` it accepts every Actor of the Workspace, and without `schedule` it has no Schedule. A Schedule without `timezone` takes the daemon's, and one without `enabled` stays paused or enabled as it is
+- The file declares each Actor's launchSpec and, for a Job, its Schedule: without `schedule` a Job has no Schedule. `grants`, `acceptFrom`, and a Schedule's `timezone` and `enabled` are kept as they are when left out, and take their defaults on a new Actor: no grants, every Actor of the Workspace accepted, the daemon's timezone, and an enabled Schedule. To state them, write them: `grants: []` removes every grant, `acceptFrom: null` accepts every Actor again, and `enabled: true` resumes a Schedule paused by hand
 - `${VAR}` in a string expands from the environment of the CLI, `$$` writes `$`, and any other `$` stays as written. The expanded value is stored in the launchSpec, so secrets go in the `envFile`. `env` values may be numbers or booleans and read as text
 
 ## session

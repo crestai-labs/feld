@@ -4,11 +4,12 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use tokio::sync::Notify;
 
-use crate::store::{ActorPatch, ActorWriteError, LaunchUpdate, Store, Writer};
+use crate::store::{ActorPatch, ActorWrite, ActorWriteError, LaunchUpdate, Store, Writer};
 use feld_core::cron::{last_run_at_or_before, validate_cron, validate_timezone};
 use feld_core::id::valid_key;
 use feld_core::model::{
-    Actor, ActorKind, Grant, LaunchSpec, LaunchSpecPatch, ScheduleDeclaration, SchedulePatch,
+    Actor, ActorKind, DeclarationFields, DeclareAction, FieldChange, Grant, LaunchSpec,
+    LaunchSpecPatch, ScheduleDeclaration, ScheduleFields, SchedulePatch,
 };
 use feld_core::plugin::protocol::ResolveRequest;
 use feld_core::plugin::{NODES, Plugins, Registry};
@@ -50,6 +51,35 @@ pub struct ActorDeclaration<'a> {
     /// when None.
     pub declared_in: Option<&'a str>,
     pub writer: Writer,
+}
+
+/// The Schedule a declaration gives a Job. `timezone` and `enabled` left out keep those of
+/// the live Schedule; a new Schedule takes the daemon's timezone and is enabled.
+pub struct DeclaredSchedule {
+    pub cron: String,
+    pub timezone: Option<String>,
+    pub enabled: Option<bool>,
+}
+
+/// What a declaration states of an Actor beside its name. Each field that is None is kept
+/// as it is on a live Actor, and takes its default on a new one.
+pub struct Declaration<'a> {
+    pub kind: ActorKind,
+    pub launch: &'a LaunchSpec,
+    pub schedule: Option<DeclaredSchedule>,
+    pub grants: Option<&'a BTreeSet<Grant>>,
+    /// `Some(None)` accepts every Actor of the Workspace.
+    pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+    pub declared_in: Option<&'a str>,
+    pub writer: Writer,
+}
+
+/// What declaring an Actor did, or would do.
+pub struct Declared {
+    pub action: DeclareAction,
+    pub fields: Vec<FieldChange>,
+    /// The Actor after the write, or, when nothing was written, as it is.
+    pub actor: Option<Actor>,
 }
 
 /// Actor declarations: their creation, update and deletion, with the Execution Provider's
@@ -212,6 +242,149 @@ impl ActorService {
         )?;
         self.schedule_notify.notify_one();
         Ok(actor)
+    }
+
+    /// Declares the Actor `name` once: creates it, or brings the declaration of the live
+    /// Actor of the same name to match, which keeps its `id`; an Actor whose declaration
+    /// already matches is left as it is. The launchSpec is admitted as a creation admits it,
+    /// and the fields that differ are those of the admitted declaration against the live
+    /// Actor. With `dry_run`, nothing is written.
+    pub fn declare(
+        &self,
+        workspace: &str,
+        name: &str,
+        declaration: Declaration<'_>,
+        caller: Option<&serde_json::Value>,
+        dry_run: bool,
+    ) -> Result<Declared, ActorError> {
+        let Declaration {
+            kind,
+            launch,
+            schedule,
+            grants,
+            accept_from,
+            declared_in,
+            writer,
+        } = declaration;
+        if !valid_key(name) {
+            return Err(ActorError::Invalid(
+                "Actor names must match ^[a-z0-9][a-z0-9-]*$".to_owned(),
+            ));
+        }
+        validate_accept_from(accept_from.flatten())?;
+        if declared_in.is_some_and(|name| !valid_key(name)) {
+            return Err(ActorError::Invalid(
+                "declaredIn must match ^[a-z0-9][a-z0-9-]*$".to_owned(),
+            ));
+        }
+        if schedule.is_some() && kind != ActorKind::Job {
+            return Err(ActorWriteError::NotJob(name.to_owned()).into());
+        }
+        if !self
+            .store
+            .get_workspace(workspace)?
+            .is_some_and(|workspace| workspace.deleted_at.is_none())
+        {
+            return Err(ActorError::WorkspaceNotFound(workspace.to_owned()));
+        }
+        let current = self.store.get_actor(workspace, name)?;
+        if let Some(existing) = current.as_ref().filter(|current| current.kind != kind) {
+            return Err(ActorWriteError::KindMismatch {
+                actor: name.to_owned(),
+                existing: existing.kind,
+                requested: kind,
+            }
+            .into());
+        }
+        let launch = self
+            .admit_launch(kind, launch, caller)
+            .map_err(ActorError::Invalid)?;
+        // What the Actor holds after the write: each field the declaration leaves out stays.
+        let live_schedule = current.as_ref().and_then(|actor| actor.schedule.as_ref());
+        let schedule = schedule
+            .map(|declared| {
+                let timezone = declared
+                    .timezone
+                    .or_else(|| live_schedule.map(|schedule| schedule.timezone.clone()));
+                let enabled = declared
+                    .enabled
+                    .or_else(|| live_schedule.map(|schedule| schedule.enabled))
+                    .unwrap_or(true);
+                self.resolve_schedule(ScheduleRequest {
+                    cron: declared.cron,
+                    timezone,
+                })
+                .map(|declaration| (declaration, enabled))
+            })
+            .transpose()?;
+        let grants = grants
+            .cloned()
+            .or_else(|| current.as_ref().map(|actor| actor.grants.clone()))
+            .unwrap_or_default();
+        let accept_from = match accept_from {
+            Some(accept_from) => accept_from.cloned(),
+            None => current.as_ref().and_then(|actor| actor.accept_from.clone()),
+        };
+        let declared_in = declared_in
+            .map(str::to_owned)
+            .or_else(|| current.as_ref().and_then(|actor| actor.declared_in.clone()));
+        let after = DeclarationFields {
+            launch: Some(&launch),
+            schedule: schedule
+                .as_ref()
+                .map(|(declaration, enabled)| ScheduleFields {
+                    cron: &declaration.cron,
+                    timezone: &declaration.timezone,
+                    enabled: *enabled,
+                }),
+            grants: &grants,
+            accept_from: accept_from.as_ref(),
+            declared_in: declared_in.as_deref(),
+        };
+        let fields = match &current {
+            Some(actor) => DeclarationFields::of(actor).changes_to(&after),
+            None => after
+                .flatten()
+                .into_iter()
+                .map(|(field, value)| FieldChange {
+                    field,
+                    before: None,
+                    after: Some(value),
+                })
+                .collect(),
+        };
+        let action = match (&current, fields.is_empty()) {
+            (None, _) => DeclareAction::Create,
+            (Some(_), false) => DeclareAction::Replace,
+            (Some(_), true) => DeclareAction::Unchanged,
+        };
+        if dry_run || action == DeclareAction::Unchanged {
+            return Ok(Declared {
+                action,
+                fields,
+                actor: current,
+            });
+        }
+        let actor = self.store.declare_actor_as(
+            workspace,
+            name,
+            ActorWrite {
+                kind,
+                launch_spec: &launch,
+                schedule: schedule.as_ref().map(|(declaration, _)| declaration),
+                enabled: schedule.as_ref().map(|(_, enabled)| *enabled),
+                grants: Some(&grants),
+                accept_from: Some(accept_from.as_ref()),
+                declared_in: declared_in.as_deref(),
+            },
+            writer,
+        )?;
+        self.schedule_notify.notify_one();
+        Ok(Declared {
+            action,
+            fields,
+            actor: Some(actor),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]

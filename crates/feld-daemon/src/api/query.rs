@@ -103,6 +103,14 @@ pub(super) struct ActorQuery {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct DeclareQuery {
+    /// Answer what the declaration would change, writing nothing.
+    #[serde(default, deserialize_with = "flag")]
+    pub(super) dry_run: bool,
+}
+
+#[derive(Debug, Deserialize)]
 pub(super) struct SessionQuery {
     pub(super) workspace: Option<String>,
     pub(super) actor: Option<String>,

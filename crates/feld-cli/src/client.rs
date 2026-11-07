@@ -187,6 +187,20 @@ impl Daemon {
         self.send(self.call(Method::POST, path).json(body)).await
     }
 
+    /// `PUT` of `body`, with the query `query` when given.
+    pub async fn put_json<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &(impl Serialize + ?Sized),
+        query: Option<&(impl Serialize + ?Sized)>,
+    ) -> CliResult<T> {
+        let mut builder = self.call(Method::PUT, path).json(body);
+        if let Some(query) = query {
+            builder = builder.query(query);
+        }
+        self.send(builder).await
+    }
+
     pub async fn patch<T: DeserializeOwned>(
         &self,
         path: &str,

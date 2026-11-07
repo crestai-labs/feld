@@ -2,7 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
-use crate::service::{ActorDeclaration, ScheduleRequest};
+use crate::service::{ActorDeclaration, Declaration, DeclaredSchedule, ScheduleRequest};
 use feld_core::id::valid_key;
 use feld_core::model::{Actor, ActorKind, Grant, SchedulePatch};
 use feld_core::plugin::{Plugins, provider_not_installed, runtime_not_installed};
@@ -10,10 +10,10 @@ use feld_core::plugin::{Plugins, provider_not_installed, runtime_not_installed};
 use super::AppState;
 use super::auth::{AdminCaller, AuthContext, Caller, RequesterCaller};
 use super::error::{ApiError, actor_error, actor_write_error, control_error, error, internal};
-use super::query::{ActorQuery, ApiJson, ApiQuery};
+use super::query::{ActorQuery, ApiJson, ApiQuery, DeclareQuery};
 use super::types::{
     ActorList, ActorResponse, AttachActorRequest, AttachResponse, CreateActorRequest,
-    RestartResponse, StartResponse, UpdateActorRequest,
+    DeclareActorRequest, DeclareResponse, RestartResponse, StartResponse, UpdateActorRequest,
 };
 
 pub(super) async fn list_actors(
@@ -74,6 +74,58 @@ pub(super) async fn create_actor(
     .map_err(actor_error)?;
     auth.conceal_actor(&mut actor);
     Ok(Json(ActorResponse { actor }))
+}
+
+/// `PUT` of an Actor: its declaration is written once, or with `dryRun` only compared.
+pub(super) async fn declare_actor(
+    State(state): State<AppState>,
+    Caller(auth): Caller,
+    Path((workspace, actor)): Path<(String, String)>,
+    ApiQuery(query): ApiQuery<DeclareQuery>,
+    ApiJson(request): ApiJson<DeclareActorRequest>,
+) -> Result<Json<DeclareResponse>, ApiError> {
+    if request.grants.is_some() {
+        auth.require_admin("`grants`")?;
+    }
+    if request.launch_spec.trusts_workdir() {
+        auth.require_admin("`trustWorkdir`")?;
+    }
+    authorize_manage(&state, &auth, &workspace, &actor, Some(request.kind))?;
+    // The Execution Provider resolves the launchSpec, which blocks until its process answers.
+    let actors = state.actors.clone();
+    let writer = auth.writer();
+    let mut declared = tokio::task::spawn_blocking(move || {
+        actors.declare(
+            &workspace,
+            &actor,
+            Declaration {
+                kind: request.kind,
+                launch: &request.launch_spec,
+                schedule: request.schedule.map(|schedule| DeclaredSchedule {
+                    cron: schedule.cron,
+                    timezone: schedule.timezone,
+                    enabled: schedule.enabled,
+                }),
+                grants: request.grants.as_ref(),
+                accept_from: request.accept_from.as_ref().map(Option::as_ref),
+                declared_in: request.declared_in.as_deref(),
+                writer,
+            },
+            request.caller.as_ref(),
+            query.dry_run,
+        )
+    })
+    .await
+    .map_err(|error| internal(anyhow::anyhow!(error)))?
+    .map_err(actor_error)?;
+    if let Some(actor) = declared.actor.as_mut() {
+        auth.conceal_actor(actor);
+    }
+    Ok(Json(DeclareResponse {
+        action: declared.action,
+        fields: declared.fields,
+        actor: declared.actor,
+    }))
 }
 
 pub(super) async fn get_actor(

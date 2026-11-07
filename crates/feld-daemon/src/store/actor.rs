@@ -87,6 +87,41 @@ impl Store {
         declared_in: Option<&str>,
         writer: Writer,
     ) -> std::result::Result<Actor, ActorWriteError> {
+        self.declare_actor_as(
+            workspace,
+            name,
+            ActorWrite {
+                kind,
+                launch_spec,
+                schedule,
+                enabled: None,
+                grants,
+                accept_from: accept_from.map(Some),
+                declared_in,
+            },
+            writer,
+        )
+    }
+
+    /// Writes the declaration `write` of the Actor `name`: creates it, or replaces the
+    /// declaration of the live Actor of the same name, which keeps its `id`. Each field of
+    /// the write that is None is kept as it is, and takes its default on a new Actor.
+    pub fn declare_actor_as(
+        &self,
+        workspace: &str,
+        name: &str,
+        write: ActorWrite<'_>,
+        writer: Writer,
+    ) -> std::result::Result<Actor, ActorWriteError> {
+        let ActorWrite {
+            kind,
+            launch_spec,
+            schedule,
+            enabled,
+            grants,
+            accept_from,
+            declared_in,
+        } = write;
         launch_spec
             .validate()
             .map_err(ActorWriteError::InvalidLaunch)?;
@@ -105,7 +140,11 @@ impl Store {
             };
             let launch_spec = serde_json::to_string(launch_spec).context("encode launchSpec")?;
             let grants = grants.map(encode_grants).transpose()?;
-            let accept_from = accept_from.map(encode_accept_from).transpose()?;
+            let sets_accept_from = accept_from.is_some();
+            let accept_from = accept_from
+                .flatten()
+                .map(encode_accept_from)
+                .transpose()?;
             let id = match live_actor(transaction, workspace, name)? {
                 Some((_, existing)) if existing != kind => {
                     return Err(ActorWriteError::KindMismatch {
@@ -119,11 +158,19 @@ impl Store {
                     transaction
                         .execute(
                             "UPDATE actors SET launch_spec = ?2, grants = COALESCE(?3, grants),
-                                               accept_from = COALESCE(?4, accept_from),
+                                               accept_from = CASE WHEN ?7 THEN ?4 ELSE accept_from END,
                                                declared_in = COALESCE(?6, declared_in),
                                                updated_at = ?5
                              WHERE id = ?1",
-                            params![id, launch_spec, grants, accept_from, at, declared_in],
+                            params![
+                                id,
+                                launch_spec,
+                                grants,
+                                accept_from,
+                                at,
+                                declared_in,
+                                sets_accept_from
+                            ],
                         )
                         .context("replace Actor declaration")?;
                     id
@@ -155,8 +202,20 @@ impl Store {
                 }
             };
             let existing = get_schedule(transaction, &id)?;
-            let schedule =
-                schedule.map(|declaration| Schedule::declare(declaration, existing, &at));
+            let schedule = schedule.map(|declaration| {
+                let declared = Schedule::declare(declaration, existing, &at);
+                match enabled {
+                    Some(enabled) => declared.apply_patch(
+                        &SchedulePatch {
+                            cron: None,
+                            timezone: None,
+                            enabled: Some(enabled),
+                        },
+                        &at,
+                    ),
+                    None => declared,
+                }
+            });
             write_schedule(transaction, &id, schedule.as_ref())?;
             let actor = get_actor_by_id(transaction, &id)?
                 .ok_or_else(|| anyhow::anyhow!("created Actor was not found"))?;
@@ -408,6 +467,22 @@ pub struct ActorPatch<'a> {
     pub schedule: Option<&'a SchedulePatch>,
     pub grants: Option<&'a BTreeSet<Grant>>,
     pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+}
+
+/// What a declaration writes of an Actor. A field that is None is kept on a replaced
+/// declaration and takes its default on a new Actor: no grants, every sender accepted, an
+/// enabled Schedule, and no declaration file.
+#[derive(Clone, Copy, Debug)]
+pub struct ActorWrite<'a> {
+    pub kind: ActorKind,
+    pub launch_spec: &'a LaunchSpec,
+    pub schedule: Option<&'a ScheduleDeclaration>,
+    /// Whether the declared Schedule is enabled.
+    pub enabled: Option<bool>,
+    pub grants: Option<&'a BTreeSet<Grant>>,
+    /// The senders the Actor accepts; `Some(None)` accepts every Actor of the Workspace.
+    pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+    pub declared_in: Option<&'a str>,
 }
 
 /// A launchSpec an update writes: the one resolved from the patch, and the one it was

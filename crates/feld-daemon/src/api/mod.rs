@@ -36,11 +36,11 @@ pub use spool::serve as serve_spool;
 pub use types::{
     ActorList, ActorResponse, AttachActorRequest, AttachResponse, BrowserList, BrowserResponse,
     CreateActorRequest, CreateScheduleRequest, CreateWorkspaceRequest, DaemonStatus,
-    LifecycleResponse, MessageList, MessageReadList, MessageResponse, MessageSummaryList,
-    ProviderEntry, ProviderList, RecordList, RestartResponse, RestoredCounts, RuntimeEntry,
-    RuntimeList, SendMessageRequest, SessionList, SessionResponse, StartResponse,
-    SubAgentSessionResponse, UpdateActorRequest, UpdateScheduleRequest, WorkspaceList,
-    WorkspaceResponse,
+    DeclareActorRequest, DeclareResponse, DeclareScheduleRequest, LifecycleResponse, MessageList,
+    MessageReadList, MessageResponse, MessageSummaryList, ProviderEntry, ProviderList, RecordList,
+    RestartResponse, RestoredCounts, RuntimeEntry, RuntimeList, SendMessageRequest, SessionList,
+    SessionResponse, StartResponse, SubAgentSessionResponse, UpdateActorRequest,
+    UpdateScheduleRequest, WorkspaceList, WorkspaceResponse,
 };
 
 use auth::redact_response;
