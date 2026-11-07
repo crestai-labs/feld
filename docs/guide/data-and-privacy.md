@@ -58,7 +58,7 @@ The Runtime config root refers to `CLAUDE_CONFIG_DIR` (or `~/.claude` if unset) 
 ### Secrets in records
 
 - Conversation records (Claude Code transcripts and Codex rollouts) and Job output are stored unmodified and displayed as is in the Web UI Console. Feld masks only Feld's own tokens.
-- Keep secrets out of launchSpec arguments (`command`) and `runtimeSettings` (including environment variables). The launchSpec is stored in the store and readable through the API and the Web UI.
+- Keep secrets out of launchSpec arguments (`command`), `env`, and `runtimeSettings` (including environment variables). The launchSpec is stored in the store and readable through the API and the Web UI. Put secrets in the `envFile` (`--env-file`): the launchSpec keeps only its path, and the daemon reads the values at each launch.
 - When you configure access from another device (`tailscale serve`) or share your screen, secrets in records appear on screen.
 
 ## Removing data

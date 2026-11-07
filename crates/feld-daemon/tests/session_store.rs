@@ -47,6 +47,7 @@ fn launch(workdir: &str) -> LaunchSpec {
         command: Some(vec!["sh".to_owned(), "-c".to_owned(), "exit 0".to_owned()]),
         workdir: Some(workdir.to_owned()),
         env: None,
+        env_file: None,
         provider: Some("tmux".to_owned()),
         node: Some("local".to_owned()),
         provider_options: Some(json!({"socket": "feld-test", "unit": "session"})),
@@ -1552,6 +1553,7 @@ fn a_store_of_schema_5_keeps_its_session_tokens() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             ALTER TABLE actors DROP COLUMN declared_in;
              DROP TABLE actor_labels;
              PRAGMA user_version = 5;",
         )
@@ -1615,6 +1617,7 @@ fn a_store_of_schema_6_keeps_its_telemetry() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             ALTER TABLE actors DROP COLUMN declared_in;
              DROP TABLE actor_labels;
              PRAGMA user_version = 6;",
         )
@@ -1696,6 +1699,7 @@ fn a_store_of_schema_7_keeps_its_records_and_takes_missed_ticks() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             ALTER TABLE actors DROP COLUMN declared_in;
              DROP TABLE actor_labels;
              PRAGMA user_version = 7;",
         )
@@ -1731,6 +1735,7 @@ fn a_store_of_schema_7_keeps_its_records_and_takes_missed_ticks() {
                 command: Some(vec!["true".to_owned()]),
                 workdir: Some("/tmp".to_owned()),
                 env: None,
+                env_file: None,
                 provider: Some("tmux".to_owned()),
                 node: Some("local".to_owned()),
                 provider_options: None,
@@ -1794,6 +1799,7 @@ fn a_store_of_schema_9_takes_since_from_the_observation_records() {
              ALTER TABLE actors DROP COLUMN grants;
              ALTER TABLE actors DROP COLUMN accept_from;
              ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             ALTER TABLE actors DROP COLUMN declared_in;
              DROP TABLE actor_labels;
              PRAGMA user_version = 9;",
         )
@@ -2069,6 +2075,7 @@ fn telemetry_retention_brings_a_migrated_session_within_the_limit() {
     connection
         .execute_batch(
             "ALTER TABLE sessions DROP COLUMN telemetry_bytes;
+             ALTER TABLE actors DROP COLUMN declared_in;
              DROP TABLE actor_labels;
              PRAGMA user_version = 14;",
         )
@@ -2380,6 +2387,7 @@ fn a_session_writes_no_actor_that_trusts_its_workdir() {
         None,
         None,
         None,
+        None,
         agents,
     ));
     refused(store.update_actor_as("default", "lead", ActorPatch::default(), "UTC", agents));
@@ -2438,6 +2446,7 @@ fn a_session_writes_only_managed_actors_without_grants() {
         None,
         None,
         None,
+        None,
         jobs,
     ));
     granted(store.update_actor_as("default", "lead", ActorPatch::default(), "UTC", jobs));
@@ -2463,6 +2472,7 @@ fn a_session_writes_only_managed_actors_without_grants() {
         "fresh",
         ActorKind::Job,
         &launch,
+        None,
         None,
         None,
         None,

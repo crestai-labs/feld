@@ -1,5 +1,6 @@
 mod actor;
 mod browser;
+mod declaration;
 mod launch;
 mod message;
 mod record;
@@ -8,6 +9,7 @@ mod session;
 
 pub use actor::*;
 pub use browser::*;
+pub use declaration::*;
 pub use launch::*;
 pub use message::*;
 pub use record::*;

@@ -203,6 +203,17 @@ impl Daemon {
         self.send(self.call(Method::PUT, path).json(body)).await
     }
 
+    /// [`Daemon::put_json`] with the query `query`.
+    pub async fn put_json_with<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        body: &(impl Serialize + ?Sized),
+        query: &(impl Serialize + ?Sized),
+    ) -> CliResult<T> {
+        self.send(self.call(Method::PUT, path).json(body).query(query))
+            .await
+    }
+
     pub async fn delete<T: DeserializeOwned>(&self, path: &str) -> CliResult<T> {
         self.send(self.call(Method::DELETE, path)).await
     }

@@ -27,7 +27,7 @@ function apiSession(fields: Partial<FeldApi.Session> & { id: string; actor: stri
 
 function apiActor(name: string, fields: Partial<FeldApi.Actor> = {}): FeldApi.Actor {
   return {
-    id: `actor_${name}`, name, workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", workdir: "/work", provider: "tmux", node: "local" }, schedule: null, grants: [], labels: [], acceptFrom: null,
+    id: `actor_${name}`, name, workspace: "default", kind: "agent", launchSpec: { runtime: "claude-code", workdir: "/work", provider: "tmux", node: "local" }, schedule: null, grants: [], labels: [], acceptFrom: null, declaredIn: null,
     createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-01T00:00:00Z", deletedAt: null, currentSession: null, latestSession: null, sessions: [],
     attention: false, waitingCount: 0, unreadMail: false, skipMark: false, unlinkedMark: false, ...fields,
   };
@@ -55,6 +55,16 @@ test("a Session keeps its lifecycle facts as the daemon answered them", () => {
   expect(running.end).toBeNull();
   expect(running.placement).toEqual({ provider: "tmux", node: "local", workdir: "/work", summary: "feld:1", attachCommand: "tmux attach -t feld:1" });
   expect(running.execution).toEqual({ type: "agent-runtime", runtime: "claude-code", label: "Claude Code", command: "claude", ai: true });
+});
+
+test("an Actor keeps the declaration file that declares it and its launch spec's env file path", () => {
+  const input = toActorsInput(data({
+    actors: [
+      apiActor("dev", { declaredIn: "feld-harness", launchSpec: { runtime: "claude-code", workdir: "/work", envFile: "/work/.env", provider: "tmux", node: "local" } }),
+      apiActor("ops"),
+    ],
+  }));
+  expect(input.actors.map((actor) => [actor.declaredIn, actor.launchSpec?.envFile])).toEqual([["feld-harness", "/work/.env"], [null, undefined]]);
 });
 
 test("an Actor's labels keep their key, reason, and setter with their instants as epoch milliseconds", () => {

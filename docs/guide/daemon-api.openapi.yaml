@@ -348,6 +348,7 @@ paths:
         Omitting `schedule.timezone` uses the daemon's timezone.
         Only an Admin token can give `grants`; a Session token request that includes `grants` gets `403`. A replacement that omits `grants` keeps the Actor's grants.
         A replacement that omits `acceptFrom` keeps the Actor's `acceptFrom`.
+        `declaredIn` is the name of the declaration file whose `feld apply` declares the Actor. A replacement that omits it keeps the Actor's `declaredIn`.
       requestBody:
         required: true
         content:
@@ -362,6 +363,7 @@ paths:
                 launchSpec: { $ref: "#/components/schemas/LaunchSpec" }
                 grants: { $ref: "#/components/schemas/Grants" }
                 acceptFrom: { $ref: "#/components/schemas/AcceptFrom" }
+                declaredIn: { $ref: "#/components/schemas/Key" }
                 caller: { $ref: "#/components/schemas/Caller" }
                 schedule:
                   type: [object, "null"]
@@ -400,6 +402,59 @@ paths:
         "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
         "404": { $ref: "#/components/responses/Error" }
+        "500": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [Actor]
+      operationId: declareActor
+      summary: Declares an Actor once, or with `dryRun` answers what the declaration would change
+      description: |
+        Makes the Actor match the declaration once: creates it when no live Actor holds the name (`action: create`), brings a differing live Actor to match while keeping its `id` (`replace`), or leaves a matching one as it is (`unchanged`). `fields` are the fields that differ, by dotted path (`env.EPIC`, `schedule.cron`, `grants`), as `before` and `after`; a create lists every field of the new Actor, and `unchanged` lists none.
+        The `launchSpec` is admitted as `POST` admits one, so the `providerOptions` the Execution Provider fills in are compared too. A field the request leaves out is kept as it is on a live Actor and takes its default on a new one: `grants` (none), `acceptFrom` (every Actor of the Workspace; `null` states that again), `declaredIn` (none), `schedule.timezone` (the daemon's) and `schedule.enabled` (true). A Job without `schedule` has no Schedule.
+        With `dryRun=true`, nothing is written, and `actor` is the live Actor, or `null` for a create.
+        The same refusals as `POST` apply: a different kind gets `409`, a `launchSpec` that does not fit the kind or a `schedule` on an Agent gets `400`, and `grants` or `trustWorkdir` from a Session token get `403`. `feld diff` and `feld apply` declare each Actor of a declaration file this way.
+      parameters:
+        - name: dryRun
+          in: query
+          description: Answers what the declaration would change, writing nothing
+          allowEmptyValue: true
+          schema: { type: boolean, default: false }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, launchSpec]
+              properties:
+                kind: { $ref: "#/components/schemas/ActorKind" }
+                launchSpec: { $ref: "#/components/schemas/LaunchSpec" }
+                grants: { $ref: "#/components/schemas/Grants" }
+                acceptFrom:
+                  oneOf:
+                    - $ref: "#/components/schemas/AcceptFrom"
+                    - type: "null"
+                declaredIn: { $ref: "#/components/schemas/Key" }
+                caller: { $ref: "#/components/schemas/Caller" }
+                schedule:
+                  type: object
+                  additionalProperties: false
+                  required: [cron]
+                  properties:
+                    cron: { type: string, description: 5-field cron expression }
+                    timezone: { type: string, description: IANA timezone }
+                    enabled: { type: boolean }
+      responses:
+        "200":
+          description: What the declaration did, or with `dryRun` would do
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeclareResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
         "500": { $ref: "#/components/responses/Error" }
     patch:
       tags: [Actor]
@@ -1856,6 +1911,12 @@ components:
             Variables that Feld sets (such as `FELD_*`) take precedence over values of the same name.
           examples:
             - { GH_CONFIG_DIR: /home/me/.config/gh-agent, GIT_AUTHOR_NAME: agent }
+        envFile:
+          type: string
+          description: |
+            Absolute path of a file of `KEY=VALUE` lines. The daemon reads it at each launch, and its variables go beneath `env`.
+            Only the path is stored. A file that cannot be read or parsed fails that launch.
+          examples: [/home/me/Dev/harness/.env]
         provider: { type: string, examples: ["tmux", "herdr"] }
         node: { type: string, enum: [local] }
         providerOptions:
@@ -1880,6 +1941,7 @@ components:
         command: { type: [array, "null"], items: { type: string } }
         workdir: { type: [string, "null"] }
         env: { type: [object, "null"], additionalProperties: { type: string }, description: Replaced as a whole }
+        envFile: { type: [string, "null"] }
         provider: { type: [string, "null"] }
         node: { type: [string, "null"] }
         providerOptions: { type: [object, "null"], additionalProperties: true, description: Replaced as a whole }
@@ -1900,7 +1962,7 @@ components:
 
     Actor:
       type: object
-      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, labels, createdAt, updatedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
+      required: [id, name, workspace, kind, launchSpec, schedule, grants, acceptFrom, declaredIn, labels, createdAt, updatedAt, deletedAt, currentSession, latestSession, sessions, attention, waitingCount, unreadMail, skipMark, unlinkedMark]
       properties:
         id: { type: string, description: "ID assigned by Feld. Remains on the Actor after deletion", examples: [actor_360d61e8b0d44c83ac93d34f59f78e79] }
         name: { $ref: "#/components/schemas/Key" }
@@ -1920,6 +1982,11 @@ components:
           description: If null, receives from every Actor in the same Workspace
           oneOf:
             - $ref: "#/components/schemas/AcceptFrom"
+            - type: "null"
+        declaredIn:
+          description: Name of the declaration file whose `feld apply` declares the Actor. null for an Actor declared otherwise
+          oneOf:
+            - $ref: "#/components/schemas/Key"
             - type: "null"
         labels:
           description: By key. The daemon removes a label within seconds after its `until`, records `label.expired`, and sends the Actor's resource event
@@ -1965,6 +2032,32 @@ components:
       required: [actor]
       properties:
         actor: { $ref: "#/components/schemas/Actor" }
+
+    FieldChange:
+      type: object
+      description: One field of an Actor declaration as it changes, by its dotted path
+      required: [field, before, after]
+      properties:
+        field: { type: string, examples: [env.EPIC, schedule.cron, grants] }
+        before: { description: The value the live Actor holds; null when the field was absent }
+        after: { description: The value the declaration gives; null when it removes the field }
+
+    DeclareResponse:
+      type: object
+      required: [action, fields, actor]
+      properties:
+        action:
+          type: string
+          enum: [create, replace, unchanged]
+        fields:
+          type: array
+          description: The fields the declaration changes; empty when `unchanged`
+          items: { $ref: "#/components/schemas/FieldChange" }
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/Actor"
+            - type: "null"
+          description: The Actor after the write; with `dryRun`, the live Actor, or null for a create
 
     Requester:
       oneOf:

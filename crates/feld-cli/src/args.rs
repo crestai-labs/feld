@@ -94,7 +94,9 @@ pub enum Command {
     Doctor(DoctorArgs),
     Daemon(DaemonArgs),
     Workspace(WorkspaceArgs),
-    Actor(ActorArgs),
+    Actor(Box<ActorArgs>),
+    Diff(DiffArgs),
+    Apply(ApplyArgs),
     Session(SessionArgs),
     Record(RecordArgs),
     #[command(visible_alias = "msg")]
@@ -706,6 +708,63 @@ pub enum WorkspaceCommand {
     },
 }
 
+/// Show how the Actors a declaration file declares differ from the Actors of its Workspace,
+/// changing nothing.
+///
+/// Each Actor of the file is `+` when it is new and `~` when its declaration differs, with the
+/// fields that change, as the daemon answers them. An `env` value shows only as changed;
+/// `--json` shows the values. A field the file leaves out (`grants`, `acceptFrom`, a
+/// Schedule's `timezone` and `enabled`) is kept as it is and not compared. An Actor an earlier
+/// `feld apply` of the same file `name` declared and the file no longer has is listed apart,
+/// and is `-` with `--prune`. The command speaks with the local token, as the Admin.
+#[derive(Debug, Args)]
+#[command(after_help = "Examples:
+  feld diff -f feld.yaml
+  feld diff -f feld.yaml --prune    also show what --prune deletes
+
+Exit codes:
+  0  the difference was shown
+  1  refused: a declared launchSpec is refused as `feld actor create` refuses it, or an Actor of another kind holds a declared name
+  2  operational: the file cannot be read, a ${VAR} is not set, or the daemon cannot be reached")]
+pub struct DiffArgs {
+    /// Declaration file, YAML
+    #[arg(long, short = 'f', value_name = "FILE")]
+    pub file: PathBuf,
+    /// Show as `-` the Actors of the file it no longer declares, which `feld apply --prune` deletes
+    #[arg(long)]
+    pub prune: bool,
+}
+
+/// Make the Actors of the Workspace match a declaration file, once.
+///
+/// Each Actor of the file is declared through the daemon: a new one is created, a differing
+/// one has its declaration brought to match under the same ID, and both record the file
+/// `name` as `declaredIn`. A field the file leaves out (`grants`, `acceptFrom`, a Schedule's
+/// `timezone` and `enabled`) is kept as it is. Actors the file does not declare are left
+/// alone; with `--prune`, those whose `declaredIn` is the file `name` and that the file no
+/// longer declares are deleted, as `feld actor delete` deletes them, so one whose current
+/// Session runs is refused. No Session is started or stopped: an Agent starts with `feld
+/// actor start`, and a Job with a Schedule runs on its cron. A second run changes nothing.
+/// The command speaks with the local token, as the Admin, which the grants need.
+#[derive(Debug, Args)]
+#[command(after_help = "Examples:
+  feld diff -f feld.yaml          see what changes first
+  feld apply -f feld.yaml
+  feld apply -f feld.yaml --prune   also delete the Actors of the file it no longer declares
+
+Exit codes:
+  0  the Workspace matches the file
+  1  refused: a change was refused; the changes before it stay
+  2  operational: the file cannot be read, a ${VAR} is not set, or the daemon cannot be reached")]
+pub struct ApplyArgs {
+    /// Declaration file, YAML
+    #[arg(long, short = 'f', value_name = "FILE")]
+    pub file: PathBuf,
+    /// Delete the live Actors whose `declaredIn` is the file `name` and that the file no longer declares
+    #[arg(long)]
+    pub prune: bool,
+}
+
 /// Create, change, and read the Actors of the Workspace.
 #[derive(Debug, Args)]
 pub struct ActorArgs {
@@ -1032,6 +1091,12 @@ pub struct LaunchArgs {
     /// Environment variable the Session starts in, as KEY=VALUE; repeat for more. On update, the given ones replace every declared variable
     #[arg(long = "env", value_name = "KEY=VALUE", value_parser = parse_env_variable)]
     pub env: Vec<(String, String)>,
+    /// File of KEY=VALUE lines read at each launch beneath --env, which keeps their values out of the declaration; a relative path resolves from here
+    #[arg(long, value_name = "PATH", conflicts_with = "no_env_file")]
+    pub env_file: Option<PathBuf>,
+    /// On update, stop reading the env file
+    #[arg(long)]
+    pub no_env_file: bool,
     /// Execution Provider that places the Session, tmux or herdr [default: the Provider an option names, else the one this CLI runs in, else the only installed one]
     #[arg(long, value_name = "PROVIDER")]
     pub provider: Option<String>,

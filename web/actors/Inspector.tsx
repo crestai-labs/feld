@@ -143,6 +143,7 @@ function ActorOverview({ agent }: { agent: ActorRecord }) {
         <div><dt>Kind</dt><dd className="is-multiline"><strong>{kindLabel(agent.kind)}</strong><span>{kindRules(agent.kind).summary} · Control Plane fact declared at creation</span></dd></div>
         <LaunchSpecRows agent={agent} />
         <GrantsRow agent={agent} />
+        {agent.declaredIn ? <div><dt>Declared in</dt><dd className="is-multiline"><strong data-declared-in="">{agent.declaredIn}</strong><span>The declaration file whose <code>feld apply</code> declares this Actor</span></dd></div> : null}
         <LabelsRow agent={agent} />
         <div><dt>Mailbox</dt><dd><strong>{waiting.length} waiting</strong><span>{waiting.length ? `oldest accepted ${model.nearTime(waiting[0].accepted)}` : "no Message is waiting for a read"}</span></dd></div>
         <div><dt>Sessions</dt><dd><strong>{sessions.length}</strong><span>{session ? `latest ${session.id}` : "none recorded"}</span></dd></div>
@@ -170,6 +171,7 @@ function LaunchSpecRows({ agent }: { agent: ActorRecord }) {
     <>
       <div><dt>Launch spec</dt><dd className="is-multiline"><strong>{execution}</strong><span>{launchSpec.workdir} · {launchSpec.provider} · {launchSpec.node} · the Actor's launch recipe · Control Plane fact; each start copies it into the Session's execution and decides the Placement then</span></dd></div>
       {envNames.length ? <div><dt>Environment</dt><dd className="is-multiline"><strong>{envNames.join(", ")}</strong><span>Names only; the values can be secrets · set beneath the variables Feld sets</span></dd></div> : null}
+      {launchSpec.envFile ? <div><dt>Env file</dt><dd className="is-multiline"><strong data-env-file="">{launchSpec.envFile}</strong><span>Path only; read at each launch, beneath Environment</span></dd></div> : null}
       {launchSpec.runtime ? <div><dt>Trust workdir</dt><dd className="is-multiline"><strong>{launchSpec.trustWorkdir ? "Yes" : "No"}</strong><span>{launchSpec.trustWorkdir ? "The Runtime reads the settings the workdir carries without asking" : "The Runtime asks before it reads the settings the workdir carries"}</span></dd></div> : null}
       {launchSpec.providerOptions ? <div><dt>Provider options</dt><dd className="is-multiline"><code className="feld-agents__settings" data-provider-options="">{settingsText(launchSpec.providerOptions)}</code><span>The {launchSpec.provider} Provider's own choices, as it resolved them · secret-like values read as {SECRET_MASK}</span></dd></div> : null}
       {launchSpec.runtime ? <div><dt>Runtime settings</dt><dd className="is-multiline">{launchSpec.runtimeSettings ? <code className="feld-agents__settings" data-runtime-settings="">{settingsText(launchSpec.runtimeSettings)}</code> : <strong>None</strong>}<span>Passed to the Runtime as declared · values under key, token, secret, password, or credential keys read as {SECRET_MASK}</span></dd></div> : null}

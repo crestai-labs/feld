@@ -66,12 +66,14 @@ impl Store {
             schedule,
             grants,
             None,
+            None,
             Writer::Admin,
         )
     }
 
-    /// [`Self::create_actor`] by `writer`, with the senders the Actor accepts, which a
-    /// replaced declaration keeps when None. A Session replaces no Actor with grants or `trustWorkdir`.
+    /// [`Self::create_actor`] by `writer`, with the senders the Actor accepts and the
+    /// declaration file that declares it, which a replaced declaration keeps when None. A
+    /// Session replaces no Actor with grants or `trustWorkdir`.
     #[allow(clippy::too_many_arguments)]
     pub fn create_actor_as(
         &self,
@@ -82,8 +84,44 @@ impl Store {
         schedule: Option<&ScheduleDeclaration>,
         grants: Option<&BTreeSet<Grant>>,
         accept_from: Option<&BTreeSet<String>>,
+        declared_in: Option<&str>,
         writer: Writer,
     ) -> std::result::Result<Actor, ActorWriteError> {
+        self.declare_actor_as(
+            workspace,
+            name,
+            ActorWrite {
+                kind,
+                launch_spec,
+                schedule,
+                enabled: None,
+                grants,
+                accept_from: accept_from.map(Some),
+                declared_in,
+            },
+            writer,
+        )
+    }
+
+    /// Writes the declaration `write` of the Actor `name`: creates it, or replaces the
+    /// declaration of the live Actor of the same name, which keeps its `id`. Each field of
+    /// the write that is None is kept as it is, and takes its default on a new Actor.
+    pub fn declare_actor_as(
+        &self,
+        workspace: &str,
+        name: &str,
+        write: ActorWrite<'_>,
+        writer: Writer,
+    ) -> std::result::Result<Actor, ActorWriteError> {
+        let ActorWrite {
+            kind,
+            launch_spec,
+            schedule,
+            enabled,
+            grants,
+            accept_from,
+            declared_in,
+        } = write;
         launch_spec
             .validate()
             .map_err(ActorWriteError::InvalidLaunch)?;
@@ -102,7 +140,11 @@ impl Store {
             };
             let launch_spec = serde_json::to_string(launch_spec).context("encode launchSpec")?;
             let grants = grants.map(encode_grants).transpose()?;
-            let accept_from = accept_from.map(encode_accept_from).transpose()?;
+            let sets_accept_from = accept_from.is_some();
+            let accept_from = accept_from
+                .flatten()
+                .map(encode_accept_from)
+                .transpose()?;
             let id = match live_actor(transaction, workspace, name)? {
                 Some((_, existing)) if existing != kind => {
                     return Err(ActorWriteError::KindMismatch {
@@ -116,10 +158,19 @@ impl Store {
                     transaction
                         .execute(
                             "UPDATE actors SET launch_spec = ?2, grants = COALESCE(?3, grants),
-                                               accept_from = COALESCE(?4, accept_from),
+                                               accept_from = CASE WHEN ?7 THEN ?4 ELSE accept_from END,
+                                               declared_in = COALESCE(?6, declared_in),
                                                updated_at = ?5
                              WHERE id = ?1",
-                            params![id, launch_spec, grants, accept_from, at],
+                            params![
+                                id,
+                                launch_spec,
+                                grants,
+                                accept_from,
+                                at,
+                                declared_in,
+                                sets_accept_from
+                            ],
                         )
                         .context("replace Actor declaration")?;
                     id
@@ -130,9 +181,9 @@ impl Store {
                     transaction
                         .execute(
                             "INSERT INTO actors (id, workspace_id, workspace_key, name, kind,
-                                                 launch_spec, grants, accept_from, created_at,
-                                                 updated_at)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, '[]'), ?8, ?9, ?9)",
+                                                 launch_spec, grants, accept_from, declared_in,
+                                                 created_at, updated_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, '[]'), ?8, ?10, ?9, ?9)",
                             params![
                                 id,
                                 workspace_id,
@@ -142,7 +193,8 @@ impl Store {
                                 launch_spec,
                                 grants,
                                 accept_from,
-                                at
+                                at,
+                                declared_in
                             ],
                         )
                         .context("create Actor")?;
@@ -150,8 +202,20 @@ impl Store {
                 }
             };
             let existing = get_schedule(transaction, &id)?;
-            let schedule =
-                schedule.map(|declaration| Schedule::declare(declaration, existing, &at));
+            let schedule = schedule.map(|declaration| {
+                let declared = Schedule::declare(declaration, existing, &at);
+                match enabled {
+                    Some(enabled) => declared.apply_patch(
+                        &SchedulePatch {
+                            cron: None,
+                            timezone: None,
+                            enabled: Some(enabled),
+                        },
+                        &at,
+                    ),
+                    None => declared,
+                }
+            });
             write_schedule(transaction, &id, schedule.as_ref())?;
             let actor = get_actor_by_id(transaction, &id)?
                 .ok_or_else(|| anyhow::anyhow!("created Actor was not found"))?;
@@ -460,6 +524,22 @@ impl ActorPatch<'_> {
     }
 }
 
+/// What a declaration writes of an Actor. A field that is None is kept on a replaced
+/// declaration and takes its default on a new Actor: no grants, every sender accepted, an
+/// enabled Schedule, and no declaration file.
+#[derive(Clone, Copy, Debug)]
+pub struct ActorWrite<'a> {
+    pub kind: ActorKind,
+    pub launch_spec: &'a LaunchSpec,
+    pub schedule: Option<&'a ScheduleDeclaration>,
+    /// Whether the declared Schedule is enabled.
+    pub enabled: Option<bool>,
+    pub grants: Option<&'a BTreeSet<Grant>>,
+    /// The senders the Actor accepts; `Some(None)` accepts every Actor of the Workspace.
+    pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+    pub declared_in: Option<&'a str>,
+}
+
 /// A launchSpec an update writes: the one resolved from the patch, and the one it was
 /// merged over, which the Actor must still hold.
 #[derive(Clone, Copy, Debug)]
@@ -470,7 +550,7 @@ pub struct LaunchUpdate<'a> {
 
 const ACTOR_COLUMNS: &str = "id, workspace_key, name, kind, launch_spec, created_at, updated_at,
      deleted_at, schedule_cron, schedule_timezone, schedule_enabled, schedule_created_at,
-     schedule_paused_at, schedule_enabled_at, schedule_revision, grants, accept_from";
+     schedule_paused_at, schedule_enabled_at, schedule_revision, grants, accept_from, declared_in";
 
 fn encode_grants(grants: &BTreeSet<Grant>) -> Result<String> {
     serde_json::to_string(grants).context("encode grants")
@@ -509,6 +589,7 @@ pub(super) struct ActorRow {
     pub(super) schedule: Option<Schedule>,
     pub(super) grants: String,
     pub(super) accept_from: Option<String>,
+    pub(super) declared_in: Option<String>,
 }
 
 fn actor_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActorRow> {
@@ -544,6 +625,7 @@ fn actor_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActorRow> {
         schedule,
         grants: row.get(15)?,
         accept_from: row.get(16)?,
+        declared_in: row.get(17)?,
     })
 }
 
@@ -598,6 +680,7 @@ fn actor_from_row(connection: &Connection, row: ActorRow) -> Result<Actor> {
             .accept_from
             .map(|value| serde_json::from_str(&value).context("decode acceptFrom"))
             .transpose()?,
+        declared_in: row.declared_in,
         labels,
         created_at: row.created_at,
         updated_at: row.updated_at,

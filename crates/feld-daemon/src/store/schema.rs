@@ -23,6 +23,7 @@ const MIGRATIONS: &[(u32, &str)] = &[
     (14, include_str!("sql/migrate/015.sql")),
     (15, include_str!("sql/migrate/016.sql")),
     (16, include_str!("sql/migrate/017.sql")),
+    (17, include_str!("sql/migrate/018.sql")),
 ];
 
 const OLDEST_VERSION: u32 = MIGRATIONS[0].0;

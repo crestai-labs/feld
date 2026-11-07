@@ -285,6 +285,7 @@ export function actorsInputOf(data: MockActorsData, clock: MockClock, domain: La
     kind: actor.kind,
     launchSpec: actor.launchSpec ? { ...actor.launchSpec } : null,
     grants: actor.grants || [],
+    declaredIn: actor.declaredIn || null,
     labels: actor.labels || [],
   }));
 

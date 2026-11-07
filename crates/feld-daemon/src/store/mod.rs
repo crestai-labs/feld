@@ -24,7 +24,7 @@ mod telemetry;
 mod token;
 mod workspace;
 
-pub use actor::{ActorPatch, LaunchUpdate, Writer};
+pub use actor::{ActorPatch, ActorWrite, LaunchUpdate, Writer};
 pub use admission::{
     AttachAdmission, AttachedExecution, PendingSession, RequestIdentity, ScheduledAdmission,
     ScheduledAdmissionRequest,

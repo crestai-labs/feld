@@ -274,6 +274,7 @@ fn a_store_of_schema_15_keeps_its_records_and_takes_labels() {
         .unwrap()
         .execute_batch(
             "DROP TABLE actor_labels;
+             ALTER TABLE actors DROP COLUMN declared_in;
              CREATE TABLE records_15 (
                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
                at TEXT NOT NULL,

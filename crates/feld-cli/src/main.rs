@@ -252,6 +252,8 @@ async fn execute(cli: Cli, command: Command, options: Vec<ProviderOption>) -> Cl
         Command::Daemon(args) => commands::daemon::run(ctx, args.command).await,
         Command::Workspace(args) => commands::workspace::run(ctx, args.command).await,
         Command::Actor(args) => commands::actor::run(ctx, args.command, &options).await,
+        Command::Diff(args) => commands::apply::diff(ctx, args).await,
+        Command::Apply(args) => commands::apply::apply(ctx, args).await,
         Command::Record(args) => match args.command {
             RecordCommand::List(args) => commands::record::list(ctx, args).await,
         },

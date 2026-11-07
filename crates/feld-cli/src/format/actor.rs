@@ -83,6 +83,9 @@ pub fn print_actor_created(ctx: &Context, title: &str, actor: &Actor) {
         if let Some(names) = env_names(launch) {
             change_line("env:", &names);
         }
+        if let Some(path) = &launch.env_file {
+            change_line("env_file:", path);
+        }
         change_line("provider:", &provider_summary(launch));
     }
     print_schedule_change(ctx, actor.schedule.as_ref());
@@ -170,6 +173,9 @@ pub fn print_actor_updated(
         {
             change_line("workdir:", workdir);
         }
+        if arguments.env_file.is_some() || arguments.no_env_file {
+            change_line("env_file:", spec.env_file.as_deref().unwrap_or("-"));
+        }
         if arguments.provider.is_some() || arguments.node.is_some() {
             change_line("provider:", &provider_summary(spec));
         }
@@ -224,6 +230,13 @@ pub fn print_actor_detail(ctx: &Context, actor: &Actor) {
     if let Some(names) = actor.launch_spec.as_ref().and_then(env_names) {
         detail_line("env:", &names);
     }
+    if let Some(path) = actor
+        .launch_spec
+        .as_ref()
+        .and_then(|launch| launch.env_file.as_ref())
+    {
+        detail_line("env_file:", path);
+    }
     if actor.launch_spec.as_ref().is_some_and(trusts_workdir) {
         detail_line("trust:", "workdir");
     }
@@ -251,6 +264,9 @@ pub fn print_actor_detail(ctx: &Context, actor: &Actor) {
         "accept_from:",
         &accept_from_summary(actor.accept_from.as_ref()),
     );
+    if let Some(name) = &actor.declared_in {
+        detail_line("declared_in:", name);
+    }
     detail_line(
         "deleted_at:",
         &ctx.local_time_or_dash(actor.deleted_at.as_deref()),

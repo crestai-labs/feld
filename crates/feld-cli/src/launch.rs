@@ -95,6 +95,9 @@ pub fn resolve_launch(
             command: (!args.command.is_empty()).then_some(args.command),
             workdir: Some(workdir.display().to_string()),
             env: (!args.env.is_empty()).then(|| args.env.into_iter().collect()),
+            env_file: args
+                .env_file
+                .map(|path| absolute_path(&path, &current_dir).display().to_string()),
             provider_options: provider_options(&provider, options)?,
             provider: Some(provider),
             node: Some(node),
@@ -107,7 +110,7 @@ pub fn resolve_launch(
 /// Checking it before the declaration keeps a launchSpec that can never start out of the
 /// store. Another Node has its own filesystem, so only `local` is checked and made canonical
 /// here.
-fn check_workdir(workdir: &Path, node: &str) -> CliResult<PathBuf> {
+pub fn check_workdir(workdir: &Path, node: &str) -> CliResult<PathBuf> {
     if node != "local" {
         return Ok(workdir.to_owned());
     }
@@ -176,6 +179,13 @@ pub fn launch_patch(
             PatchValue::Missing
         } else {
             PatchValue::Value(args.env.into_iter().collect())
+        },
+        env_file: match (args.env_file, args.no_env_file) {
+            (Some(path), _) => {
+                PatchValue::Value(absolute_path(&path, &current_dir).display().to_string())
+            }
+            (None, true) => PatchValue::Null,
+            (None, false) => PatchValue::Missing,
         },
         provider_options: match provider.as_deref() {
             Some(provider) => match provider_options(provider, options)? {
