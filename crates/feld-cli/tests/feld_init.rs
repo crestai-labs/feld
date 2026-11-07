@@ -95,6 +95,8 @@ impl Fixture {
     /// Runs `feld` on the Feld home `feld_home`, with the same `HOME` as the others.
     fn feld_at(&self, feld_home: &Path, arguments: &[&str], variables: &[(&str, &str)]) -> Output {
         Command::new(FELD)
+            // `feld doctor` asks for the latest Release here, not on github.com.
+            .env("FELD_RELEASE_URL", "http://127.0.0.1:9/")
             .arg("--home")
             .arg(feld_home)
             // Nothing here may reach the real `~/.feld`, `~/.claude` or `~/.zshrc`.
@@ -152,6 +154,8 @@ impl Fixture {
     fn on_a_terminal_with(&self, arguments: &[&str], variables: &[(&str, &str)]) -> Terminal {
         let (controller, device) = pty();
         let child = Command::new(FELD)
+            // `feld doctor` asks for the latest Release here, not on github.com.
+            .env("FELD_RELEASE_URL", "http://127.0.0.1:9/")
             .arg("--home")
             .arg(self.home())
             .env("HOME", self.home())
@@ -1360,6 +1364,8 @@ fn a_relative_directory_on_path_reads_from_the_working_directory() {
         (":", fixture.path()),
     ] {
         let output = Command::new(FELD)
+            // `feld doctor` asks for the latest Release here, not on github.com.
+            .env("FELD_RELEASE_URL", "http://127.0.0.1:9/")
             .arg("--home")
             .arg(fixture.home())
             .args(["init", "--json"])

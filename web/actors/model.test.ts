@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { ConsoleReads } from "../console/reads.ts";
-import { COMPACT_LANE, DAY, HOUR, LANE, MINUTE, UNREAD_ROW_HEIGHT, actorColumnWidthsOf, actorColumns, actorColumnsWidth, clampActorColumnWidth, axisLabels, axisTicks, consoleSessionOf, createModel, metricsQueryOf, metricsRangeOf, withAccountTones, laneSeriesName, listedSeriesOrder, cronError, draftLaunchSpec, emptyActorDraft, followsLive, gridLines, isMidnight, orderWithMove, pinsWith, executionDetailFor, formatDuration, launchChoice, metricSampleTimes, metricValueAt, seriesSampledAt, nextCronInstant, placementRows, quotaReporterAt, readingMarkerAt, validateActorDraft, validateEditDraft, envText, launchSpecPatchOf, maskSecrets, parseEnv, editDraftOf, SECRET_MASK } from "./model.ts";
+import { COMPACT_LANE, DAY, WORKSPACE_HEADING_HEIGHT, HOUR, LANE, MINUTE, UNREAD_ROW_HEIGHT, actorColumnWidthsOf, actorColumns, actorColumnsWidth, clampActorColumnWidth, axisLabels, axisTicks, consoleSessionOf, createModel, metricsQueryOf, metricsRangeOf, withAccountTones, laneSeriesName, listedSeriesOrder, cronError, draftLaunchSpec, emptyActorDraft, followsLive, gridLines, isMidnight, orderWithMove, pinsWith, executionDetailFor, formatDuration, launchChoice, metricSampleTimes, metricValueAt, seriesSampledAt, nextCronInstant, placementRows, quotaReporterAt, readingMarkerAt, validateActorDraft, validateEditDraft, envText, launchSpecPatchOf, maskSecrets, parseEnv, editDraftOf, SECRET_MASK } from "./model.ts";
 import { createInitialState } from "./store.ts";
 import type { ActorRecord, ActorsInput, AgentSession, AgentsState, MessageRecord, MetricLane, MetricSeries, ScheduleRecord } from "./types.ts";
 
@@ -708,13 +708,66 @@ test("a pinned Actor keeps its row whatever the range and sits above the unpinne
   expect(ids({ actorPins: { "default/busy": true }, actorOrder: ["default/busy"] })).toEqual(["default/busy", "default/nightly"]);
 });
 
-test("Actors alike in band and activity are ordered by name across Workspaces", () => {
+// An Actor of another Workspace, named `workspace/name`.
+function actorIn(workspace: string, name: string, kind: FeldApi.ActorKind = "agent"): ActorRecord {
+  return { ...actor(name, kind), id: `${workspace}/${name}`, workspace };
+}
+
+test("with all Workspaces shown, the bands go by Workspace lane, the default Workspace first, then by name", () => {
+  const model = modelOf({
+    workspaces: ["default", "alpha", "home"],
+    actors: [actorIn("home", "a-agent"), actor("b-agent"), actor("a-agent"), actorIn("alpha", "z-agent")],
+    sessions: ["home/a-agent", "default/b-agent", "default/a-agent", "alpha/z-agent"].map((id, index) => session({ id: `s${index}`, actor: id, workspace: id.split("/")[0] })),
+  });
+  expect(model.visibleAgents(state({ workspace: null })).map((agent) => agent.id)).toEqual(["default/a-agent", "default/b-agent", "alpha/z-agent", "home/a-agent"]);
+});
+
+test("the Workspace lanes hold the listed Actors with their counts, and a folded lane draws no band", () => {
+  const model = modelOf({
+    workspaces: ["default", "home", "empty"],
+    actors: [actor("dev"), actor("rev"), actorIn("home", "ops"), actorIn("empty", "idle")],
+    sessions: [
+      session({ id: "s1", actor: "default/dev" }),
+      session({ id: "s2", actor: "default/rev", end: NOW - MINUTE, endKind: "exited", exitCode: 1 }),
+      session({ id: "s3", actor: "home/ops", workspace: "home" }),
+    ],
+  });
+  const lanes = model.bandLanes(state({ workspace: null }))!;
+  // A Workspace with no Actor in the range has no lane.
+  expect(lanes.map((lane) => [lane.workspace, lane.agents.map((agent) => agent.name), lane.running, lane.attention])).toEqual([["default", ["dev", "rev"], 1, 1], ["home", ["ops"], 1, 0]]);
+  expect(model.laneCounts(lanes[0]).label).toBe("2 Actors · 1 running · 1 needs attention");
+  const folded = state({ workspace: null, collapsedWorkspaces: ["default"] });
+  expect(model.bandLanes(folded)!.map((lane) => lane.collapsed)).toEqual([true, false]);
+  expect(model.bandAgents(folded).map((agent) => agent.id)).toEqual(["home/ops"]);
+  expect(model.listedAgents(folded)).toHaveLength(3);
+  // One Workspace selected: no lanes, and its fold is ignored.
+  expect(model.bandLanes(state({ collapsedWorkspaces: ["default"] }))).toBeNull();
+  expect(model.bandAgents(state({ collapsedWorkspaces: ["default"] }))).toHaveLength(2);
+});
+
+test("each Workspace lane starts with its heading row and a folded lane is its heading row alone", () => {
   const model = modelOf({
     workspaces: ["default", "home"],
-    actors: [actor("b-agent"), { ...actor("a-agent"), id: "home/a-agent", workspace: "home" }],
-    sessions: [session({ id: "s1", actor: "default/b-agent" }), session({ id: "s2", actor: "home/a-agent", workspace: "home" })],
+    actors: [actor("dev"), actorIn("home", "ops"), actorIn("home", "rev")],
+    sessions: ["default/dev", "home/ops", "home/rev"].map((id, index) => session({ id: `s${index}`, actor: id, workspace: id.split("/")[0] })),
   });
-  expect(model.visibleAgents(state({ workspace: null })).map((agent) => agent.id)).toEqual(["home/a-agent", "default/b-agent"]);
+  const open = state({ workspace: null });
+  const layout = model.laneLayoutFor(model.bandAgents(open), open, model.bandLanes(open));
+  const band = model.laneHeightFor("default/dev", open);
+  expect([...layout.headings]).toEqual([["default", 0], ["home", WORKSPACE_HEADING_HEIGHT + band]]);
+  expect(layout.agents.get("default/dev")!.top).toBe(WORKSPACE_HEADING_HEIGHT);
+  expect(layout.agents.get("home/ops")!.top).toBe(2 * WORKSPACE_HEADING_HEIGHT + band);
+  expect(layout.height).toBe(2 * WORKSPACE_HEADING_HEIGHT + 3 * band);
+  const folded = state({ workspace: null, collapsedWorkspaces: ["home"] });
+  const foldedLayout = model.laneLayoutFor(model.bandAgents(folded), folded, model.bandLanes(folded));
+  expect(foldedLayout.height).toBe(2 * WORKSPACE_HEADING_HEIGHT + band);
+  expect(foldedLayout.agents.has("home/ops")).toBe(false);
+});
+
+test("a band is named by its bare Actor name in its lane, and other Actors by workspace/actor", () => {
+  const model = modelOf({ workspaces: ["default", "home"], actors: [actor("dev"), actorIn("home", "ops")] });
+  expect(model.actorLabel("home/ops", { workspace: "home" })).toBe("ops");
+  expect(model.actorLabel("home/ops", { workspace: null })).toBe("home/ops");
 });
 
 test("the pins hold only the changes to the default", () => {

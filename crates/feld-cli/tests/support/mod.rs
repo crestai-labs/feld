@@ -126,6 +126,8 @@ pub fn without_outside_variables(command: &mut Command) -> &mut Command {
     for variable in OUTSIDE_VARIABLES {
         command.env_remove(variable);
     }
+    // `feld doctor` asks for the latest Release here, not on github.com.
+    command.env("FELD_RELEASE_URL", "http://127.0.0.1:9/");
     command
 }
 

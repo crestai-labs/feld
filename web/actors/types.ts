@@ -269,6 +269,16 @@ export interface Lane {
   sessionY: Map<string, number>;
 }
 
+// A Workspace's lane in the All workspaces view: its heading row and the bands under it,
+// drawn unless the reader folded the lane. The counts are over the lane's bands.
+export interface BandLane {
+  workspace: string;
+  agents: ActorRecord[];
+  collapsed: boolean;
+  running: number;
+  attention: number;
+}
+
 export interface Focus {
   sessions: Set<string>;
   actions: Set<string>;
@@ -445,6 +455,8 @@ export interface AgentsState {
   // The bands a pointer gesture keeps while it runs, so the lanes under the pointer do not
   // change mid-drag; null outside a gesture, when the bands follow visibleAgents.
   frozenBandIds: string[] | null;
+  // The Workspace lanes the reader folded in the All workspaces view, by Workspace key.
+  collapsedWorkspaces: string[];
   visibleActorDetails: Set<string>;
   actorWidth: number;
   // The Actor table column widths the reader dragged, by column id; the others keep the

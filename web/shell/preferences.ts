@@ -30,7 +30,7 @@ const KEYS = {
 export type PreferenceName = keyof typeof KEYS;
 
 // Layout the reader set by dragging; Reset layout clears these.
-const LAYOUT_KEYS = ["feld-mock-actor-width", "feld-mock-actor-column-widths", "feld-mock-sidebar-width", "feld-mock-sidebar", "feld-mock-metrics-window", "feld-mock-actor-order"];
+const LAYOUT_KEYS = ["feld-mock-actor-width", "feld-mock-actor-column-widths", "feld-mock-sidebar-width", "feld-mock-sidebar", "feld-mock-metrics-window", "feld-mock-actor-order", "feld-mock-collapsed-workspaces"];
 // The Actor pins and Metrics lanes the reader set on the Actors page; Reset all returns them to the default.
 const PIN_KEYS = ["feld-mock-actor-pins", "feld-mock-metric-lanes"];
 

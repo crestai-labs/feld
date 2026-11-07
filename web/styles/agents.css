@@ -13,16 +13,16 @@ feld-agents {
   color: var(--ink);
 }
 
-.feld-agents button,
-.feld-agents input,
-.feld-agents select {
+/* The Console resets its own controls in console.css. */
+.feld-agents button:where(:not(.feld-console__terminal *)),
+.feld-agents input:where(:not(.feld-console__terminal *)),
+.feld-agents select:where(:not(.feld-console__terminal *)) {
   font: inherit;
   color: inherit;
 }
 
-.feld-agents button:focus-visible,
-.feld-agents input:focus-visible,
-.feld-agents select:focus-visible {
+/* Only the pseudo-class counts (0,1,0), so a control's own focus rule wins wherever its stylesheet loads. */
+:where(.feld-agents) :where(button, input, select):focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 1px;
 }
@@ -1442,9 +1442,13 @@ feld-agents {
   stroke-width: 1.5;
 }
 
+/* The label column keeps the width of the Actor name and the Actor table columns, so the
+   chart starts where the Timeline does, and pins like them as far as
+   --agents-pinned-width allows. Its contents stay at that pinned width from the left edge,
+   so the lane names stay in view. */
 .feld-agents__metric-labels {
   position: sticky;
-  left: 0;
+  left: calc(var(--agents-pinned-width) - var(--agents-identity-width) - var(--agents-details-width));
   z-index: 9;
   width: calc(var(--agents-identity-width) + var(--agents-details-width));
   flex: 0 0 calc(var(--agents-identity-width) + var(--agents-details-width));
@@ -1545,11 +1549,13 @@ feld-agents {
   text-transform: none;
 }
 
-/* The lane name and caption on top, one reading row per Runtime under them. */
-/* A lane label is the lane's name over its readings; where the column has the Actor
-   table's width, the name keeps the Actor name's width and the readings form a table
-   beside it (see the container query below). */
-.feld-agents__metric-labels {
+/* A lane label is the lane's name over its readings; where the pinned labels have the
+   room, the name keeps the Actor name's width and the readings form a table beside it
+   (see the container query below). */
+.feld-agents__metric-labels-pinned {
+  position: sticky;
+  left: 0;
+  width: var(--agents-pinned-width);
   container-type: inline-size;
 }
 
@@ -1662,8 +1668,9 @@ feld-agents {
 }
 
 @container (min-width: 560px) {
+  /* The name gives way before the readings, which keep their table's minimum width. */
   .feld-agents__metric-label {
-    grid-template-columns: calc(var(--agents-identity-width) - 26px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, calc(var(--agents-identity-width) - 26px)) minmax(min-content, 1fr);
     align-items: center;
   }
 
@@ -2119,6 +2126,104 @@ feld-agents {
 
 .feld-agents__action-cell + .feld-agents__action-cell {
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+/* A Workspace lane's heading row in the All workspaces view, the same height in every
+   column and shaded like its row across the Timeline (.feld-agents__lane-heading-band). */
+.feld-agents__lane-heading,
+.feld-agents__lane-heading-cell {
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--bg) 70%, var(--panel));
+}
+
+.feld-agents__lane-heading:not(:first-child),
+.feld-agents__lane-heading-cell:not(:first-child) {
+  border-top: 1px solid var(--line);
+}
+
+.feld-agents__lane-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 6px 0 8px;
+  white-space: nowrap;
+}
+
+.feld-agents .feld-agents__lane-toggle,
+.feld-agents .feld-agents__lane-new {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.feld-agents__lane-toggle:hover,
+.feld-agents__lane-new:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.feld-agents__lane-toggle svg,
+.feld-agents__lane-new svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feld-agents__lane-toggle svg {
+  transition: transform 120ms ease;
+}
+
+.feld-agents__lane-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.feld-agents .feld-agents__lane-workspace {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.feld-agents__lane-workspace:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.feld-agents__lane-counts {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--ink-faint-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.feld-agents__lane-toggle:focus-visible,
+.feld-agents__lane-workspace:focus-visible,
+.feld-agents__lane-new:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
 }
 
 .feld-agents__action-button {
@@ -2863,6 +2968,10 @@ feld-agents {
   opacity: .7;
 }
 
+.feld-agents__lane-heading-band {
+  fill: color-mix(in srgb, var(--bg) 70%, var(--panel));
+}
+
 .feld-agents__session {
   fill: none;
   stroke: var(--timeline-session, var(--ink));
@@ -3028,7 +3137,8 @@ feld-agents {
     animation: none;
   }
 
-  .feld-agents__section-toggle svg {
+  .feld-agents__section-toggle svg,
+  .feld-agents__lane-toggle svg {
     transition: none;
   }
 
@@ -3707,6 +3817,21 @@ feld-agents {
   .feld-agents__action-cell {
     align-items: flex-start;
     justify-content: flex-end;
+  }
+
+  /* The heading row is one line as wide as a band's name row, over the shaded row the
+     Timeline draws across the full width. */
+  .feld-agents__band-labels .feld-agents__lane-heading {
+    width: fit-content;
+    max-width: calc(100% - 44px);
+    background: transparent;
+    border-top: 0;
+    pointer-events: auto;
+  }
+
+  .feld-agents__actions .feld-agents__lane-heading-cell {
+    background: transparent;
+    border-top: 0;
   }
 
   .feld-agents__bands .feld-agents__action-button {

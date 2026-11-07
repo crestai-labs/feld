@@ -190,15 +190,16 @@ fn apply_matches_the_file_once_and_prunes_only_its_own_actors_when_asked() {
     );
     assert!(!writer.to_string().contains("s3cr3t"));
     let reviewer = fixture.json(&["actor", "get", "reviewer", "--json"]);
-    assert_eq!(reviewer["actor"]["acceptFrom"], serde_json::json!(["writer"]));
+    assert_eq!(
+        reviewer["actor"]["acceptFrom"],
+        serde_json::json!(["writer"])
+    );
 
     // What the file leaves out stays: a paused Schedule, and the grants given by hand.
     fixture.json(&["actor", "pause", "writer", "--json"]);
     assert!(actions(&fixture.json(&["diff", "-f", &file, "--json"])).is_empty());
     let reviewer_with_grants = REVIEWER.replace("    acceptFrom: [writer]\n", "");
-    fixture.json(&[
-        "actor", "update", "reviewer", "--grant", "read", "--json",
-    ]);
+    fixture.json(&["actor", "update", "reviewer", "--grant", "read", "--json"]);
     let file = fixture.declare(&format!("{WRITER}{reviewer_with_grants}"));
     assert!(
         actions(&fixture.json(&["diff", "-f", &file, "--json"])).is_empty(),

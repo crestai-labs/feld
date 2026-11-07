@@ -245,6 +245,7 @@ impl Store {
                 schedule,
                 grants,
                 accept_from: None,
+                requester_session_id: None,
             },
             default_timezone,
             Writer::Admin,
@@ -252,7 +253,8 @@ impl Store {
     }
 
     /// [`Self::update_actor`] by `writer`, which also takes the rename of the patch. A Session
-    /// changes no Actor with grants or `trustWorkdir`.
+    /// changes no Actor with grants or `trustWorkdir`, except that [`Writer::Control`] pauses
+    /// and resumes the Schedule of any Job.
     pub fn update_actor_as(
         &self,
         workspace: &str,
@@ -267,6 +269,7 @@ impl Store {
             schedule,
             grants,
             accept_from,
+            requester_session_id,
         } = patch;
         self.write("Actor update", |transaction, notices| {
             let current = get_actor(transaction, workspace, name)?.ok_or_else(|| {
@@ -275,7 +278,9 @@ impl Store {
                     actor: name.to_owned(),
                 }
             })?;
-            writer.check(transaction, Some(&current.id), current.kind, name)?;
+            if !(writer == Writer::Control && patch.toggles_only()) {
+                writer.check(transaction, Some(&current.id), current.kind, name)?;
+            }
             let at = now();
             let rename = rename.filter(|rename| *rename != name);
             if let Some(rename) = rename {
@@ -311,6 +316,7 @@ impl Store {
                 if current.kind != ActorKind::Job {
                     return Err(ActorWriteError::NotJob(name.to_owned()));
                 }
+                let was_enabled = current.schedule.as_ref().map(|schedule| schedule.enabled);
                 let schedule = match current.schedule {
                     Some(existing) => existing.apply_patch(patch, &at),
                     None => Schedule::from_patch(patch, &at, default_timezone)
@@ -320,6 +326,14 @@ impl Store {
                     .validate()
                     .map_err(ActorWriteError::InvalidSchedule)?;
                 write_schedule(transaction, &current.id, Some(&schedule))?;
+                if was_enabled.is_some_and(|was| was != schedule.enabled) {
+                    let kind = if schedule.enabled {
+                        RecordKind::ScheduleResumed
+                    } else {
+                        RecordKind::SchedulePaused
+                    };
+                    append_toggle(transaction, &current.id, kind, &at, requester_session_id)?;
+                }
             }
             if let Some(grants) = grants {
                 transaction
@@ -392,6 +406,29 @@ impl Store {
     }
 }
 
+/// Records a pause or a resume of the Schedule of the Actor `id`, with the Session that asked
+/// for it.
+fn append_toggle(
+    transaction: &Connection,
+    id: &str,
+    kind: RecordKind,
+    at: &str,
+    requester_session_id: Option<&str>,
+) -> Result<()> {
+    transaction
+        .execute(
+            "INSERT INTO records (at, kind, actor_id, session_id, data) VALUES (?1, ?2, ?3, NULL, ?4)",
+            params![
+                at,
+                Text(kind),
+                id,
+                serde_json::json!({ "requesterSessionId": requester_session_id }).to_string()
+            ],
+        )
+        .context("append Schedule toggle")?;
+    Ok(())
+}
+
 /// Who writes an Actor. A Session writes only an Actor without grants or `trustWorkdir` of a
 /// kind its grants manage, which the write checks in its own transaction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -402,6 +439,9 @@ pub enum Writer {
         agents: bool,
         jobs: bool,
     },
+    /// A Session with `control`, which only pauses and resumes the Schedule of a Job, whatever
+    /// grants or `trustWorkdir` the Job has: the launchSpec it runs stays as it is.
+    Control,
 }
 
 impl Writer {
@@ -413,6 +453,7 @@ impl Writer {
                 ActorKind::Agent => agents,
                 ActorKind::Job => jobs,
             },
+            Writer::Control => false,
         }
     }
 
@@ -431,7 +472,7 @@ impl Writer {
                 kind,
             });
         }
-        let (Writer::Session { .. }, Some(id)) = (self, id) else {
+        let (Writer::Session { .. } | Writer::Control, Some(id)) = (self, id) else {
             return Ok(());
         };
         let (grants, launch_spec): (String, Option<String>) = transaction
@@ -467,6 +508,20 @@ pub struct ActorPatch<'a> {
     pub schedule: Option<&'a SchedulePatch>,
     pub grants: Option<&'a BTreeSet<Grant>>,
     pub accept_from: Option<Option<&'a BTreeSet<String>>>,
+    /// The Session that asks for the update, which a pause or a resume records as its
+    /// requester; `None` for the Admin.
+    pub requester_session_id: Option<&'a str>,
+}
+
+impl ActorPatch<'_> {
+    /// Whether the patch changes only the `enabled` of the Schedule: a pause or a resume.
+    pub fn toggles_only(&self) -> bool {
+        self.rename.is_none()
+            && self.launch.is_none()
+            && self.grants.is_none()
+            && self.accept_from.is_none()
+            && self.schedule.is_some_and(SchedulePatch::toggles_only)
+    }
 }
 
 /// What a declaration writes of an Actor. A field that is None is kept on a replaced

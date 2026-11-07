@@ -97,3 +97,43 @@ test("typing in the composer or resizing the inspector leaves the bands pane as 
   expect(bands.draws).toBeGreaterThan(0);
   await act(async () => root.unmount());
 });
+
+test("All workspaces draws a heading row per Workspace lane that folds the lane and selects its Workspace", async () => {
+  const page = document.createElement("div");
+  document.body.append(page);
+  const root = createRoot(page);
+  await act(async () => root.render(
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={["/ui/?scenario=three-days-ago-1h&workspace=*"]}><ActorsPage /></MemoryRouter>
+    </QueryClientProvider>,
+  ));
+  await vi.waitFor(() => expect(page.querySelector(".feld-agents__lane-heading")).not.toBeNull(), { timeout: 10000 });
+  const headings = () => [...page.querySelectorAll<HTMLElement>(".feld-agents__lane-heading")].map((heading) => heading.dataset.laneWorkspace);
+  const lanes = headings();
+  expect(lanes[0]).toBe("default");
+  expect(lanes.length).toBeGreaterThan(1);
+  // Every column and the Timeline keep a row for each heading.
+  expect(page.querySelectorAll(".feld-agents__actions .feld-agents__lane-heading-cell")).toHaveLength(lanes.length);
+  expect(page.querySelectorAll(".feld-agents__lane-heading-band")).toHaveLength(lanes.length);
+  // Inside a lane a band is named by its bare Actor name.
+  const names = [...page.querySelectorAll(".feld-agents__actor-name")].map((name) => name.textContent);
+  expect(names.every((name) => !name?.includes("/"))).toBe(true);
+
+  const other = lanes[1]!;
+  const bandsOf = (workspace: string) => page.querySelectorAll(`.feld-agents__actor-name[data-agent-id^="${workspace}/"]`).length;
+  expect(bandsOf(other)).toBeGreaterThan(0);
+  await act(async () => page.querySelector<HTMLButtonElement>(`[data-action="toggle-workspace-lane"][data-workspace="${other}"]`)!.click());
+  expect(bandsOf(other)).toBe(0);
+  expect(headings()).toEqual(lanes);
+  expect(store().collapsedWorkspaces).toEqual([other]);
+
+  // New actor from a heading starts its draft in that Workspace.
+  await act(async () => page.querySelector<HTMLButtonElement>(`.feld-agents__lane-new[data-workspace="${other}"]`)!.click());
+  expect(store().newActor).toMatchObject({ workspace: other, chooseWorkspace: false });
+  await act(async () => store().closeNewActor());
+
+  await act(async () => page.querySelector<HTMLButtonElement>(`[data-action="select-workspace"][data-workspace="${other}"]`)!.click());
+  expect(store().workspace).toBe(other);
+  expect(page.querySelector(".feld-agents__lane-heading")).toBeNull();
+  await act(async () => root.unmount());
+});

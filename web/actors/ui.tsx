@@ -155,9 +155,11 @@ export function usePageActions() {
       returnFocus(card);
     }
 
-    function openNewActor() {
+    // The draft starts in `workspace` when given (a Workspace lane's heading), else in the
+    // selected Workspace.
+    function openNewActor(workspace: string | null = null) {
       const state = store();
-      state.openNewActor(state.workspace || "", model.TIME_ZONE, model.input.launchOptions);
+      state.openNewActor(workspace || state.workspace || "", model.TIME_ZONE, model.input.launchOptions);
       focus(`[data-new-actor] [name="${store().newActor?.chooseWorkspace ? "workspace" : "name"}"]`);
     }
 

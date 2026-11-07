@@ -8,12 +8,12 @@
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useActorsModel } from "./context.ts";
-import { actorColumns, actorColumnsWidth, COMPACT_LAYOUT_QUERY, isPinned, kindLabel, kindRules } from "./model.ts";
+import { actorColumns, actorColumnsWidth, type ActorsModel, COMPACT_LAYOUT_QUERY, isPinned, kindLabel, kindRules, WORKSPACE_HEADING_HEIGHT } from "./model.ts";
 import { ColumnResizer, PaneResizer, type ResizeKind } from "./resize.tsx";
 import { useShallow } from "zustand/react/shallow";
 import { markPointerFocusedLane } from "./charts/interaction.ts";
 import { useActorsStore } from "./store.ts";
-import type { ActorRecord, AgentsState, Focus } from "./types.ts";
+import type { ActorRecord, AgentsState, BandLane, Focus } from "./types.ts";
 import { ClockGlyph, GearGlyph, useActorsTools, usePageActions, useReturnFocus } from "./ui.tsx";
 import { deleteActorFromMenu, killActorSession, refuseMenuAction, setScheduleEnabled, startActorSession, stopActorSession } from "./mutations.ts";
 import { MetricsWindowControl, TimeControls } from "./Heading.tsx";
@@ -27,7 +27,7 @@ import { actorStateTooltip, useChartTooltip } from "./charts/hover.tsx";
 // widths dragged outside the pane stay out, so typing or resizing there leaves it as drawn.
 type BandsView = Pick<AgentsState,
   | "workspace" | "query" | "mode" | "anchor" | "duration" | "metricsDuration" | "actorOrder" | "actorPins"
-  | "showAgentsOutsideRange" | "showSubAgents" | "frozenBandIds" | "actorsCollapsed" | "metricsCollapsed"
+  | "showAgentsOutsideRange" | "showSubAgents" | "frozenBandIds" | "collapsedWorkspaces" | "actorsCollapsed" | "metricsCollapsed"
   | "actorWidth" | "visibleActorDetails" | "actorColumnWidths" | "agentsPaneHeight" | "visibleMetricIds"
   | "timelineGuideOpen" | "agentDisplayMenuOpen" | "metricsMenuOpen" | "actionMenuAgent"
   | "inspectedSessionId" | "actorCard" | "focusedActorId" | "compactLayout">;
@@ -45,6 +45,7 @@ function selectBandsView(state: AgentsState): BandsView {
     showAgentsOutsideRange: state.showAgentsOutsideRange,
     showSubAgents: state.showSubAgents,
     frozenBandIds: state.frozenBandIds,
+    collapsedWorkspaces: state.collapsedWorkspaces,
     actorsCollapsed: state.actorsCollapsed,
     metricsCollapsed: state.metricsCollapsed,
     actorWidth: state.actorWidth,
@@ -67,6 +68,8 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
   const model = useActorsModel();
   const state = useActorsStore(useShallow(selectBandsView));
   const agents = model.bandAgents(state);
+  const lanes = model.bandLanes(state);
+  const empty = !agents.length && !lanes?.length;
   const range = model.rangeFor(state);
   const bandsScroll = useRef<HTMLDivElement>(null);
   const metricsScroll = useRef<HTMLDivElement>(null);
@@ -99,7 +102,7 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
 
   return (
     <div className={`feld-agents__bands${state.metricsCollapsed ? " is-metrics-collapsed" : ""}${state.actorsCollapsed ? " is-actors-collapsed" : ""}`} style={style}>
-      <ActorsHead state={state} agents={agents} />
+      <ActorsHead state={state} />
       <div className="feld-agents__bands-scroll" ref={bandsScroll} onScroll={() => follow(bandsScroll.current, metricsScroll.current)}>
         <div className="feld-agents__bands-content">
           {state.compactLayout ? null : (
@@ -120,15 +123,15 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
               <div className="feld-agents__actions-head"></div>
             </div>
           )}
-          <div className={`feld-agents__body${agents.length ? "" : " is-empty"}`}>
-            <BandLabels state={state} agents={agents} />
-            <ActorDetailRows state={state} agents={agents} />
+          <div className={`feld-agents__body${empty ? " is-empty" : ""}`}>
+            <BandLabels state={state} agents={agents} lanes={lanes} />
+            <ActorDetailRows state={state} agents={agents} lanes={lanes} />
             <div className="feld-agents__chart">
-              <TimelineSvg agents={agents} />
-              {agents.length ? null : <EmptyBands state={state} range={range} />}
+              <TimelineSvg agents={agents} lanes={lanes} />
+              {empty ? <EmptyBands state={state} range={range} /> : null}
             </div>
             <div className="feld-agents__actions">
-              {agents.map((agent) => <ActionCell key={agent.id} agent={agent} state={state} />)}
+              {laneRows(lanes, agents, (lane) => <LaneHeadingCell key={`lane:${lane.workspace}`} />, (agent) => <ActionCell key={agent.id} agent={agent} state={state} />)}
             </div>
           </div>
           <AxisRow range={range} attribute="data-timeline-axis" />
@@ -143,7 +146,7 @@ export const Bands = memo(function Bands({ onResizing }: { onResizing: (kind: Re
               <div className={`feld-agents__metrics-body${hasMetricLanes ? "" : " is-empty"}`}>
                 {hasMetricLanes ? (
                   <>
-                    <div className="feld-agents__metric-labels"><MetricLabels /></div>
+                    <div className="feld-agents__metric-labels"><div className="feld-agents__metric-labels-pinned"><MetricLabels /></div></div>
                     <div className="feld-agents__metrics-chart">
                       <MetricsSvg />
                     </div>
@@ -165,8 +168,10 @@ const TOGGLE_GLYPH = <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m4 2.5
 // The Actors section's own header, above the table and outside its scrolling: the fold,
 // how many Actors the table shows (or, folded, how many are running), and the time
 // controls, which set the range of the Timeline and, through it, of Metrics.
-function ActorsHead({ state, agents }: { state: BandsView; agents: ActorRecord[] }) {
+function ActorsHead({ state }: { state: BandsView }) {
   const model = useActorsModel();
+  // The count and the range's hidden Actors read the listed Actors, folded lanes included.
+  const agents = model.listedAgents(state);
   const { focus } = usePageActions();
   const store = useActorsStore.getState;
   const all = model.workspaceAgents(state);
@@ -260,12 +265,48 @@ function EmptyBands({ state, range }: { state: BandsView; range: FeldMetricRange
         <p>{state.workspace ? "This Workspace has no Actors yet" : "No Workspace has an Actor yet"}.</p>
         <p>Attach a Claude Code you already run: type <code>/feld attach</code> in it.</p>
         <p>Or start an Agent or a Job from Feld.</p>
-        <button className="feld-agents__button" type="button" data-action="new-actor" aria-haspopup="dialog" onClick={openNewActor}>New actor</button>
+        <button className="feld-agents__button" type="button" data-action="new-actor" aria-haspopup="dialog" onClick={() => openNewActor()}>New actor</button>
       </div>
     );
   }
   if (reason === "no-match") return <div className="feld-agents__empty">No actors match the search query. The empty Timeline remains available for time navigation.</div>;
   return <div className="feld-agents__empty">No Actor has a Session in {model.formatRange(range)}. Drag or horizontally scroll this empty Timeline to move through time, or keep Actors without Sessions in range from the display settings.</div>;
+}
+
+// ---- Workspace lanes ---------------------------------------------------------------------
+
+// The rows of one column: with Workspace lanes, each lane's heading row and then its bands
+// unless it is folded; otherwise the bands alone.
+function laneRows(lanes: BandLane[] | null, agents: ActorRecord[], heading: (lane: BandLane) => ReactNode, band: (agent: ActorRecord) => ReactNode) {
+  if (!lanes) return agents.map(band);
+  return lanes.flatMap((lane) => [heading(lane), ...(lane.collapsed ? [] : lane.agents.map(band))]);
+}
+
+// A lane heading's row in the columns beside the label column, which keeps them level.
+function LaneHeadingCell() {
+  return <div className="feld-agents__lane-heading-cell" style={{ height: `${WORKSPACE_HEADING_HEIGHT}px` }} aria-hidden="true"></div>;
+}
+
+// A Workspace lane's heading in the label column: the fold, the Workspace key, which
+// selects the Workspace, the lane's counts, which stay while it is folded, and New actor
+// in that Workspace.
+function LaneHeading({ lane }: { lane: BandLane }) {
+  const model = useActorsModel();
+  const { focus, openNewActor } = usePageActions();
+  const counts = model.laneCounts(lane);
+  const toggle = `[data-action="toggle-workspace-lane"][data-workspace="${lane.workspace}"]`;
+  return (
+    <div className={`feld-agents__lane-heading${lane.collapsed ? " is-collapsed" : ""}`} style={{ height: `${WORKSPACE_HEADING_HEIGHT}px` }} data-lane-workspace={lane.workspace}>
+      <button type="button" className="feld-agents__lane-toggle" data-action="toggle-workspace-lane" data-workspace={lane.workspace} aria-expanded={!lane.collapsed} aria-label={`${lane.collapsed ? "Show" : "Fold"} the Workspace ${lane.workspace} lane`} title={lane.collapsed ? "Show this Workspace's Actors" : "Fold this Workspace to its heading"} onClick={() => { useActorsStore.getState().toggleWorkspaceCollapsed(lane.workspace); focus(toggle); }}>
+        {TOGGLE_GLYPH}
+      </button>
+      <button type="button" className="feld-agents__lane-workspace" data-action="select-workspace" data-workspace={lane.workspace} title={`Show only Workspace ${lane.workspace}`} onClick={() => useActorsStore.getState().selectWorkspace(lane.workspace)}>{lane.workspace}</button>
+      <small className="feld-agents__lane-counts" title={counts.title}>{counts.label}</small>
+      <button type="button" className="feld-agents__lane-new" data-action="new-actor" data-workspace={lane.workspace} aria-haspopup="dialog" aria-label={`New actor in Workspace ${lane.workspace}`} title={`Declare an Agent or a Job in Workspace ${lane.workspace}`} onClick={() => openNewActor(lane.workspace)}>
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.5v7M2.5 6h7"></path></svg>
+      </button>
+    </div>
+  );
 }
 
 // ---- Label column ---------------------------------------------------------------------
@@ -278,8 +319,8 @@ interface DropTarget {
 
 // Rows reorder by dragging a row's name cell onto another row. Pinned rows stay above the
 // rest, so a drop among the pinned rows pins the dragged one and a drop among the unpinned
-// rows unpins it.
-function BandLabels({ state, agents }: { state: BandsView; agents: ActorRecord[] }) {
+// rows unpins it. With Workspace lanes a row moves only inside its own lane.
+function BandLabels({ state, agents, lanes }: { state: BandsView; agents: ActorRecord[]; lanes: BandLane[] | null }) {
   const model = useActorsModel();
   const focus = model.focusFor(state);
   const [dragged, setDragged] = useState<string | null>(null);
@@ -297,6 +338,7 @@ function BandLabels({ state, agents }: { state: BandsView; agents: ActorRecord[]
 
   function dropTargetFor(event: DragEvent<HTMLDivElement>, agent: ActorRecord): DropTarget | null {
     if (!dragged || agent.id === dragged) return null;
+    if (lanes && agents.find((candidate) => candidate.id === dragged)?.workspace !== agent.workspace) return null;
     const rect = event.currentTarget.getBoundingClientRect();
     return { id: agent.id, after: event.clientY > rect.top + rect.height / 2 };
   }
@@ -330,7 +372,7 @@ function BandLabels({ state, agents }: { state: BandsView; agents: ActorRecord[]
 
   return (
     <div className="feld-agents__band-labels">
-      {agents.map((agent) => <BandLabel key={agent.id} agent={agent} state={state} focus={focus} drag={drag} dragging={dragged === agent.id} drop={drop?.id === agent.id ? drop : null} />)}
+      {laneRows(lanes, agents, (lane) => <LaneHeading key={`lane:${lane.workspace}`} lane={lane} />, (agent) => <BandLabel key={agent.id} agent={agent} state={state} focus={focus} drag={drag} dragging={dragged === agent.id} drop={drop?.id === agent.id ? drop : null} />)}
     </div>
   );
 }
@@ -363,10 +405,16 @@ const PIN_MARK = (
   </svg>
 );
 
+// A band is named by its bare Actor name: the selected Workspace or the lane's heading
+// names its Workspace.
+function bandLabel(model: ActorsModel, agent: ActorRecord) {
+  return model.actorLabel(agent.id, { workspace: agent.workspace }, agent.workspace);
+}
+
 function BandLabel({ agent, state, focus, drag, dragging, drop }: { agent: ActorRecord; state: BandsView; focus: Focus | null; drag: RowDrag; dragging: boolean; drop: DropTarget | null }) {
   const model = useActorsModel();
   const { openActorCard } = usePageActions();
-  const label = model.actorLabel(agent.id, state);
+  const label = bandLabel(model, agent);
   const pinned = isPinned(state, agent);
   const classes = [
     "feld-agents__band-label",
@@ -441,13 +489,13 @@ function ActorDetailHead({ state, onResizing }: { state: BandsView; onResizing: 
   );
 }
 
-function ActorDetailRows({ state, agents }: { state: BandsView; agents: ActorRecord[] }) {
+function ActorDetailRows({ state, agents, lanes }: { state: BandsView; agents: ActorRecord[]; lanes: BandLane[] | null }) {
   const model = useActorsModel();
   const columns = actorColumns(state);
   return (
     <div className="feld-agents__band-details">
-      {agents.map((agent) => (
-        <div key={agent.id} className={`feld-agents__band-detail${state.focusedActorId === agent.id ? " is-focused" : ""}`} style={{ height: `${model.laneHeightFor(agent.id, state)}px` }} data-focus-actor={agent.id} title={`Select ${model.actorLabel(agent.id, state)} relationships`} onClick={(event) => selectActorFrom(event, agent.id)}>
+      {laneRows(lanes, agents, (lane) => <LaneHeadingCell key={`lane:${lane.workspace}`} />, (agent) => (
+        <div key={agent.id} className={`feld-agents__band-detail${state.focusedActorId === agent.id ? " is-focused" : ""}`} style={{ height: `${model.laneHeightFor(agent.id, state)}px` }} data-focus-actor={agent.id} title={`Select ${bandLabel(model, agent)} relationships`} onClick={(event) => selectActorFrom(event, agent.id)}>
           {columns.map((option) => <span key={option.id} className="feld-agents__detail-cell" style={{ width: `${option.width}px` }}><ActorDetailCell agent={agent} detailId={option.id} /></span>)}
         </div>
       ))}

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { readingPlaces, useConsoleStore } from "../console/store.ts";
-import { createInitialState, storedActorColumnWidths, storedActorWidth, storedMetricChoices, useActorsStore } from "./store.ts";
+import { createInitialState, storedActorColumnWidths, storedActorWidth, storedCollapsedWorkspaces, storedMetricChoices, useActorsStore } from "./store.ts";
 import type { ActorRecord } from "./types.ts";
 
 // The transitions of the Actors page's UI state.
@@ -225,6 +225,18 @@ test("stored lane choices that cannot be read fall back to the defaults", () => 
   store().reset(undefined, NOW);
   store().showDefaultMetrics([{ id: "api-errors", defaultVisible: true }, { id: "tool-calls", defaultVisible: false }]);
   expect([...store().visibleMetricIds]).toEqual(["api-errors"]);
+});
+
+test("a folded Workspace lane is stored and read back when the page opens again", () => {
+  stubStorage();
+  store().toggleWorkspaceCollapsed("home");
+  store().toggleWorkspaceCollapsed("research");
+  store().toggleWorkspaceCollapsed("home");
+  expect(store().collapsedWorkspaces).toEqual(["research"]);
+  store().reset(null, NOW);
+  expect(store().collapsedWorkspaces).toEqual(["research"]);
+  localStorage.setItem("feld-mock-collapsed-workspaces", "{not json");
+  expect(storedCollapsedWorkspaces()).toEqual([]);
 });
 
 test("the compact layout starts with Metrics folded, and follows the viewport across the breakpoint", () => {
