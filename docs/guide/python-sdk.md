@@ -7,7 +7,7 @@ The `feld` package calls the [daemon API](daemon-api.md) from Python. `feld.Clie
 The SDK needs Python 3.11 or later. Install the version of your Feld from the repository:
 
 ```sh
-pip install "feld-sdk @ git+https://github.com/crestai-labs/feld@v0.2.1#subdirectory=sdk/python"
+pip install "feld-sdk @ git+https://github.com/crestai-labs/feld@v0.3.0#subdirectory=sdk/python"
 ```
 
 The wheel is also attached to each [GitHub Release](https://github.com/crestai-labs/feld/releases) as `feld_sdk-<version>-py3-none-any.whl`.
