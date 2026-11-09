@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use super::CollectorConfig;
 use super::child::wait_for_parent_exit;
+use super::connections::{ConnectionLimits, serve_connections};
 use super::queue::{Envelope, Queue};
 use super::tokens::{TokenCheck, Verdict};
 use feld_core::telemetry::proto;
@@ -61,17 +62,13 @@ pub(super) async fn serve(listener: TcpListener, config: CollectorConfig) -> Res
         });
     let worker = tokio::spawn(forward_requests(
         queue,
-        shutdown_rx.clone(),
+        shutdown_rx,
         client,
         format!("{}/v1/self/telemetry", config.daemon_api),
         config.internal_token,
     ));
-    let mut server_shutdown = shutdown_rx;
-    let server = axum::serve(listener, app).with_graceful_shutdown(async move {
-        wait_for_shutdown(&mut server_shutdown).await;
-    });
     tokio::select! {
-        result = server => result.context("serve collector endpoint")?,
+        () = serve_connections(listener, app, ConnectionLimits::default()) => {},
         signal = tokio::signal::ctrl_c() => signal.context("wait for collector shutdown")?,
         () = wait_for_parent_exit(config.parent_pid) => {},
     }
@@ -235,17 +232,6 @@ pub(super) fn retryable(status: StatusCode) -> bool {
     status.is_server_error()
         || status == StatusCode::REQUEST_TIMEOUT
         || status == StatusCode::TOO_MANY_REQUESTS
-}
-
-async fn wait_for_shutdown(shutdown_rx: &mut watch::Receiver<bool>) {
-    if *shutdown_rx.borrow() {
-        return;
-    }
-    while shutdown_rx.changed().await.is_ok() {
-        if *shutdown_rx.borrow() {
-            return;
-        }
-    }
 }
 
 fn is_protobuf(headers: &HeaderMap) -> bool {
