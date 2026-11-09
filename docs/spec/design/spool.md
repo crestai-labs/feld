@@ -127,9 +127,9 @@ A single UTF-8 JSON object.
 
 ### Watching
 
-The daemon watches each directory of the spool with the OS file notification (FSEvents on macOS, inotify on Linux) and picks up the appearance of `<id>.request` within a few ms. To keep making progress even if notifications are missed, it scans each directory every second.
+The daemon watches each directory of the spool with the OS file notification (FSEvents on macOS, inotify on Linux) and picks up the appearance of `<id>.request` within a few ms. Notifications that come during a scan merge into one scan after it. To keep making progress even if notifications are missed, it scans each directory every second.
 
-Each request is processed in its own task, so a long-waiting request (`feld self message recv --wait`) never blocks other requests. As with TCP, the order between requests from different processes is not defined. A single CLI waits for a response before writing its next request, so its requests are processed in that order.
+Each request is processed in its own task, so a long-waiting request (`feld self message recv --wait`) never blocks other requests. A directory has at most 16 requests in processing at once; the rest stay `<id>.request` until one ends, and the callers of its requests are checked one at a time, so a sandbox that writes many requests delays only its own directory. As with TCP, the order between requests from different processes is not defined. A single CLI waits for a response before writing its next request, so its requests are processed in that order.
 
 ### Acceptance
 
